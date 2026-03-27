@@ -31,6 +31,7 @@
 
 /***************************** Local Declarations *****************************/
 
+// Types
 enum MainRC
 {
    MAINRC_FINE                    = 0x0000,
@@ -43,10 +44,11 @@ enum MainRC
    MAINRC_FAILED_CLOSE            = 0x0040,
 };
 
+// File-Scope Variables
 static volatile sig_atomic_t bUserEndedSession = false;
 
+// Local Function Declarations
 static void handleSIGINT(int sig_num);
-
 
 /******************************* Main Function ********************************/
 int main(int argc, char * argv[])
@@ -63,6 +65,7 @@ int main(int argc, char * argv[])
                       &sa_cfg,
                       nullptr /* old sig action */ );
 
+#ifndef NDEBUG
    if ( sysrc != 0 )
    {
       fprintf( stderr,
@@ -74,8 +77,24 @@ int main(int argc, char * argv[])
 
       mainrc |= MAINRC_SIGINT_REGISTRATION_ERR;
    }
+#endif
 
+   // TODO: Create command UNIX Domain Socket? Use CLI arg only to set fault simulation mode?
 
+   // Create persistent listening socket on port 21069
+
+   // While loop
+      // Await packet
+
+      // Validate request packet
+
+      // Initiate FSM for session and wait for completion
+
+      // Await (/w timeout) for update on fault simulation mode
+
+   // Cleanup
+
+Main_ExitTag:
    return mainrc;
 }
  
