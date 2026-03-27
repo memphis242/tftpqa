@@ -92,7 +92,8 @@ GCC_EXTRA_WARNS := \
 	-Wuse-after-free=2 \
 	-Wimplicit-fallthrough=3 \
 	-Walloc-zero -Walloc-size \
-	-Wuseless-cast -Wtrampolines
+	-Wuseless-cast -Wtrampolines \
+	-fdiagnostics-color
 
 # Additional warnings only Clang understands
 CLANG_EXTRA_WARNS := \
@@ -182,9 +183,10 @@ all: debug
 # ─── Release ──────────────────────────────────────────────────────────────────
 
 release: $(REL_BIN)
-	@echo ""
-	@echo ""
-	@echo "=== Release build complete: $< ==="
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "Release Executable \033[35m$< \033[32;1mbuilt\033[0m!"
+	@echo "----------------------------------------"
 
 # Also compile with Clang for its extra diagnostics (no binary kept)
 release: CLANG_CHECK = clang_release_check
@@ -201,7 +203,10 @@ $(REL_DIR):
 # Clang compile pass for release (diagnostics only, no output kept)
 .PHONY: clang_release_check
 clang_release_check: | $(ANALYSIS_DIR)
-	@echo "--- Clang diagnostic pass (release) ---"
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[33mRunning Clang static analysis\033[0m..."
+	@echo
 	@for src in $(SRCS); do \
 		echo "  [CLANG] $$src"; \
 		$(CLANG) $(C_STD) $(COMMON_DEFS) $(COMMON_WARNS) $(CLANG_EXTRA_WARNS) \
@@ -213,14 +218,23 @@ clang_release_check: | $(ANALYSIS_DIR)
 # ─── Debug ────────────────────────────────────────────────────────────────────
 
 debug: $(DBG_BIN)
-	@echo ""
-	@echo ""
-	@echo "=== Debug build complete: $< ==="
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "Debug Executable \033[35m$< \033[32;1mbuilt\033[0m!"
+	@echo "----------------------------------------"
 
 $(DBG_BIN): $(DBG_OBJS) | clang_debug_check
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[32mConstructing\033[0m the output executable: $@..."
+	@echo
 	$(CC) $(DBG_CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(DBG_DIR)/%.o: $(SRC_DIR)/%.c | $(DBG_DIR)
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[36mCompiling\033[0m the source file: $<..."
+	@echo
 	$(CC) $(DBG_CFLAGS) -c -o $@ $<
 
 $(DBG_DIR):
@@ -229,7 +243,10 @@ $(DBG_DIR):
 # Clang compile pass for debug (diagnostics only, warnings — no -Werror)
 .PHONY: clang_debug_check
 clang_debug_check: | $(ANALYSIS_DIR)
-	@echo "--- Clang diagnostic pass (debug) ---"
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[33mRunning Clang static analysis\033[0m..."
+	@echo
 	@for src in $(SRCS); do \
 		echo "  [CLANG] $$src"; \
 		$(CLANG) $(C_STD) $(COMMON_DEFS) $(COMMON_WARNS) $(CLANG_EXTRA_WARNS) \
@@ -241,7 +258,10 @@ clang_debug_check: | $(ANALYSIS_DIR)
 # ─── Test ─────────────────────────────────────────────────────────────────────
 
 test: $(TEST_BIN)
-	@echo "=== Running unit tests ==="
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[35mExecuting unit test\033[0m $<..."
+	@echo
 	./$(TEST_BIN)
 
 $(TEST_BIN): $(TEST_APP_OBJS) $(TEST_OBJS) $(UNITY_OBJS) | $(TEST_BUILD_DIR)
@@ -262,7 +282,10 @@ $(TEST_BUILD_DIR):
 # ─── Coverage ─────────────────────────────────────────────────────────────────
 
 coverage: test | $(COV_DIR)
-	@echo "=== Generating HTML coverage report ==="
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[33mGenerating HTML coverage report\033[0m..."
+	@echo
 	$(GCOVR) \
 		--root . \
 		--object-directory $(TEST_BUILD_DIR) \
@@ -281,11 +304,18 @@ $(COV_DIR):
 
 analysis: analysis_gcc analysis_clang
 	@echo "=== Static analysis complete ==="
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "Static analysis \033[32;1mcompletebuilt\033[0m"
+	@echo "----------------------------------------"
 
 .PHONY: analysis_gcc analysis_clang
 
 analysis_gcc: | $(ANALYSIS_DIR)
-	@echo "--- GCC -fanalyzer ---"
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[33mRunning GCC static analysis\033[0m on all src files..."
+	@echo
 	@for src in $(SRCS); do \
 		echo "  [GCC-ANALYZER] $$src"; \
 		$(CC) $(GCC_ANALYSIS_CFLAGS) $$src; \
@@ -293,7 +323,10 @@ analysis_gcc: | $(ANALYSIS_DIR)
 	@echo "--- GCC -fanalyzer complete ---"
 
 analysis_clang: | $(ANALYSIS_DIR)
-	@echo "--- Clang --analyze ---"
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[33mRunning Clang static analysis\033[0m on all src files..."
+	@echo
 	@for src in $(SRCS); do \
 		echo "  [CLANG-ANALYZE] $$src"; \
 		$(CLANG) $(CLANG_ANALYSIS_CFLAGS) $$src; \
