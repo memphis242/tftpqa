@@ -37,8 +37,11 @@
 #include "tftp_parsecfg.h"
 #include "tftp_pkt.h"
 #include "tftp_util.h"
+#include "tftptest_common.h"
 
 /***************************** Local Declarations *****************************/
+
+#define DEFAULT_TFTP_RQST_PORT 23069
 
 // Types
 enum MainRC
@@ -55,7 +58,6 @@ enum MainRC
 
 // File-Scope Variables
 static volatile sig_atomic_t bUserEndedSession = false;
-constexpr unsigned short TFTP_Test_NewConnPort = 23069;
 
 // Local Function Declarations
 static void handleSIGINT(int sig_num);
@@ -175,8 +177,8 @@ static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr)
 
    // Bind socket to pre-configured IP/port
    const struct in_addr numerical_addr = { .s_addr = INADDR_ANY }; // TODO: Configurable
-   const unsigned short port = TFTP_Test_NewConnPort;
-   sysrc = bind( *sfd_ptr,
+   const unsigned short port = DEFAULT_TFTP_RQST_PORT;
+   sysrc = bind( sfd,
                   (struct sockaddr *)
                   &(struct sockaddr_in) {
                      .sin_family = AF_INET,
