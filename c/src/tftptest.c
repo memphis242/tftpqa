@@ -30,6 +30,7 @@
 #include <arpa/inet.h>
 
 // Internal Headers
+#include "tftptest_faultmode.h"
 #include "tftp_err.h"
 #include "tftp_fsm.h"
 #include "tftp_log.h"
