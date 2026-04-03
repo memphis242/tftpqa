@@ -78,7 +78,7 @@ struct TFTP_FSM_Session_S TFTP_FSM_Session;
 
 /********************** Public Function Implementations ***********************/
 
-enum TFTP_FSM_RC TFTP_FSM_KickOff(uint8_t rqbuf[], size_t rqsz)
+enum TFTP_FSM_RC TFTP_FSM_KickOff(uint8_t *rqbuf, size_t rqsz)
 {
    enum TFTP_FSM_RC rc = TFTP_FSM_RC_FINE;
 

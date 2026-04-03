@@ -24,7 +24,7 @@ enum TFTP_FSM_RC
  * @param[in]
  * @return
  */
-enum TFTP_FSM_RC TFTP_FSM_KickOff(uint8_t rqbuf[], size_t rqsz);
+enum TFTP_FSM_RC TFTP_FSM_KickOff(uint8_t *rqbuf, size_t rqsz);
 
 /**
  * @brief Pre-empts the FSM, cleans up its content, and frees resources.

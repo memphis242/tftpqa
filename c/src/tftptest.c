@@ -72,6 +72,8 @@ int main(int argc, char * argv[])
 
    int sfd_newconn = 0; // socket id for new connections on the pre-configured port
 
+   // TODO: Set up logging
+
    // Register SIGINT handler
    struct sigaction sa_cfg;
    memset(&sa_cfg, 0x00, sizeof sa_cfg);
@@ -85,32 +87,61 @@ int main(int argc, char * argv[])
    // Really shouldn't happen, but I'll check for debug builds just in case.
    if ( sysrc != 0 )
    {
-      fprintf( stderr,
+      (void)fprintf( stderr,
                "Warning: sigaction() failed to register interrupt signal.\n"
                "Returned: %d, errno: %s (%d): %s\n"
                "You won't be able to stop the program gracefully /w Ctrl+C, \n"
                " though Ctrl+C will still terminate the program.",
                sysrc, strerrorname_np(errno), errno, strerror(errno) );
 
+      // TODO: Syslog
+
       return MAINRC_SIGINT_REGISTRATION_ERR;
    }
 #endif
 
-   // TODO: Create command UNIX Domain Socket? Use CLI arg only to set fault simulation mode?
+   // TODO: Create command UNIX Domain Socket to set fault simulation mode?
 
    // Set up socket for listening on for new session requests...
    mainrc |= (int)TFTP_Test_SetUpNewConnSock(&sfd_newconn);
    if ( mainrc != MAINRC_FINE )
-      goto Main_CleanupTag;
+      goto Main_CleanupTag; // FIXME: Jump skips variable initialization...
 
    // Primary loop
-   while ( !bUserEndedSession )
+   size_t nreps = 0;
+   const size_t MAX_RQSTS = 10000;
+   while ( !bUserEndedSession && nreps++ < MAX_RQSTS )
    {
       // Await packet
+      uint8_t buf[TFTP_RQST_MAX_SZ + 1] = {0};
+      struct sockaddr_in peer_addr = {0};
+      socklen_t addrlen = 0;
+
+      ssize_t nbytes = recvfrom( sfd_newconn,
+                                 buf, sizeof buf,
+                                 0, /* flags */
+                                 &peer_addr, &addrlen );
 
       // Validate request packet
+      assert( nbytes <= (ssize_t)sizeof(buf) );
+      if ( nbytes == sizeof buf )
+      {
+         // TODO: Log that message received that was too large to be a valid RRQ/WRQ
+         continue;
+      }
+      else if ( nbytes < 0 )
+      {
+         // TODO: Log that an error has occured in recvfrom()
+         continue;
+      }
+      else if ( TFTP_PKT_RequestIsValid(buf, (size_t)nbytes) )
+      {
+         // TODO: Log that a malformed request was received
+         continue;
+      }
 
       // Initiate FSM for session and wait for completion
+      enum TFTP_FSM_RC fsm_rc = TFTP_FSM_KickOff(buf, (size_t)nbytes);
 
       // Await (/w timeout) for update on fault simulation mode
    }
@@ -118,13 +149,26 @@ int main(int argc, char * argv[])
    TFTP_FSM_CleanExit();
 
    if ( bUserEndedSession )
+   {
       (void)printf("\n\nUser ended session.\n");
+      // TODO: Syslog
+   }
+   else if ( nreps >= MAX_RQSTS )
+   {
+      (void)printf("\n\nMaximum number of TFTP requests hit. Restart service.\n");
+      // TODO: Syslog
+   }
    else
-      (void)fprintf(stderr, "Error occured during main loop.");
+   {
+      (void)fprintf(stderr, "\n\nError occured during main loop.");
+      // TODO: Syslog
+   }
 
 Main_CleanupTag:
    // Cleanup
    (void)close(sfd_newconn);
+
+   // TODO: Syslog
 
    return mainrc;
 }
@@ -140,7 +184,10 @@ static void handleSIGINT(int sig_num)
 
    // Abort since we didn't execute a graceful shutdown the first time.
    if ( bUserEndedSession )
+   {
+      // TODO: Syslog
       abort();
+   }
 
    bUserEndedSession = true;
 }
@@ -153,23 +200,29 @@ static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr)
    assert(sfd_ptr != nullptr);
 
    int sysrc = 0;
+   int sfd = -1;
+
+   // TODO: Info syslog
 
    // Create socket
-   *sfd_ptr = socket(AF_INET, SOCK_DGRAM, 0);
-   if ( *sfd_ptr < 0 )
+   sfd = socket(AF_INET, SOCK_DGRAM, 0);
+   if ( sfd < 0 )
    {
-      fprintf( stderr,
+      (void)fprintf( stderr,
                "Error: Failed to create listening socket.\n"
-               "socket() returned: %d, errno: %s (%d): %s\n",
-               *sfd_ptr,
+               "socket(AF_INET, SOCK_DGRAM, 0) returned: %d\n"
+               "errno: %s (%d): %s\n",
+               sfd,
                strerrorname_np(errno), errno, strerror(errno) );
+
+      // TODO: Syslog
 
       return MAINRC_SOCKET_CREATION_ERR;
    }
 
    // Facilitate reuse of the consistent port in case a lingering socket from a
    // previous session hasn't been cleared away. TODO: Verify this is needed.
-   sysrc = setsockopt( *sfd_ptr,
+   sysrc = setsockopt( sfd,
                        SOL_SOCKET,
                        SO_REUSEADDR,
                        &(int){1},
@@ -192,15 +245,19 @@ static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr)
    {
       char addrbuf[INET_ADDRSTRLEN];
       const char * rc_ptr = inet_ntop(AF_INET, &numerical_addr, addrbuf, INET_ADDRSTRLEN);
+
+#ifndef NDEBUG
       if ( nullptr == rc_ptr )
       {
-         fprintf( stderr,
+         (void)fprintf( stderr,
                   "inet_ntop() failed to convert, errno: %s (%d): %s\n",
                   strerrorname_np(errno), errno, strerror(errno) );
-         assert(rc_ptr != nullptr); // Still abort, because this indicates a design issue
-      }
 
-      fprintf( stderr,
+         abort(); // Still abort, because this indicates a design issue
+      }
+#endif // !NDEBUG
+
+      (void)fprintf( stderr,
                "Error: Failed to bind socket to specified interface:\n"
                "\tIP Address: %s\n"
                "\tPort: %d\n"
@@ -209,11 +266,15 @@ static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr)
                addrbuf, ntohs(port), sysrc,
                strerrorname_np(errno), errno, strerror(errno) );
 
-      (void)close(*sfd_ptr);
+      // TODO: Syslog
+
+      (void)close(sfd);
       *sfd_ptr = -1;
 
       return MAINRC_SOCKBIND_ERR;
    }
+
+   *sfd_ptr = sfd;
 
    return MAINRC_FINE;
 }
