@@ -115,7 +115,7 @@ int main(int argc, char * argv[])
       // Await packet
       uint8_t buf[TFTP_RQST_MAX_SZ + 1] = {0};
       struct sockaddr_in peer_addr = {0};
-      socklen_t addrlen = 0;
+      socklen_t addrlen = sizeof peer_addr;
 
       ssize_t nbytes = recvfrom( sfd_newconn,
                                  buf, sizeof buf,
@@ -134,16 +134,25 @@ int main(int argc, char * argv[])
          // TODO: Log that an error has occured in recvfrom()
          continue;
       }
+      else if ( addrlen > sizeof peer_addr )
+      {
+         // TODO: Log that an IPv6 peer has made the request, not IPv4
+         // We won't support IPv6 off the bat... I don't need it yet.
+         continue;
+      }
       else if ( TFTP_PKT_RequestIsValid(buf, (size_t)nbytes) )
       {
          // TODO: Log that a malformed request was received
          continue;
       }
 
+      // TODO: Log that a request was received from peer_addr
+
       // Initiate FSM for session and wait for completion
       enum TFTP_FSM_RC fsm_rc = TFTP_FSM_KickOff(buf, (size_t)nbytes);
 
       // Await (/w timeout) for update on fault simulation mode
+      // TODO
    }
 
    TFTP_FSM_CleanExit();
