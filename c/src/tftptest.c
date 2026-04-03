@@ -53,6 +53,7 @@ enum MainRC
    MAINRC_SETSOCKOPT_ERR          = 0x0008,
    MAINRC_SOCKBIND_ERR            = 0x0010,
    MAINRC_RECVFROM_ERR            = 0x0020,
+   MAINRC_SOCK_CLOSE_ERR          = 0x0040,
    MAINRC_FAILED_CLOSE            = 0x0080,
 };
 
