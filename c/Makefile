@@ -7,7 +7,8 @@
 #   test     – Unit tests via Unity, sanitizers, coverage instrumentation
 #
 # Static analysis:
-#   analysis – Run GCC -fanalyzer and clang --analyze on all sources
+#   analyze – Run GCC -fanalyzer, clang --analyze, clang-tidy, and cppcheck
+#             on all sources
 #
 # Coverage:
 #   coverage – Run tests then produce HTML coverage report via gcov + gcovr
@@ -18,7 +19,7 @@
 #   make debug
 #   make test             # build & run unit tests
 #   make coverage         # build tests w/ coverage, run, generate HTML report
-#   make analysis         # static analysis only (no binary produced)
+#   make analyze         # static analysis only (no binary produced)
 #   make clean
 ################################################################################
 
@@ -38,6 +39,8 @@ UNITY_SRC    := $(UNITY_DIR)/src
 
 CC           := gcc
 CLANG        := clang
+CLANG_TIDY   := clang-tidy
+CPPCHECK     := cppcheck
 GCOV         := gcov
 GCOVR        := gcovr
 
@@ -159,7 +162,7 @@ COV_DIR         := $(BUILD_DIR)/coverage
 # --- Analysis (separate directory for analyzer artifacts) ---
 ANALYSIS_DIR    := $(BUILD_DIR)/analysis
 
-# ─── Clang analysis flags (used during the analysis-only compile pass) ───────
+# ─── Clang analysis flags (used during the analyze-only compile pass) ───────
 
 CLANG_ANALYSIS_CFLAGS := $(C_STD) $(COMMON_DEFS) $(COMMON_WARNS) $(CLANG_EXTRA_WARNS) \
 			 -Wno-unused-parameter \
@@ -173,11 +176,42 @@ GCC_ANALYSIS_CFLAGS   := $(C_STD) $(COMMON_DEFS) $(COMMON_WARNS) $(GCC_EXTRA_WAR
                           -fanalyzer \
                           -c -o /dev/null
 
+# ─── clang-tidy flags (lint against Google C++ style, plus all other checks) ─
+
+# Enable every checker and layer Google's style checks on top.
+# -warnings-as-errors is intentionally omitted so the build doesn't abort on
+# the first hit — we want the full report (minimise false negatives).
+CLANG_TIDY_CHECKS := \
+	-checks='-*,google-*,clang-analyzer-*,bugprone-*,cert-*,concurrency-*,cppcoreguidelines-*,misc-*,modernize-*,performance-*,portability-*,readability-*'
+
+CLANG_TIDY_FLAGS  := \
+	$(CLANG_TIDY_CHECKS) \
+	--header-filter='$(SRC_DIR)/.*' \
+	--extra-arg=$(C_STD) \
+	$(addprefix --extra-arg=,$(COMMON_DEFS)) \
+	--extra-arg=-Wno-unused-parameter \
+	$(addprefix --extra-arg=,$(COMMON_INC))
+
+# ─── cppcheck flags (maximum depth, all checkers) ───────────────────────────
+
+# Note, cppcheck 2.19.1 (my version as of Apr 5, 2026), does not support C23.
+CPPCHECK_FLAGS := \
+	--std=c11 \
+	--enable=all \
+	--inconclusive \
+	--force \
+	--check-level=exhaustive \
+	--max-ctu-depth=16 \
+	$(addprefix -D,_POSIX_C_SOURCE=200809L _GNU_SOURCE) \
+	-I$(SRC_DIR) \
+	--suppress=missingIncludeSystem \
+	--error-exitcode=0
+
 ################################################################################
 #                                 TARGETS
 ################################################################################
 
-.PHONY: all release debug test coverage analysis clean help
+.PHONY: all release debug test coverage analyze clean help fuzz
 
 # Default target
 all: debug
@@ -304,14 +338,14 @@ $(COV_DIR):
 
 # ─── Static Analysis (run at-will) ──────────────────────────────────────────
 
-analysis: analysis_gcc analysis_clang
+analyze: analysis_gcc analysis_clang analysis_clang_tidy analysis_cppcheck
 	@echo "=== Static analysis complete ==="
 	@echo
 	@echo "----------------------------------------"
-	@echo -e "Static analysis \033[32;1mcompletebuilt\033[0m"
+	@echo -e "Static analysis \033[32;1mcomplete\033[0m"
 	@echo "----------------------------------------"
 
-.PHONY: analysis_gcc analysis_clang
+.PHONY: analysis_gcc analysis_clang analysis_clang_tidy analysis_cppcheck
 
 analysis_gcc: | $(ANALYSIS_DIR)
 	@echo
@@ -335,6 +369,25 @@ analysis_clang: | $(ANALYSIS_DIR)
 	done
 	@echo "--- Clang --analyze complete ---"
 
+analysis_clang_tidy: | $(ANALYSIS_DIR)
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[33mRunning clang-tidy (Google style + extra checkers)\033[0m on all src files..."
+	@echo
+	@for src in $(SRCS); do \
+		echo "  [CLANG-TIDY] $$src"; \
+		$(CLANG_TIDY) $(CLANG_TIDY_FLAGS) $$src --; \
+	done
+	@echo "--- clang-tidy complete ---"
+
+analysis_cppcheck: | $(ANALYSIS_DIR)
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[33mRunning cppcheck (exhaustive analysis)\033[0m on all src files..."
+	@echo
+	$(CPPCHECK) $(CPPCHECK_FLAGS) $(SRCS) 2>&1
+	@echo "--- cppcheck complete ---"
+
 $(ANALYSIS_DIR):
 	@mkdir -p $@
 
@@ -354,9 +407,11 @@ help:
 	@echo "  make release      Build with -O2, -Werror"
 	@echo "  make test         Build & run Unity unit tests"
 	@echo "  make coverage     Run tests + generate HTML coverage report"
-	@echo "  make analysis     Run GCC -fanalyzer & Clang --analyze"
+	@echo "  make analyze     Run GCC -fanalyzer, Clang --analyze, clang-tidy & cppcheck"
 	@echo "  make clean        Remove all build artifacts"
 	@echo "  make help         Show this help"
+	@echo "  make fuzz         (TODO) Fuzz the server"
+	@echo "  make cve_analysis (TODO) Check for any known CVE patterns"
 	@echo ""
 	@echo "  Outputs:"
 	@echo "    Debug binary     → $(DBG_BIN)"
