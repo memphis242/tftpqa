@@ -25,3 +25,6 @@ leetcode.c
 *.swp
 *.vim
 tags
+
+# Miscellaneous
+plan.md
