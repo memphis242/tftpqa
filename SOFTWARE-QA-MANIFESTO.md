@@ -4,7 +4,6 @@
 - `assert()` throughout the code at any point assumption are made prior to line executions
   - **only** assert on conditions that are 100% in the control of the code, such as calls made to internal functions
   - **do not** assert on external input (user CLI, file inputs, network inputs)
-  - **do not** assert on the arguments of public functions until after they've been vetted through the initial checks
 - thorough set of compiler warnings
 - multiple compilers
 - multiple static analyzers
