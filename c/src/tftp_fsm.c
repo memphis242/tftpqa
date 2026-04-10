@@ -96,6 +96,11 @@ static bool fault_should_suppress_ack(const struct TFTPTest_FaultState *fault,
                                        uint16_t block_num, bool is_last);
 static bool fault_should_duplicate(const struct TFTPTest_FaultState *fault,
                                     bool is_data, uint16_t block_num, bool is_last);
+static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
+                                   uint8_t *pkt, size_t *pkt_len, size_t pkt_cap,
+                                   bool is_data, uint16_t block_num);
+static int fault_maybe_wrong_tid(const struct TFTPTest_FaultState *fault,
+                                  bool is_rrq);
 
 /********************** Public Function Implementations ***********************/
 
@@ -292,8 +297,10 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
    }
 
    // EAGAIN and EWOULDBLOCK may be the same value on Linux; suppress -Wlogical-op
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wlogical-op"
+#endif
    while ( TFTP_FSM_Session.state != TFTP_FSM_IDLE &&
            TFTP_FSM_Session.state != TFTP_FSM_ERR )
    {
@@ -400,12 +407,27 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
             break;
          }
 
+         // Fault: modify outgoing DATA (invalid block#, opcode, size)
+         fault_modify_outgoing(fault, TFTP_FSM_Session.sendbuf,
+                               &TFTP_FSM_Session.sendbuf_len,
+                               sizeof TFTP_FSM_Session.sendbuf,
+                               true, TFTP_FSM_Session.block_num);
+
+         // Fault: wrong TID? Send from a different socket
+         int send_sfd = fault_maybe_wrong_tid(fault, true);
+         if ( send_sfd < 0 )
+            send_sfd = TFTP_FSM_Session.sfd;
+
          // Send DATA
-         ssize_t sent = sendto(TFTP_FSM_Session.sfd,
+         ssize_t sent = sendto(send_sfd,
                                TFTP_FSM_Session.sendbuf,
                                TFTP_FSM_Session.sendbuf_len, 0,
                                (const struct sockaddr *)&TFTP_FSM_Session.peer_addr,
                                sizeof TFTP_FSM_Session.peer_addr);
+
+         if ( send_sfd != TFTP_FSM_Session.sfd )
+            (void)close(send_sfd);
+
          if ( sent < 0 )
          {
             tftp_log( TFTP_LOG_ERR, "FSM: sendto failed: %s", strerror(errno) );
@@ -750,11 +772,26 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
             TFTP_FSM_Session.block_num);
          assert( TFTP_FSM_Session.sendbuf_len > 0 );
 
-         ssize_t sent = sendto(TFTP_FSM_Session.sfd,
+         // Fault: modify outgoing ACK (invalid block#, opcode)
+         fault_modify_outgoing(fault, TFTP_FSM_Session.sendbuf,
+                               &TFTP_FSM_Session.sendbuf_len,
+                               sizeof TFTP_FSM_Session.sendbuf,
+                               false, TFTP_FSM_Session.block_num);
+
+         // Fault: wrong TID?
+         int ack_send_sfd = fault_maybe_wrong_tid(fault, false);
+         if ( ack_send_sfd < 0 )
+            ack_send_sfd = TFTP_FSM_Session.sfd;
+
+         ssize_t sent = sendto(ack_send_sfd,
                                TFTP_FSM_Session.sendbuf,
                                TFTP_FSM_Session.sendbuf_len, 0,
                                (const struct sockaddr *)&TFTP_FSM_Session.peer_addr,
                                sizeof TFTP_FSM_Session.peer_addr);
+
+         if ( ack_send_sfd != TFTP_FSM_Session.sfd )
+            (void)close(ack_send_sfd);
+
          if ( sent < 0 )
          {
             tftp_log( TFTP_LOG_ERR, "FSM: sendto ACK failed: %s", strerror(errno) );
@@ -803,7 +840,9 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
          break;
       }
    }
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
+#endif
 
 fsm_cleanup:
    session_cleanup();
@@ -923,4 +962,97 @@ static bool fault_should_duplicate(const struct TFTPTest_FaultState *fault,
    }
 }
 
+static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
+                                   uint8_t *pkt, size_t *pkt_len, size_t pkt_cap,
+                                   bool is_data, uint16_t block_num)
+{
+   (void)block_num;
+
+   switch ( fault->mode )
+   {
+   case FAULT_INVALID_BLOCK_DATA:
+      if ( is_data && *pkt_len >= 4 )
+      {
+         pkt[2] = (uint8_t)((fault->param >> 8) & 0xFF);
+         pkt[3] = (uint8_t)(fault->param & 0xFF);
+         tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Set DATA block# to %u", fault->param );
+      }
+      break;
+
+   case FAULT_INVALID_BLOCK_ACK:
+      if ( !is_data && *pkt_len >= 4 )
+      {
+         pkt[2] = (uint8_t)((fault->param >> 8) & 0xFF);
+         pkt[3] = (uint8_t)(fault->param & 0xFF);
+         tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Set ACK block# to %u", fault->param );
+      }
+      break;
+
+   case FAULT_DATA_TOO_LARGE:
+      if ( is_data )
+      {
+         size_t target = TFTP_DATA_HDR_SZ + TFTP_BLOCK_DATA_SZ + 8;
+         if ( target <= pkt_cap )
+         {
+            if ( *pkt_len < target )
+               memset( pkt + *pkt_len, 0, target - *pkt_len );
+            *pkt_len = target;
+            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Padded DATA to %zu bytes", *pkt_len );
+         }
+      }
+      break;
+
+   case FAULT_DATA_LEN_MISMATCH:
+      if ( is_data && *pkt_len > TFTP_DATA_HDR_SZ + 1 )
+      {
+         size_t payload = *pkt_len - TFTP_DATA_HDR_SZ;
+         *pkt_len = TFTP_DATA_HDR_SZ + payload / 2;
+         tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Truncated DATA to %zu bytes", *pkt_len );
+      }
+      break;
+
+   case FAULT_INVALID_OPCODE_READ:
+   case FAULT_INVALID_OPCODE_WRITE:
+      if ( *pkt_len >= 2 )
+      {
+         pkt[0] = 0;
+         pkt[1] = 9;
+         tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Set opcode to 9 (invalid)" );
+      }
+      break;
+
+   case FAULT_INVALID_ERR_CODE_READ:
+   case FAULT_INVALID_ERR_CODE_WRITE:
+   {
+      uint16_t bad_code = (uint16_t)fault->param;
+      if ( bad_code <= 7 ) bad_code = 99;
+      size_t esz = TFTP_PKT_BuildError(pkt, pkt_cap, bad_code, "Injected bad error");
+      if ( esz > 0 )
+      {
+         *pkt_len = esz;
+         tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Sent ERROR with code %u", bad_code );
+      }
+      break;
+   }
+
+   default:
+      break;
+   }
+}
+
 #pragma GCC diagnostic pop
+
+static int fault_maybe_wrong_tid(const struct TFTPTest_FaultState *fault,
+                                  bool is_rrq)
+{
+   bool should = (is_rrq && fault->mode == FAULT_WRONG_TID_READ) ||
+                 (!is_rrq && fault->mode == FAULT_WRONG_TID_WRITE);
+
+   if ( !should )
+      return -1;
+
+   int sfd = tftp_util_create_ephemeral_udp_socket(nullptr);
+   if ( sfd >= 0 )
+      tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Sending from wrong TID" );
+   return sfd;
+}

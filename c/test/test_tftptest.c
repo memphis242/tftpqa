@@ -665,6 +665,265 @@ void test_ctrl_unknown_fault_mode(void)
    tftptest_ctrl_shutdown(ctrl_sfd);
 }
 
+void test_ctrl_whitelist_rejects_disallowed_mode(void)
+{
+   uint16_t port = 39995;
+   int ctrl_sfd = tftptest_ctrl_init(port);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, ctrl_sfd );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
+   char reply[128];
+
+   // Whitelist that allows only FAULT_RRQ_TIMEOUT (bit 0)
+   uint64_t whitelist = (uint64_t)1 << 0;
+
+   // Try to set FAULT_WRQ_TIMEOUT (bit 1) -- should be rejected
+   ssize_t n = ctrl_send_recv(port, "SET_FAULT WRQ_TIMEOUT\n", reply, sizeof reply);
+   tftptest_ctrl_poll(ctrl_sfd, &fault, whitelist);
+   TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode ); // unchanged
+   (void)n;
+
+   // Setting RRQ_TIMEOUT should succeed with this whitelist
+   n = ctrl_send_recv(port, "SET_FAULT RRQ_TIMEOUT\n", reply, sizeof reply);
+   tftptest_ctrl_poll(ctrl_sfd, &fault, whitelist);
+   TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
+
+   tftptest_ctrl_shutdown(ctrl_sfd);
+}
+
+void test_ctrl_set_fault_missing_mode_name(void)
+{
+   uint16_t port = 39994;
+   int ctrl_sfd = tftptest_ctrl_init(port);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, ctrl_sfd );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
+   char reply[128];
+
+   // SET_FAULT with no mode name
+   ssize_t n = ctrl_send_recv(port, "SET_FAULT\n", reply, sizeof reply);
+   tftptest_ctrl_poll(ctrl_sfd, &fault, 0);
+   TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode ); // unchanged
+   (void)n;
+
+   tftptest_ctrl_shutdown(ctrl_sfd);
+}
+
+/*---------------------------------------------------------------------------
+ * Config file parsing with real file
+ *---------------------------------------------------------------------------*/
+
+void test_parsecfg_load_valid_config(void)
+{
+   // Create a temp config file
+   const char *path = "/tmp/tftptest_test_cfg.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "# Test config\n"
+      "tftp_port = 12345\n"
+      "ctrl_port = 12346\n"
+      "timeout_sec = 3\n"
+      "max_retransmits = 10\n"
+      "max_requests = 500\n"
+      "log_level = DEBUG\n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT16( 12345, cfg.tftp_port );
+   TEST_ASSERT_EQUAL_UINT16( 12346, cfg.ctrl_port );
+   TEST_ASSERT_EQUAL_UINT( 3, cfg.timeout_sec );
+   TEST_ASSERT_EQUAL_UINT( 10, cfg.max_retransmits );
+   TEST_ASSERT_EQUAL( 500, cfg.max_requests );
+   TEST_ASSERT_EQUAL_INT( TFTP_LOG_DEBUG, cfg.log_level );
+
+   (void)remove(path);
+}
+
+void test_parsecfg_ignores_comments_and_blanks(void)
+{
+   const char *path = "/tmp/tftptest_test_cfg2.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "# Comment line\n"
+      "\n"
+      "   \n"
+      "tftp_port = 54321\n"
+      "# Another comment\n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT16( 54321, cfg.tftp_port );
+
+   (void)remove(path);
+}
+
+void test_parsecfg_rejects_invalid_port(void)
+{
+   const char *path = "/tmp/tftptest_test_cfg3.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "tftp_port = 99999\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   // Should still return 0 (warnings, not fatal), but port should be unchanged
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT16( 23069, cfg.tftp_port ); // default unchanged
+
+   (void)remove(path);
+}
+
+void test_parsecfg_unknown_key_still_succeeds(void)
+{
+   const char *path = "/tmp/tftptest_test_cfg4.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "unknown_key = some_value\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   // Unknown keys log a warning but don't cause failure
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   (void)remove(path);
+}
+
+void test_parsecfg_missing_equals_delimiter(void)
+{
+   const char *path = "/tmp/tftptest_test_cfg5.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "no_equals_here\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   (void)remove(path);
+}
+
+void test_parsecfg_root_dir_and_fault_whitelist(void)
+{
+   const char *path = "/tmp/tftptest_test_cfg6.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "root_dir = /srv/tftp\n"
+      "fault_whitelist = 0xFF\n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_STRING( "/srv/tftp", cfg.root_dir );
+   TEST_ASSERT_EQUAL_UINT64( 0xFF, cfg.fault_whitelist );
+   (void)remove(path);
+}
+
+void test_parsecfg_all_numeric_fields(void)
+{
+   const char *path = "/tmp/tftptest_test_cfg7.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "timeout_sec = 5\n"
+      "max_retransmits = 3\n"
+      "max_requests = 100\n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT( 5, cfg.timeout_sec );
+   TEST_ASSERT_EQUAL_UINT( 3, cfg.max_retransmits );
+   TEST_ASSERT_EQUAL( 100, cfg.max_requests );
+   (void)remove(path);
+}
+
+/*---------------------------------------------------------------------------
+ * Packet edge case tests
+ *---------------------------------------------------------------------------*/
+
+void test_pkt_reject_filename_too_long(void)
+{
+   // Build a request with filename exceeding FILENAME_MAX_LEN
+   uint8_t buf[512];
+   buf[0] = 0x00;
+   buf[1] = 0x01; // RRQ
+   // Fill filename with 'a' up to FILENAME_MAX_LEN + 1
+   size_t fname_len = FILENAME_MAX_LEN + 1;
+   memset(buf + 2, 'a', fname_len);
+   buf[2 + fname_len] = 0x00; // filename NUL
+   memcpy(buf + 2 + fname_len + 1, "octet", 5);
+   buf[2 + fname_len + 1 + 5] = 0x00; // mode NUL
+   size_t total = 2 + fname_len + 1 + 6;
+
+   TEST_ASSERT_FALSE( TFTP_PKT_RequestIsValid(buf, total) );
+}
+
+void test_pkt_parse_data_rejects_wrong_opcode(void)
+{
+   // ACK opcode (4) instead of DATA (3)
+   uint8_t buf[] = { 0x00, 0x04, 0x00, 0x01, 'x' };
+   uint16_t block;
+   const uint8_t *data;
+   size_t data_len;
+   TEST_ASSERT_EQUAL_INT( -1, TFTP_PKT_ParseData(buf, sizeof buf, &block, &data, &data_len) );
+}
+
+void test_pkt_build_error_returns_zero_when_buffer_too_small(void)
+{
+   // BuildError returns 0 when message doesn't fit in buffer
+   uint8_t pkt[8]; // too small for header + message + NUL
+   size_t n = TFTP_PKT_BuildError(pkt, sizeof pkt, 0, "This message is way too long to fit");
+   TEST_ASSERT_EQUAL( 0, n );
+}
+
+void test_pkt_build_error_succeeds_with_adequate_buffer(void)
+{
+   uint8_t pkt[128];
+   size_t n = TFTP_PKT_BuildError(pkt, sizeof pkt, 3, "Disk full");
+   // 4 (header) + 9 (msg) + 1 (NUL) = 14
+   TEST_ASSERT_EQUAL( 14, n );
+}
+
+void test_pkt_valid_rrq_octet_mixed_case(void)
+{
+   uint8_t buf[] = { 0x00, 0x01, 'F', 'i', 'L', 'e', 0x00,
+                     'O', 'C', 'T', 'E', 'T', 0x00 };
+   TEST_ASSERT_TRUE( TFTP_PKT_RequestIsValid(buf, sizeof buf) );
+}
+
+void test_pkt_ack_block_zero(void)
+{
+   uint8_t pkt[TFTP_ACK_SZ];
+   size_t n = TFTP_PKT_BuildAck(pkt, sizeof pkt, 0);
+   TEST_ASSERT_EQUAL( TFTP_ACK_SZ, n );
+
+   uint16_t block;
+   int rc = TFTP_PKT_ParseAck(pkt, n, &block);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT16( 0, block );
+}
+
 /*---------------------------------------------------------------------------
  * Test Runner
  *---------------------------------------------------------------------------*/
@@ -743,6 +1002,25 @@ int main(void)
    RUN_TEST( test_ctrl_set_fault_with_param );
    RUN_TEST( test_ctrl_unknown_command );
    RUN_TEST( test_ctrl_unknown_fault_mode );
+   RUN_TEST( test_ctrl_whitelist_rejects_disallowed_mode );
+   RUN_TEST( test_ctrl_set_fault_missing_mode_name );
+
+   // config file parsing (with real files)
+   RUN_TEST( test_parsecfg_load_valid_config );
+   RUN_TEST( test_parsecfg_ignores_comments_and_blanks );
+   RUN_TEST( test_parsecfg_rejects_invalid_port );
+   RUN_TEST( test_parsecfg_unknown_key_still_succeeds );
+   RUN_TEST( test_parsecfg_missing_equals_delimiter );
+   RUN_TEST( test_parsecfg_root_dir_and_fault_whitelist );
+   RUN_TEST( test_parsecfg_all_numeric_fields );
+
+   // packet edge cases
+   RUN_TEST( test_pkt_reject_filename_too_long );
+   RUN_TEST( test_pkt_parse_data_rejects_wrong_opcode );
+   RUN_TEST( test_pkt_build_error_returns_zero_when_buffer_too_small );
+   RUN_TEST( test_pkt_build_error_succeeds_with_adequate_buffer );
+   RUN_TEST( test_pkt_valid_rrq_octet_mixed_case );
+   RUN_TEST( test_pkt_ack_block_zero );
 
    return UNITY_END();
 }

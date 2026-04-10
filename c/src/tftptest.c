@@ -63,9 +63,21 @@ static volatile sig_atomic_t bUserEndedSession = false;
 
 // Local Function Declarations
 static void handleSIGINT(int sig_num);
-static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr);
+static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr, uint16_t port);
 
 /******************************* Main Function ********************************/
+static void print_usage(const char *progname)
+{
+   fprintf(stderr,
+      "Usage: %s [OPTIONS]\n"
+      "  -c <config>  Path to INI config file\n"
+      "  -p <port>    Override TFTP port\n"
+      "  -v           Increase verbosity (repeat for more: -vvv)\n"
+      "  -s           Enable syslog output\n"
+      "  -h           Show this help\n",
+      progname);
+}
+
 int main(int argc, char * argv[])
 {
    int mainrc = MAINRC_FINE;
@@ -73,8 +85,56 @@ int main(int argc, char * argv[])
 
    int sfd_newconn = 0; // socket id for new connections on the pre-configured port
 
-   // Initialize logging (stderr only for now; syslog toggle comes with CLI args)
-   tftp_log_init( false, TFTP_LOG_INFO );
+   // Parse CLI arguments
+   const char *config_path = nullptr;
+   int verbosity = 0;
+   bool use_syslog = false;
+   uint16_t port_override = 0;
+   bool port_overridden = false;
+
+   int opt;
+   while ( (opt = getopt(argc, argv, "c:p:vsh")) != -1 )
+   {
+      switch ( opt )
+      {
+      case 'c':
+         config_path = optarg;
+         break;
+      case 'p':
+      {
+         unsigned long p = strtoul(optarg, nullptr, 10);
+         if ( p == 0 || p > 65535 )
+         {
+            fprintf(stderr, "Invalid port: %s\n", optarg);
+            return 1;
+         }
+         port_override = (uint16_t)p;
+         port_overridden = true;
+         break;
+      }
+      case 'v':
+         verbosity++;
+         break;
+      case 's':
+         use_syslog = true;
+         break;
+      case 'h':
+         print_usage(argv[0]);
+         return 0;
+      default:
+         print_usage(argv[0]);
+         return 1;
+      }
+   }
+
+   // Map verbosity to log level (default INFO, -v = DEBUG, -vv = TRACE)
+   enum TFTP_LogLevel log_level = TFTP_LOG_INFO;
+   if ( verbosity >= 2 )
+      log_level = TFTP_LOG_TRACE;
+   else if ( verbosity == 1 )
+      log_level = TFTP_LOG_DEBUG;
+
+   tftp_log_init( use_syslog, log_level );
 
    // Register SIGINT handler
    struct sigaction sa_cfg;
@@ -85,8 +145,7 @@ int main(int argc, char * argv[])
                       &sa_cfg,
                       nullptr /* old sig action */ );
 
-#ifndef NDEBUG
-   // Really shouldn't happen, but I'll check for debug builds just in case.
+   // Really shouldn't happen, but I'll check just in case.
    if ( sysrc != 0 )
    {
       tftp_log( TFTP_LOG_ERR,
@@ -97,11 +156,24 @@ int main(int argc, char * argv[])
 
       return MAINRC_SIGINT_REGISTRATION_ERR;
    }
-#endif
 
-   // Load config defaults (config file loading comes with CLI args in Phase 13)
+   // Load config
    struct TFTPTest_Config cfg;
    tftp_parsecfg_defaults(&cfg);
+   if ( config_path != nullptr )
+   {
+      if ( tftp_parsecfg_load(config_path, &cfg) != 0 )
+         tftp_log( TFTP_LOG_WARN, "Failed to load config '%s', using defaults", config_path );
+   }
+
+   // CLI overrides take precedence over config file
+   if ( port_overridden )
+   {
+      cfg.tftp_port = port_override;
+      cfg.ctrl_port = (uint16_t)(port_override + 1);
+   }
+   if ( log_level < cfg.log_level )
+      cfg.log_level = log_level;
 
    // Fault state
    struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
@@ -122,7 +194,7 @@ int main(int argc, char * argv[])
    size_t nreps = 0;
 
    // Set up socket for listening on for new session requests...
-   mainrc |= (int)TFTP_Test_SetUpNewConnSock(&sfd_newconn);
+   mainrc |= (int)TFTP_Test_SetUpNewConnSock(&sfd_newconn, cfg.tftp_port);
    if ( mainrc != MAINRC_FINE )
       goto Main_CleanupTag;
 
@@ -228,14 +300,14 @@ static void handleSIGINT(int sig_num)
 /**
  * @brief TODO
  */
-static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr)
+static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr, uint16_t port)
 {
    assert(sfd_ptr != nullptr);
 
    int sysrc = 0;
    int sfd = -1;
 
-   tftp_log( TFTP_LOG_DEBUG, "Creating listening socket..." );
+   tftp_log( TFTP_LOG_DEBUG, "Creating listening socket on port %u...", (unsigned)port );
 
    // Create socket
    sfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -261,12 +333,12 @@ static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr)
 
    // Bind socket to pre-configured IP/port
    const struct in_addr numerical_addr = { .s_addr = INADDR_ANY }; // TODO: Configurable
-   const in_port_t port = htons(DEFAULT_TFTP_RQST_PORT);
+   const in_port_t net_port = htons(port);
    sysrc = bind( sfd,
                   (struct sockaddr *)
                   &(struct sockaddr_in) {
                      .sin_family = AF_INET,
-                     .sin_port = port,
+                     .sin_port = net_port,
                      .sin_addr = numerical_addr
                   },
                   sizeof(struct sockaddr_in) );
@@ -274,23 +346,12 @@ static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr)
    if ( sysrc != 0 )
    {
       char addrbuf[INET_ADDRSTRLEN];
-      const char * rc_ptr = inet_ntop(AF_INET, &numerical_addr, addrbuf, INET_ADDRSTRLEN);
-
-#ifndef NDEBUG
-      if ( nullptr == rc_ptr )
-      {
-         (void)fprintf( stderr,
-                  "inet_ntop() failed to convert, errno: %s (%d): %s\n",
-                  strerrorname_np(errno), errno, strerror(errno) );
-
-         abort(); // Still abort, because this indicates a design issue
-      }
-#endif // !NDEBUG
+      (void)inet_ntop(AF_INET, &numerical_addr, addrbuf, INET_ADDRSTRLEN);
 
       tftp_log( TFTP_LOG_ERR,
-               "Failed to bind socket to %s:%d. "
+               "Failed to bind socket to %s:%u. "
                "bind() returned: %d, errno: %s (%d): %s",
-               addrbuf, ntohs(port), sysrc,
+               addrbuf, (unsigned)port, sysrc,
                strerrorname_np(errno), errno, strerror(errno) );
 
       (void)close(sfd);
