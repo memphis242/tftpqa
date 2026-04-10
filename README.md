@@ -1,6 +1,6 @@
 # tftptest
 
-A TFTP (RFC 1350) test server with parameterized fault simulation for thorough testing of TFTP client implementations.
+A TFTP (RFC 1350) test server with fault simulation capabilities for thorough testing of your TFTP client.
 
 ## Basic Usage
 
@@ -72,13 +72,3 @@ The server supports 33 parameterized fault injection modes for testing TFTP clie
 31. Invalid error code in ERROR packet (write)
 32. Wrong transfer ID: incorrect source port (read)
 33. Wrong transfer ID: incorrect source port (write)
-
-## Engineering Guiding Principles
-
-Development follows the principles outlined in the project manifestos:
-
-- **Quality Assurance**: See `SOFTWARE-QA-MANIFESTO.md` for testing strategy, assertion guidelines, and coverage targets.
-- **Security Hardening**: See `SECURITY-PLAN.md` for chroot jailing, privilege drop, and vulnerability analysis approach.
-- **Performance**: See `PERFORMANCE-MANIFESTO.md` for optimization strategy (deferred until functionality and QA are complete).
-
-Architecture and summary of implementation details are documented in the `CLAUDE.md`.
