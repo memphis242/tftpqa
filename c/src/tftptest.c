@@ -31,6 +31,7 @@
 
 // Internal Headers
 #include "tftptest_faultmode.h"
+#include "tftptest_ctrl.h"
 #include "tftp_err.h"
 #include "tftp_fsm.h"
 #include "tftp_log.h"
@@ -72,7 +73,8 @@ int main(int argc, char * argv[])
 
    int sfd_newconn = 0; // socket id for new connections on the pre-configured port
 
-   // TODO: Set up logging
+   // Initialize logging (stderr only for now; syslog toggle comes with CLI args)
+   tftp_log_init( false, TFTP_LOG_INFO );
 
    // Register SIGINT handler
    struct sigaction sa_cfg;
@@ -87,30 +89,45 @@ int main(int argc, char * argv[])
    // Really shouldn't happen, but I'll check for debug builds just in case.
    if ( sysrc != 0 )
    {
-      (void)fprintf( stderr,
-               "Warning: sigaction() failed to register interrupt signal.\n"
-               "Returned: %d, errno: %s (%d): %s\n"
-               "You won't be able to stop the program gracefully /w Ctrl+C, \n"
-               " though Ctrl+C will still terminate the program.",
+      tftp_log( TFTP_LOG_ERR,
+               "sigaction() failed to register SIGINT handler. "
+               "Returned: %d, errno: %s (%d): %s. "
+               "Ctrl+C won't trigger graceful shutdown.",
                sysrc, strerrorname_np(errno), errno, strerror(errno) );
-
-      // TODO: Syslog
 
       return MAINRC_SIGINT_REGISTRATION_ERR;
    }
 #endif
 
-   // TODO: Create command UNIX Domain Socket to set fault simulation mode?
+   // Load config defaults (config file loading comes with CLI args in Phase 13)
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+
+   // Fault state
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
+
+   // Set up control channel
+   int ctrl_sfd = tftptest_ctrl_init(cfg.ctrl_port);
+   if ( ctrl_sfd < 0 )
+   {
+      tftp_log( TFTP_LOG_WARN, "Failed to create control channel on port %u: %s",
+                (unsigned)cfg.ctrl_port, strerror(errno) );
+      // Non-fatal: continue without control channel
+   }
+
+   // TODO: Change directory to TFTP root directory
+   // TODO: chroot() jail us in there
+   // TODO: Drop privileges to user (default to "nobody")
+
+   size_t nreps = 0;
 
    // Set up socket for listening on for new session requests...
    mainrc |= (int)TFTP_Test_SetUpNewConnSock(&sfd_newconn);
    if ( mainrc != MAINRC_FINE )
-      goto Main_CleanupTag; // FIXME: Jump skips variable initialization...
+      goto Main_CleanupTag;
 
    // Primary loop
-   size_t nreps = 0;
-   const size_t MAX_RQSTS = 10000;
-   while ( !bUserEndedSession && nreps++ < MAX_RQSTS )
+   while ( !bUserEndedSession && nreps++ < cfg.max_requests )
    {
       // Await packet
       uint8_t buf[TFTP_RQST_MAX_SZ + 1] = {0};
@@ -126,58 +143,65 @@ int main(int argc, char * argv[])
       assert( nbytes <= (ssize_t)sizeof(buf) );
       if ( nbytes == sizeof buf )
       {
-         // TODO: Log that message received that was too large to be a valid RRQ/WRQ
+         tftp_log( TFTP_LOG_WARN, "Received oversized packet (%zd bytes), dropping", nbytes );
          continue;
       }
       else if ( nbytes < 0 )
       {
-         // TODO: Log that an error has occured in recvfrom()
+         tftp_log( TFTP_LOG_ERR, "recvfrom() failed: %s (%d)", strerror(errno), errno );
          continue;
       }
       else if ( addrlen > sizeof peer_addr )
       {
-         // TODO: Log that an IPv6 peer has made the request, not IPv4
-         // We won't support IPv6 off the bat... I don't need it yet.
+         tftp_log( TFTP_LOG_WARN, "Received request from non-IPv4 peer, dropping" );
          continue;
       }
-      else if ( TFTP_PKT_RequestIsValid(buf, (size_t)nbytes) )
+      else if ( nbytes < (ssize_t)TFTP_RQST_MIN_SZ )
       {
-         // TODO: Log that a malformed request was received
+         tftp_log( TFTP_LOG_WARN, "Received packet too small (%zd bytes), dropping", nbytes );
+         continue;
+      }
+      else if ( !TFTP_PKT_RequestIsValid(buf, (size_t)nbytes) )
+      {
+         tftp_log( TFTP_LOG_WARN, "Received malformed TFTP request, dropping" );
          continue;
       }
 
-      // TODO: Log that a request was received from peer_addr
+      {
+         char addrbuf[INET_ADDRSTRLEN];
+         (void)inet_ntop( AF_INET, &peer_addr.sin_addr, addrbuf, sizeof addrbuf );
+         tftp_log( TFTP_LOG_INFO, "Received request from %s:%d",
+                   addrbuf, ntohs(peer_addr.sin_port) );
+      }
 
       // Initiate FSM for session and wait for completion
-      enum TFTP_FSM_RC fsm_rc = TFTP_FSM_KickOff(buf, (size_t)nbytes);
+      (void)TFTP_FSM_KickOff(buf, (size_t)nbytes, &peer_addr, &cfg, &fault);
 
-      // Await (/w timeout) for update on fault simulation mode
-      // TODO
+      // Poll control channel for fault mode updates (non-blocking)
+      if ( ctrl_sfd >= 0 )
+         tftptest_ctrl_poll(ctrl_sfd, &fault, cfg.fault_whitelist);
    }
 
    TFTP_FSM_CleanExit();
 
    if ( bUserEndedSession )
    {
-      (void)printf("\n\nUser ended session.\n");
-      // TODO: Syslog
+      tftp_log( TFTP_LOG_INFO, "User ended session (SIGINT)" );
    }
-   else if ( nreps >= MAX_RQSTS )
+   else if ( nreps >= cfg.max_requests )
    {
-      (void)printf("\n\nMaximum number of TFTP requests hit. Restart service.\n");
-      // TODO: Syslog
+      tftp_log( TFTP_LOG_WARN, "Max request limit (%zu) reached, shutting down", cfg.max_requests );
    }
    else
    {
-      (void)fprintf(stderr, "\n\nError occured during main loop.");
-      // TODO: Syslog
+      tftp_log( TFTP_LOG_ERR, "Main loop exited unexpectedly" );
    }
 
 Main_CleanupTag:
-   // Cleanup
+   tftptest_ctrl_shutdown(ctrl_sfd);
    (void)close(sfd_newconn);
-
-   // TODO: Syslog
+   tftp_log( TFTP_LOG_INFO, "Server shutting down (rc=0x%04x)", (unsigned)mainrc );
+   tftp_log_shutdown();
 
    return mainrc;
 }
@@ -192,9 +216,9 @@ static void handleSIGINT(int sig_num)
    (void)sig_num; // Signal number is not necessary here
 
    // Abort since we didn't execute a graceful shutdown the first time.
+   // Note: cannot call tftp_log() here -- not async-signal-safe.
    if ( bUserEndedSession )
    {
-      // TODO: Syslog
       abort();
    }
 
@@ -211,20 +235,17 @@ static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr)
    int sysrc = 0;
    int sfd = -1;
 
-   // TODO: Info syslog
+   tftp_log( TFTP_LOG_DEBUG, "Creating listening socket..." );
 
    // Create socket
    sfd = socket(AF_INET, SOCK_DGRAM, 0);
    if ( sfd < 0 )
    {
-      (void)fprintf( stderr,
-               "Error: Failed to create listening socket.\n"
-               "socket(AF_INET, SOCK_DGRAM, 0) returned: %d\n"
-               "errno: %s (%d): %s\n",
+      tftp_log( TFTP_LOG_ERR,
+               "Failed to create listening socket. "
+               "socket() returned: %d, errno: %s (%d): %s",
                sfd,
                strerrorname_np(errno), errno, strerror(errno) );
-
-      // TODO: Syslog
 
       return MAINRC_SOCKET_CREATION_ERR;
    }
@@ -240,7 +261,7 @@ static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr)
 
    // Bind socket to pre-configured IP/port
    const struct in_addr numerical_addr = { .s_addr = INADDR_ANY }; // TODO: Configurable
-   const unsigned short port = DEFAULT_TFTP_RQST_PORT;
+   const in_port_t port = htons(DEFAULT_TFTP_RQST_PORT);
    sysrc = bind( sfd,
                   (struct sockaddr *)
                   &(struct sockaddr_in) {
@@ -266,16 +287,11 @@ static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr)
       }
 #endif // !NDEBUG
 
-      (void)fprintf( stderr,
-               "Error: Failed to bind socket to specified interface:\n"
-               "\tIP Address: %s\n"
-               "\tPort: %d\n"
-               "bind() returned: %d, errno: %s (%d): %s\n"
-               "Socket will be closed. Please try again.\n",
+      tftp_log( TFTP_LOG_ERR,
+               "Failed to bind socket to %s:%d. "
+               "bind() returned: %d, errno: %s (%d): %s",
                addrbuf, ntohs(port), sysrc,
                strerrorname_np(errno), errno, strerror(errno) );
-
-      // TODO: Syslog
 
       (void)close(sfd);
       *sfd_ptr = -1;
