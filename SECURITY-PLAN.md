@@ -27,7 +27,7 @@ In addition to my usual quality-assurance combo (multiple compilers, high warnin
 
 2. **CVE/CWE Record Analysis**
 - Referencing the [CWE (Common Weakness Enumeration) lists](https://cwe.mitre.org/data/index.html), develop either manual or automated tooling to scan the codebase against each enumerated item.
-- Look at any and all CVEs that were found against atftpd, tftpd-hpa
+- Look at any and all CVEs that were found against `atftpd`, `tftpd-hpa`
 - Take a deep look at all your system calls and enumerate the ways they can be abused by an attacker. With that list, iterate on the design and write automated test harnesses that replicate that attack vector.
     - For example, /w a `chroot()` jail, make sure the app is doing it right (e.g., dropping privileges after `chroot()`, closing any open file descriptors prior to `chroot()` that point outside of the jail, etc.).
 
@@ -35,3 +35,10 @@ In addition to my usual quality-assurance combo (multiple compilers, high warnin
 - There is no denying that AI agents have advanced enough to be valuable tools in analyzing source code for security vulnerabilities, so simply running an agent for a long period of time against the code base to:
     - scan the code for vulnerabilities
     - try to write different tests to check the code base against
+
+4. **Chaos Monkey Instances**
+- Nightly runs against a chaos monkey client on multiple server instances, each /w different instrumentation (sanitizers, memory profilers, etc.).
+
+5. **Protect Against Application Misuse**
+- The application should do its best to prevent itself from getting used in a way that a malicious attacker can take advantage of.
+- The fault simulation modes this TFTP test server supports should not result in harm to the host system or the connecting TFTP client.
