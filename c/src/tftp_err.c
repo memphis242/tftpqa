@@ -6,9 +6,10 @@
  */
 
 /*************************** File Header Inclusions ***************************/
-
+// Standard C Headers
 #include <assert.h>
 
+// Internal Headers
 #include "tftp_err.h"
 
 /***************************** Local Declarations *****************************/
