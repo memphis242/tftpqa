@@ -72,6 +72,7 @@ static void print_usage(const char *progname)
       "Usage: %s [OPTIONS]\n"
       "  -c <config>  Path to INI config file\n"
       "  -p <port>    Override TFTP port\n"
+      "  -u <user>    Run as user after chroot (default: nobody)\n"
       "  -v           Increase verbosity (repeat for more: -vvv)\n"
       "  -s           Enable syslog output\n"
       "  -h           Show this help\n",
@@ -87,13 +88,14 @@ int main(int argc, char * argv[])
 
    // Parse CLI arguments
    const char *config_path = nullptr;
+   const char *user_override = nullptr;
    int verbosity = 0;
    bool use_syslog = false;
    uint16_t port_override = 0;
    bool port_overridden = false;
 
    int opt;
-   while ( (opt = getopt(argc, argv, "c:p:vsh")) != -1 )
+   while ( (opt = getopt(argc, argv, "c:p:u:vsh")) != -1 )
    {
       switch ( opt )
       {
@@ -112,6 +114,9 @@ int main(int argc, char * argv[])
          port_overridden = true;
          break;
       }
+      case 'u':
+         user_override = optarg;
+         break;
       case 'v':
          verbosity++;
          break;
@@ -172,6 +177,11 @@ int main(int argc, char * argv[])
       cfg.tftp_port = port_override;
       cfg.ctrl_port = (uint16_t)(port_override + 1);
    }
+   if ( user_override != nullptr )
+   {
+      (void)strncpy( cfg.run_as_user, user_override, sizeof cfg.run_as_user - 1 );
+      cfg.run_as_user[sizeof cfg.run_as_user - 1] = '\0';
+   }
    if ( log_level < cfg.log_level )
       cfg.log_level = log_level;
 
@@ -187,16 +197,21 @@ int main(int argc, char * argv[])
       // Non-fatal: continue without control channel
    }
 
-   // TODO: Change directory to TFTP root directory
-   // TODO: chroot() jail us in there
-   // TODO: Drop privileges to user (default to "nobody")
-
    size_t nreps = 0;
 
    // Set up socket for listening on for new session requests...
+   // (Must bind before chroot, since socket setup needs the network stack)
    mainrc |= (int)TFTP_Test_SetUpNewConnSock(&sfd_newconn, cfg.tftp_port);
    if ( mainrc != MAINRC_FINE )
       goto Main_CleanupTag;
+
+   // Chroot into TFTP root directory and drop privileges
+   if ( tftp_util_chroot_and_drop( cfg.root_dir, cfg.run_as_user ) != 0 )
+   {
+      tftp_log( TFTP_LOG_ERR, "Failed to chroot/drop privileges" );
+      mainrc |= MAINRC_FAILED_CLOSE;
+      goto Main_CleanupTag;
+   }
 
    // Primary loop
    while ( !bUserEndedSession && nreps++ < cfg.max_requests )

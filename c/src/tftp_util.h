@@ -76,4 +76,20 @@ size_t tftp_util_netascii_to_octet(const uint8_t *in, size_t in_len,
                                     uint8_t *out, size_t out_cap,
                                     bool *pending_cr);
 
+/**
+ * @brief Change into the TFTP root directory, chroot into it, and drop
+ *        privileges to the specified unprivileged user.
+ *
+ * Sequence: chdir(dir) → chroot(".") → chdir("/") → setgid → setuid.
+ * After this call, the process is jailed in @p dir and running as @p user.
+ *
+ * If the process is not running as root (uid != 0), the chroot and
+ * privilege-drop steps are skipped, but chdir is still performed.
+ *
+ * @param[in] dir   Absolute path to the TFTP root directory.
+ * @param[in] user  Username to drop privileges to (e.g. "nobody").
+ * @return 0 on success, -1 on error (details logged via tftp_log).
+ */
+int tftp_util_chroot_and_drop(const char *dir, const char *user);
+
 #endif // TFTP_UTIL_H

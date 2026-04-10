@@ -49,6 +49,10 @@ void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg)
    // Default root dir: current working directory
    (void)strncpy( cfg->root_dir, ".", sizeof cfg->root_dir - 1 );
    cfg->root_dir[sizeof cfg->root_dir - 1] = '\0';
+
+   // Default run-as user
+   (void)strncpy( cfg->run_as_user, "nobody", sizeof cfg->run_as_user - 1 );
+   cfg->run_as_user[sizeof cfg->run_as_user - 1] = '\0';
 }
 
 int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
@@ -135,6 +139,19 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
          {
             (void)strncpy( cfg->root_dir, value, sizeof cfg->root_dir - 1 );
             cfg->root_dir[sizeof cfg->root_dir - 1] = '\0';
+         }
+      }
+      else if ( strcmp( key, "run_as_user" ) == 0 )
+      {
+         if ( strlen( value ) == 0 || strlen( value ) >= sizeof cfg->run_as_user )
+         {
+            tftp_log( TFTP_LOG_WARN, "Config line %d: run_as_user empty or too long", line_num );
+            errors++;
+         }
+         else
+         {
+            (void)strncpy( cfg->run_as_user, value, sizeof cfg->run_as_user - 1 );
+            cfg->run_as_user[sizeof cfg->run_as_user - 1] = '\0';
          }
       }
       else if ( strcmp( key, "log_level" ) == 0 )

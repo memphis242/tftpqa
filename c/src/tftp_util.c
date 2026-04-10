@@ -8,12 +8,17 @@
 /*************************** File Header Inclusions ***************************/
 
 #include <assert.h>
+#include <errno.h>
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
+#include <pwd.h>
+#include <grp.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
 #include "tftp_util.h"
+#include "tftp_log.h"
 
 /********************** Public Function Implementations ***********************/
 
@@ -185,4 +190,84 @@ size_t tftp_util_netascii_to_octet(const uint8_t *in, size_t in_len,
    }
 
    return o;
+}
+
+int tftp_util_chroot_and_drop(const char *dir, const char *user)
+{
+   assert( dir != nullptr );
+   assert( user != nullptr );
+
+   // Step 1: chdir into the target directory
+   if ( chdir( dir ) != 0 )
+   {
+      tftp_log( TFTP_LOG_ERR, "chdir('%s') failed: %s", dir, strerror( errno ) );
+      return -1;
+   }
+
+   // If not running as root, skip chroot and privilege drop
+   if ( getuid() != 0 )
+   {
+      tftp_log( TFTP_LOG_WARN,
+                "Not running as root (uid=%ju); skipping chroot and privilege drop",
+                (uintmax_t)getuid() );
+      return 0;
+   }
+
+   // Step 2: chroot into the current directory
+   if ( chroot( "." ) != 0 )
+   {
+      tftp_log( TFTP_LOG_ERR, "chroot('.') failed: %s", strerror( errno ) );
+      return -1;
+   }
+
+   // Step 3: chdir to new root so relative paths work
+   if ( chdir( "/" ) != 0 )
+   {
+      tftp_log( TFTP_LOG_ERR, "chdir('/') after chroot failed: %s", strerror( errno ) );
+      return -1;
+   }
+
+   // Step 4: Look up the target user
+   errno = 0;
+   struct passwd *pw = getpwnam( user );
+   if ( pw == nullptr )
+   {
+      if ( errno != 0 )
+         tftp_log( TFTP_LOG_ERR, "getpwnam('%s') failed: %s", user, strerror( errno ) );
+      else
+         tftp_log( TFTP_LOG_ERR, "User '%s' not found", user );
+      return -1;
+   }
+
+   // Step 5: Drop group privileges first (must do before setuid)
+   if ( setgid( pw->pw_gid ) != 0 )
+   {
+      tftp_log( TFTP_LOG_ERR, "setgid(%ju) failed: %s",
+                (uintmax_t)pw->pw_gid, strerror( errno ) );
+      return -1;
+   }
+
+   // Drop supplementary groups
+   if ( setgroups( 0, nullptr ) != 0 )
+   {
+      tftp_log( TFTP_LOG_ERR, "setgroups(0, NULL) failed: %s", strerror( errno ) );
+      return -1;
+   }
+
+   // Step 6: Drop user privileges (point of no return)
+   if ( setuid( pw->pw_uid ) != 0 )
+   {
+      tftp_log( TFTP_LOG_ERR, "setuid(%ju) failed: %s",
+                (uintmax_t)pw->pw_uid, strerror( errno ) );
+      return -1;
+   }
+
+   // Step 7: Verify we actually dropped privileges
+   assert( getuid() != 0 );
+   assert( geteuid() != 0 );
+
+   tftp_log( TFTP_LOG_INFO, "Chrooted to '%s', running as user '%s' (uid=%ju, gid=%ju)",
+             dir, user, (uintmax_t)pw->pw_uid, (uintmax_t)pw->pw_gid );
+
+   return 0;
 }

@@ -20,6 +20,7 @@ struct TFTPTest_Config
    uint16_t           tftp_port;        // TFTP listening port (default 23069)
    uint16_t           ctrl_port;        // Control channel port (default tftp_port + 1)
    char               root_dir[PATH_MAX]; // TFTP root directory
+   char               run_as_user[64];   // Drop privileges to this user (default "nobody")
    enum TFTP_LogLevel log_level;        // Minimum log level
    unsigned int       timeout_sec;      // Per-packet timeout in seconds (default 1)
    unsigned int       max_retransmits;  // Max retransmit attempts (default 5)

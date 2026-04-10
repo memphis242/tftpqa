@@ -17,6 +17,7 @@
 
 #include "tftptest_common.h"
 
+#include <limits.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -72,6 +73,7 @@ void test_parsecfg_defaults_produces_sane_values(void)
    TEST_ASSERT_EQUAL_UINT16( 23069, cfg.tftp_port );
    TEST_ASSERT_EQUAL_UINT16( 23070, cfg.ctrl_port );
    TEST_ASSERT_EQUAL_STRING( ".", cfg.root_dir );
+   TEST_ASSERT_EQUAL_STRING( "nobody", cfg.run_as_user );
    TEST_ASSERT_EQUAL_INT( TFTP_LOG_INFO, cfg.log_level );
    TEST_ASSERT_EQUAL_UINT( 1, cfg.timeout_sec );
    TEST_ASSERT_EQUAL_UINT( 5, cfg.max_retransmits );
@@ -912,6 +914,36 @@ void test_pkt_valid_rrq_octet_mixed_case(void)
    TEST_ASSERT_TRUE( TFTP_PKT_RequestIsValid(buf, sizeof buf) );
 }
 
+/*---------------------------------------------------------------------------
+ * chroot_and_drop tests (non-root only)
+ *---------------------------------------------------------------------------*/
+
+void test_chroot_and_drop_non_root_succeeds(void)
+{
+   // When not running as root, chroot_and_drop should chdir and return 0
+   // (skipping actual chroot and privilege drop)
+   if ( getuid() == 0 )
+   {
+      TEST_IGNORE_MESSAGE("Test skipped when running as root");
+      return;
+   }
+
+   // Use /tmp as the directory (always exists and is writable)
+   int rc = tftp_util_chroot_and_drop("/tmp", "nobody");
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+
+   // Verify we're now in /tmp
+   char cwd[PATH_MAX];
+   TEST_ASSERT_NOT_NULL( getcwd(cwd, sizeof cwd) );
+   TEST_ASSERT_EQUAL_STRING( "/tmp", cwd );
+}
+
+void test_chroot_and_drop_bad_dir_fails(void)
+{
+   int rc = tftp_util_chroot_and_drop("/nonexistent_dir_12345", "nobody");
+   TEST_ASSERT_EQUAL_INT( -1, rc );
+}
+
 void test_pkt_ack_block_zero(void)
 {
    uint8_t pkt[TFTP_ACK_SZ];
@@ -1021,6 +1053,10 @@ int main(void)
    RUN_TEST( test_pkt_build_error_succeeds_with_adequate_buffer );
    RUN_TEST( test_pkt_valid_rrq_octet_mixed_case );
    RUN_TEST( test_pkt_ack_block_zero );
+
+   // chroot_and_drop
+   RUN_TEST( test_chroot_and_drop_non_root_succeeds );
+   RUN_TEST( test_chroot_and_drop_bad_dir_fails );
 
    return UNITY_END();
 }
