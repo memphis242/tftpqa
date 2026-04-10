@@ -113,6 +113,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
    assert( peer_addr != nullptr );
    assert( cfg != nullptr );
    assert( fault != nullptr );
+   assert( rqsz != 0 );
 
    enum TFTP_FSM_RC rc = TFTP_FSM_RC_FINE;
 
