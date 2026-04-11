@@ -42,15 +42,30 @@ Note, CLI options override config file.
 tftp_port = 23069
 ctrl_port = 23070
 
-# blank lines are fine
+# blank lines are fine # so are inline comments
 
-# TFTP root directory (make sure the TFTP user the server drops to has permissions)
-root_dir = /var/lib/tftpboot # inline comments are fine
-timeout_sec = 5
-max_retransmits = 5
+# tftptest general setup
+root_dir = /var/lib/tftpboot # the chroot() jail and where all files go to / come from
+run_as_user = tftpuser # the default user to drop privileges to
+timeout_sec = 5 # per-packet timeout
+max_retransmits = 5 # max retries of DATA or ACK's
+
+# logging
 log_level = info # there's trace > debug > info > warn > error > fatal
-fault_whitelist = 0xFFFFFFFFFFFFFFFF # bit masks of allowed fault modes (see table at TODO)
-allowed_client_ip = 192.168.0.24 # 0 for no restrictions, specific IP otherwise
+
+# allowed fault simulations
+fault_whitelist = 0xFFFFFFFFFFFFFFFF # bit masks of allowed fault modes (see table at TODO) - 0 for no fault simulations allowed
+
+# Extra protections against malicious attackers
+allowed_client_ip = 192.168.0.24    # 0 for no restrictions, specific IP otherwise
+max_abandoned_sessions = 10         # Lock out all requests from a particular IP address after this many timed-out sessions (0 = unlimited)
+# WRQ DoS protection
+max_wrq_file_size = 500000000       # Per-file size limit in bytes (0 = unlimited)
+max_wrq_session_bytes = 10000000000 # Cumulative WRQ bytes for entire server run (0 = unlimited)
+max_wrq_duration_sec = 60           # Per-WRQ transaction maximum duration (0 = unlimited)
+max_wrq_file_count = 500            # Max files written in this server run (0 = unlimited)
+min_disk_free_bytes = 20000000000   # Reject WRQ if free disk < this (0 = no check)
+wrq_enabled = 1                     # If false, reject all WRQ with ACCESS_VIOLATION
 ```
 
 ### Set fault mode via control channel (UDP):
