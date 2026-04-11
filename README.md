@@ -1,10 +1,12 @@
 # tftptest
 
-A TFTP (RFC 1350) test server with fault simulation capabilities for thorough testing of your TFTP client.
+A TFTP (RFC 1350) test server that behaves like a nominal TFTP server but through messages on a control port, it will simulate a chosen fault as part of thorough testing of your TFTP client. This server will only answer to a single client at a time, and can be configured to answer to a specific client.
 
 ## Basic Usage
 
 ### Starting the Server
+
+Note, CLI options override config file.
 
 ```bash
 # Run /w defaults: port 23069, "nobody" user, WARN lvl logging
@@ -33,6 +35,8 @@ tftptest --syslog            # Log to syslog
 
 ### Configuration file (INI format):
 
+Note, CLI options override config file.
+
 ```ini
 tftp_port = 23069
 ctrl_port = 23070
@@ -44,6 +48,10 @@ fault_whitelist = 0xFFFFFFFFFFFFFFFF
 ```
 
 ### Set fault mode via control channel (UDP):
+
+Server will listen on a "control" port to go off-nominal and into a particular fault simulation mode.  
+
+From a separate terminal, for simple local-host control:
 
 ```bash
 echo "SET_FAULT FAULT_RRQ_TIMEOUT" | nc -u localhost 23070
