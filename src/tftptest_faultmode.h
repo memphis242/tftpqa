@@ -58,6 +58,16 @@ enum TFTPTest_FaultMode
    FAULT_WRONG_TID_READ,           // Send from wrong TID during RRQ
    FAULT_WRONG_TID_WRITE,          // Send from wrong TID during WRQ
 
+   // Timing faults
+   FAULT_SLOW_RESPONSE,            // Delay response by param ms (param: delay in ms)
+
+   // Payload faults
+   FAULT_CORRUPT_DATA,             // Flip bits in DATA payload at block N (param: block#)
+   FAULT_TRUNCATED_PKT,            // Send packet shorter than minimum valid size
+
+   // Protocol violation faults
+   FAULT_BURST_DATA,               // Send N DATA packets without waiting for ACK (param: burst count)
+
    FAULT_MODE_COUNT
 };
 

@@ -58,6 +58,10 @@ static const char *fault_mode_names[] = {
    [FAULT_INVALID_ERR_CODE_WRITE]   = "INVALID_ERR_CODE_WRITE",
    [FAULT_WRONG_TID_READ]           = "WRONG_TID_READ",
    [FAULT_WRONG_TID_WRITE]          = "WRONG_TID_WRITE",
+   [FAULT_SLOW_RESPONSE]            = "SLOW_RESPONSE",
+   [FAULT_CORRUPT_DATA]             = "CORRUPT_DATA",
+   [FAULT_TRUNCATED_PKT]            = "TRUNCATED_PKT",
+   [FAULT_BURST_DATA]               = "BURST_DATA",
 };
 
 _Static_assert(sizeof(fault_mode_names) / sizeof(fault_mode_names[0]) == FAULT_MODE_COUNT,

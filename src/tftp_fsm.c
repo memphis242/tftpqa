@@ -89,6 +89,11 @@ static struct TFTP_FSM_Session_S
    struct timespec         wrq_start_time;
    size_t                  wrq_session_budget;
    char                    wrq_filename[FILENAME_MAX_LEN + 1];
+   // OOO fault state
+   uint8_t                 ooo_stashed_pkt[TFTP_DATA_MAX_SZ];
+   size_t                  ooo_stashed_len;
+   bool                    ooo_pending;
+   uint16_t                ooo_stashed_block;
 } TFTP_FSM_Session;
 
 // Internal Function Declarations
@@ -107,6 +112,7 @@ static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
                                    bool is_data, uint16_t block_num);
 static int fault_maybe_wrong_tid(const struct TFTPTest_FaultState *fault,
                                   bool is_rrq);
+static void fault_maybe_delay(const struct TFTPTest_FaultState *fault);
 
 /********************** Public Function Implementations ***********************/
 
@@ -454,6 +460,50 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
             TFTP_FSM_Session.block_num, payload, payload_len);
          assert( TFTP_FSM_Session.sendbuf_len > 0 );
 
+         // Fault: OOO DATA — swap adjacent blocks
+         // If we're at the stash-pending block and have a stashed packet, send current first, then stashed
+         if ( TFTP_FSM_Session.ooo_pending )
+         {
+            // Send the current block (N+1) first
+            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: OOO sending block %u before stashed block %u",
+                      TFTP_FSM_Session.block_num, TFTP_FSM_Session.ooo_stashed_block );
+            (void)sendto(TFTP_FSM_Session.sfd,
+                         TFTP_FSM_Session.sendbuf, TFTP_FSM_Session.sendbuf_len, 0,
+                         (const struct sockaddr *)&TFTP_FSM_Session.peer_addr,
+                         sizeof TFTP_FSM_Session.peer_addr);
+            // Then send the stashed block (N)
+            (void)sendto(TFTP_FSM_Session.sfd,
+                         TFTP_FSM_Session.ooo_stashed_pkt, TFTP_FSM_Session.ooo_stashed_len, 0,
+                         (const struct sockaddr *)&TFTP_FSM_Session.peer_addr,
+                         sizeof TFTP_FSM_Session.peer_addr);
+            TFTP_FSM_Session.ooo_pending = false;
+
+            if ( is_last )
+               TFTP_FSM_Session.state = TFTP_FSM_RRQ_FIN_DATA;
+            else
+               TFTP_FSM_Session.state = TFTP_FSM_RRQ_ACK;
+            break;
+         }
+
+         if ( fault->mode == FAULT_OOO_DATA && !is_last )
+         {
+            uint16_t target = (fault->param > 0) ? (uint16_t)fault->param : 3;
+            if ( TFTP_FSM_Session.block_num == target )
+            {
+               // Stash this packet, read next block on next iteration
+               tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Stashing DATA block %u for OOO swap",
+                         TFTP_FSM_Session.block_num );
+               memcpy(TFTP_FSM_Session.ooo_stashed_pkt, TFTP_FSM_Session.sendbuf,
+                      TFTP_FSM_Session.sendbuf_len);
+               TFTP_FSM_Session.ooo_stashed_len = TFTP_FSM_Session.sendbuf_len;
+               TFTP_FSM_Session.ooo_stashed_block = TFTP_FSM_Session.block_num;
+               TFTP_FSM_Session.ooo_pending = true;
+               // Go back to RRQ_DATA to read and send next block
+               TFTP_FSM_Session.state = TFTP_FSM_RRQ_DATA;
+               break;
+            }
+         }
+
          // Fault: suppress DATA send?
          if ( fault_should_suppress_data(fault, TFTP_FSM_Session.block_num, is_last) )
          {
@@ -480,6 +530,9 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
                                &TFTP_FSM_Session.sendbuf_len,
                                sizeof TFTP_FSM_Session.sendbuf,
                                true, TFTP_FSM_Session.block_num);
+
+         // Fault: delayed response?
+         fault_maybe_delay(fault);
 
          // Fault: wrong TID? Send from a different socket
          int send_sfd = fault_maybe_wrong_tid(fault, true);
@@ -518,6 +571,43 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
 
          tftp_log( TFTP_LOG_DEBUG, "FSM: Sent DATA block %u (%zu bytes)",
                    TFTP_FSM_Session.block_num, payload_len );
+
+         // Fault: burst — send additional DATA packets without waiting for ACK
+         if ( fault->mode == FAULT_BURST_DATA && !is_last &&
+              TFTP_FSM_Session.block_num == 1 )
+         {
+            uint32_t burst_count = (fault->param > 0) ? fault->param : 3;
+            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Burst-sending %u additional DATA packets",
+                      burst_count );
+            for ( uint32_t b = 0; b < burst_count && !is_last; b++ )
+            {
+               uint8_t burst_payload[TFTP_BLOCK_DATA_SZ];
+               size_t burst_len = fread(burst_payload, 1, sizeof burst_payload,
+                                        TFTP_FSM_Session.fp);
+               if ( ferror(TFTP_FSM_Session.fp) )
+                  break;
+               bool burst_last = (burst_len < TFTP_BLOCK_DATA_SZ);
+
+               TFTP_FSM_Session.block_num++;
+               uint8_t burst_pkt[TFTP_DATA_MAX_SZ];
+               size_t burst_pkt_len = TFTP_PKT_BuildData(
+                  burst_pkt, sizeof burst_pkt,
+                  TFTP_FSM_Session.block_num, burst_payload, burst_len);
+
+               (void)sendto(TFTP_FSM_Session.sfd,
+                            burst_pkt, burst_pkt_len, 0,
+                            (const struct sockaddr *)&TFTP_FSM_Session.peer_addr,
+                            sizeof TFTP_FSM_Session.peer_addr);
+               tftp_log( TFTP_LOG_DEBUG, "FSM: FAULT: Burst DATA block %u (%zu bytes)",
+                         TFTP_FSM_Session.block_num, burst_len );
+
+               // Keep last burst packet in sendbuf for retransmit
+               memcpy(TFTP_FSM_Session.sendbuf, burst_pkt, burst_pkt_len);
+               TFTP_FSM_Session.sendbuf_len = burst_pkt_len;
+
+               is_last = burst_last;
+            }
+         }
 
          if ( is_last )
             TFTP_FSM_Session.state = TFTP_FSM_RRQ_FIN_DATA;
@@ -893,6 +983,57 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
             break;
          }
 
+         // Fault: OOO ACK — swap adjacent ACKs
+         // If we have a stashed ACK pending, send current ACK(N+1) first, then stashed ACK(N)
+         if ( TFTP_FSM_Session.ooo_pending )
+         {
+            // Build and send ACK(N+1) — the current block
+            uint8_t ack_now[TFTP_ACK_SZ];
+            size_t ack_now_len = TFTP_PKT_BuildAck(ack_now, sizeof ack_now,
+                                                    TFTP_FSM_Session.block_num);
+            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: OOO sending ACK %u before stashed ACK %u",
+                      TFTP_FSM_Session.block_num, TFTP_FSM_Session.ooo_stashed_block );
+            (void)sendto(TFTP_FSM_Session.sfd, ack_now, ack_now_len, 0,
+                         (const struct sockaddr *)&TFTP_FSM_Session.peer_addr,
+                         sizeof TFTP_FSM_Session.peer_addr);
+            // Then send the stashed ACK(N)
+            (void)sendto(TFTP_FSM_Session.sfd,
+                         TFTP_FSM_Session.ooo_stashed_pkt, TFTP_FSM_Session.ooo_stashed_len, 0,
+                         (const struct sockaddr *)&TFTP_FSM_Session.peer_addr,
+                         sizeof TFTP_FSM_Session.peer_addr);
+            TFTP_FSM_Session.ooo_pending = false;
+
+            // Copy current ACK into sendbuf for retransmit
+            memcpy(TFTP_FSM_Session.sendbuf, ack_now, ack_now_len);
+            TFTP_FSM_Session.sendbuf_len = ack_now_len;
+
+            if ( wrq_is_last )
+            {
+               tftp_log( TFTP_LOG_INFO, "FSM: WRQ transfer complete" );
+               TFTP_FSM_Session.state = TFTP_FSM_IDLE;
+            }
+            break;
+         }
+
+         if ( fault->mode == FAULT_OOO_ACK && !wrq_is_last )
+         {
+            uint16_t target = (fault->param > 0) ? (uint16_t)fault->param : 3;
+            if ( TFTP_FSM_Session.block_num == target )
+            {
+               // Stash ACK for this block, wait for next DATA to arrive
+               tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Stashing ACK block %u for OOO swap",
+                         TFTP_FSM_Session.block_num );
+               TFTP_FSM_Session.ooo_stashed_len = TFTP_PKT_BuildAck(
+                  TFTP_FSM_Session.ooo_stashed_pkt, sizeof TFTP_FSM_Session.ooo_stashed_pkt,
+                  TFTP_FSM_Session.block_num);
+               TFTP_FSM_Session.ooo_stashed_block = TFTP_FSM_Session.block_num;
+               TFTP_FSM_Session.ooo_pending = true;
+               // Don't send ACK — go back to wait for next DATA
+               TFTP_FSM_Session.state = TFTP_FSM_WRQ_DATA;
+               break;
+            }
+         }
+
          // Send ACK
          TFTP_FSM_Session.sendbuf_len = TFTP_PKT_BuildAck(
             TFTP_FSM_Session.sendbuf, sizeof TFTP_FSM_Session.sendbuf,
@@ -904,6 +1045,9 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
                                &TFTP_FSM_Session.sendbuf_len,
                                sizeof TFTP_FSM_Session.sendbuf,
                                false, TFTP_FSM_Session.block_num);
+
+         // Fault: delayed response?
+         fault_maybe_delay(fault);
 
          // Fault: wrong TID?
          int ack_send_sfd = fault_maybe_wrong_tid(fault, false);
@@ -1003,6 +1147,8 @@ static void session_cleanup(void)
    TFTP_FSM_Session.block_num = 0;
    TFTP_FSM_Session.retries = 0;
    TFTP_FSM_Session.sendbuf_len = 0;
+   TFTP_FSM_Session.ooo_pending = false;
+   TFTP_FSM_Session.ooo_stashed_len = 0;
 }
 
 static bool tid_matches(const struct sockaddr_in *incoming)
@@ -1164,6 +1310,32 @@ static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
       break;
    }
 
+   case FAULT_CORRUPT_DATA:
+      if ( is_data && *pkt_len > TFTP_DATA_HDR_SZ )
+      {
+         uint16_t target_block = (fault->param > 0) ? (uint16_t)fault->param : 3;
+         if ( block_num == target_block )
+         {
+            // XOR first 4 payload bytes (or fewer if payload is shorter)
+            size_t payload_start = TFTP_DATA_HDR_SZ;
+            size_t corrupt_len = *pkt_len - payload_start;
+            if ( corrupt_len > 4 ) corrupt_len = 4;
+            for ( size_t i = 0; i < corrupt_len; i++ )
+               pkt[payload_start + i] ^= 0xFF;
+            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Corrupted DATA block %u payload (%zu bytes)",
+                      block_num, corrupt_len );
+         }
+      }
+      break;
+
+   case FAULT_TRUNCATED_PKT:
+      if ( *pkt_len > 2 )
+      {
+         *pkt_len = 2;  // opcode only, no block# or payload
+         tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Truncated packet to 2 bytes" );
+      }
+      break;
+
    default:
       break;
    }
@@ -1184,4 +1356,19 @@ static int fault_maybe_wrong_tid(const struct TFTPTest_FaultState *fault,
    if ( sfd >= 0 )
       tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Sending from wrong TID" );
    return sfd;
+}
+
+static void fault_maybe_delay(const struct TFTPTest_FaultState *fault)
+{
+   if ( fault->mode != FAULT_SLOW_RESPONSE )
+      return;
+
+   uint32_t delay_ms = fault->param > 0 ? fault->param : 4000;
+   struct timespec ts = {
+      .tv_sec  = delay_ms / 1000,
+      .tv_nsec = (long)(delay_ms % 1000) * 1000000L,
+   };
+
+   tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Delaying response by %u ms", delay_ms );
+   (void)nanosleep(&ts, nullptr);
 }
