@@ -550,18 +550,19 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
             break;
          }
 
-         // Check block number
+         // Check block number (uint16_t arithmetic handles wrap at 65535 -> 0)
          if ( ack_block != TFTP_FSM_Session.block_num )
          {
-            // Duplicate ACK for previous block -- ignore and keep waiting
-            if ( ack_block < TFTP_FSM_Session.block_num )
+            // Duplicate ACK for the previous block -- ignore and keep waiting.
+            // Use uint16_t subtraction so the comparison is correct across wrap.
+            if ( ack_block == (uint16_t)(TFTP_FSM_Session.block_num - 1) )
             {
                tftp_log( TFTP_LOG_DEBUG, "FSM: Duplicate ACK for block %u (expected %u), ignoring",
                          ack_block, TFTP_FSM_Session.block_num );
                break; // Stay in same state
             }
 
-            // ACK for future block -- protocol error
+            // ACK for an unexpected block -- protocol error
             tftp_log( TFTP_LOG_WARN, "FSM: ACK for block %u but expected %u",
                       ack_block, TFTP_FSM_Session.block_num );
             send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
@@ -680,12 +681,14 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
             break;
          }
 
+         // Compute expected next block with uint16_t wrap (65535 -> 0)
+         uint16_t expected_block = (uint16_t)(TFTP_FSM_Session.block_num + 1);
+
          // Check for duplicate DATA (re-send ACK, don't re-write)
-         if ( data_block <= TFTP_FSM_Session.block_num )
+         if ( data_block == TFTP_FSM_Session.block_num )
          {
             tftp_log( TFTP_LOG_DEBUG, "FSM: Duplicate DATA block %u, re-ACKing",
                       data_block );
-            // Re-send the ACK for that block
             uint8_t dup_ack[TFTP_ACK_SZ];
             size_t ack_sz = TFTP_PKT_BuildAck(dup_ack, sizeof dup_ack, data_block);
             (void)sendto(TFTP_FSM_Session.sfd, dup_ack, ack_sz, 0,
@@ -694,11 +697,11 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
             break;
          }
 
-         // Expect next sequential block
-         if ( data_block != TFTP_FSM_Session.block_num + 1 )
+         // Expect next sequential block (with uint16_t wrap)
+         if ( data_block != expected_block )
          {
             tftp_log( TFTP_LOG_WARN, "FSM: DATA block %u but expected %u",
-                      data_block, (unsigned)(TFTP_FSM_Session.block_num + 1) );
+                      data_block, (unsigned)expected_block );
             send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                           TFTP_ERRC_ILLEGAL_OP, "Unexpected block number");
             rc = TFTP_FSM_RC_PROTOCOL_ERR;
