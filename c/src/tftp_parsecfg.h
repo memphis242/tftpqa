@@ -8,6 +8,7 @@
 #ifndef TFTP_PARSECFG_H
 #define TFTP_PARSECFG_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <limits.h>
@@ -27,6 +28,13 @@ struct TFTPTest_Config
    size_t             max_requests;     // Max TFTP requests before restart (default 10000)
    uint64_t           fault_whitelist;  // Bitmask of allowed fault modes
    uint32_t           allowed_client_ip; // Restrict to this IP (0.0.0.0 = allow all)
+   // WRQ DoS protection
+   size_t             max_wrq_file_size;      // Per-file size limit in bytes (0 = unlimited)
+   size_t             max_wrq_session_bytes;  // Cumulative WRQ bytes for entire server run (0 = unlimited)
+   unsigned int       max_wrq_duration_sec;   // Per-WRQ wall-clock timeout in seconds (0 = unlimited)
+   size_t             max_wrq_file_count;     // Max files written in this server run (0 = unlimited)
+   size_t             min_disk_free_bytes;    // Reject WRQ if free disk < this (0 = no check)
+   bool               wrq_enabled;            // If false, reject all WRQ with ACCESS_VIOLATION
 };
 
 /**

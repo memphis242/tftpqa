@@ -48,6 +48,12 @@ void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg)
    cfg->max_requests    = DEFAULT_MAX_REQUESTS;
    cfg->fault_whitelist = UINT64_MAX; // All faults allowed by default
    cfg->allowed_client_ip = 0; // 0.0.0.0 = allow all clients
+   cfg->max_wrq_file_size = 0;       // 0 = unlimited
+   cfg->max_wrq_session_bytes = 0;   // 0 = unlimited
+   cfg->max_wrq_duration_sec = 0;    // 0 = unlimited
+   cfg->max_wrq_file_count = 0;      // 0 = unlimited
+   cfg->min_disk_free_bytes = 0;     // 0 = no check
+   cfg->wrq_enabled = true;
 
    // Default root dir: current working directory
    (void)strncpy( cfg->root_dir, ".", sizeof cfg->root_dir - 1 );
@@ -246,6 +252,58 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
             {
                cfg->allowed_client_ip = addr.s_addr; // Store in network byte order
             }
+         }
+      }
+      else if ( strcmp( key, "max_wrq_file_size" ) == 0 )
+      {
+         unsigned long v = strtoul( value, nullptr, 10 );
+         cfg->max_wrq_file_size = v;
+      }
+      else if ( strcmp( key, "max_wrq_session_bytes" ) == 0 )
+      {
+         unsigned long v = strtoul( value, nullptr, 10 );
+         cfg->max_wrq_session_bytes = v;
+      }
+      else if ( strcmp( key, "max_wrq_duration_sec" ) == 0 )
+      {
+         unsigned long v = strtoul( value, nullptr, 10 );
+         if ( v > 86400 )
+         {
+            tftp_log( TFTP_LOG_WARN, "Config line %d: invalid max_wrq_duration_sec '%s' (must be 0-86400)",
+                      line_num, value );
+            errors++;
+         }
+         else
+         {
+            cfg->max_wrq_duration_sec = (unsigned int)v;
+         }
+      }
+      else if ( strcmp( key, "max_wrq_file_count" ) == 0 )
+      {
+         unsigned long v = strtoul( value, nullptr, 10 );
+         cfg->max_wrq_file_count = v;
+      }
+      else if ( strcmp( key, "min_disk_free_bytes" ) == 0 )
+      {
+         unsigned long v = strtoul( value, nullptr, 10 );
+         cfg->min_disk_free_bytes = v;
+      }
+      else if ( strcmp( key, "wrq_enabled" ) == 0 )
+      {
+         if ( strcasecmp( value, "true" ) == 0 || strcasecmp( value, "yes" ) == 0 ||
+              strcasecmp( value, "1" ) == 0 )
+         {
+            cfg->wrq_enabled = true;
+         }
+         else if ( strcasecmp( value, "false" ) == 0 || strcasecmp( value, "no" ) == 0 ||
+                   strcasecmp( value, "0" ) == 0 )
+         {
+            cfg->wrq_enabled = false;
+         }
+         else
+         {
+            tftp_log( TFTP_LOG_WARN, "Config line %d: invalid wrq_enabled '%s'", line_num, value );
+            errors++;
          }
       }
       else

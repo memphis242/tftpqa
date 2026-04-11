@@ -23,6 +23,7 @@
 #include <stdatomic.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/statvfs.h>
 
 // Sockets
 #include <sys/socket.h>
@@ -83,6 +84,11 @@ static struct TFTP_FSM_Session_S
    bool                    netascii_pending_cr;
    uint8_t                 sendbuf[TFTP_DATA_MAX_SZ];
    size_t                  sendbuf_len;
+   // WRQ DoS protection state
+   size_t                  wrq_bytes_written;
+   struct timespec         wrq_start_time;
+   size_t                  wrq_session_budget;
+   char                    wrq_filename[FILENAME_MAX_LEN + 1];
 } TFTP_FSM_Session;
 
 // Internal Function Declarations
@@ -107,7 +113,9 @@ static int fault_maybe_wrong_tid(const struct TFTPTest_FaultState *fault,
 enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
                                     const struct sockaddr_in *peer_addr,
                                     const struct TFTPTest_Config *cfg,
-                                    const struct TFTPTest_FaultState *fault)
+                                    const struct TFTPTest_FaultState *fault,
+                                    size_t wrq_session_budget,
+                                    size_t *wrq_bytes_written)
 {
    assert( rqbuf != nullptr );
    assert( peer_addr != nullptr );
@@ -221,6 +229,57 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
    }
    else
    {
+      // WRQ DoS protection: wrq_enabled check
+      if ( !cfg->wrq_enabled )
+      {
+         tftp_log( TFTP_LOG_WARN, "FSM: WRQ disabled by config, rejecting" );
+         struct sockaddr_in bound = {0};
+         int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
+         if ( sfd >= 0 )
+         {
+            uint8_t errbuf[128];
+            size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+                                                 TFTP_ERRC_ACCESS_VIOLATION, "WRQ disabled");
+            if ( errsz > 0 )
+               (void)sendto(sfd, errbuf, errsz, 0,
+                            (const struct sockaddr *)peer_addr, sizeof *peer_addr);
+            (void)close(sfd);
+         }
+         if ( wrq_bytes_written != nullptr )
+            *wrq_bytes_written = 0;
+         return TFTP_FSM_RC_WRQ_DISABLED;
+      }
+
+      // WRQ DoS protection: pre-flight disk space check
+      if ( cfg->min_disk_free_bytes > 0 )
+      {
+         struct statvfs sv;
+         if ( statvfs(".", &sv) == 0 )
+         {
+            size_t free_bytes = sv.f_bavail * sv.f_frsize;
+            if ( free_bytes < cfg->min_disk_free_bytes )
+            {
+               tftp_log( TFTP_LOG_WARN, "FSM: Insufficient disk space (%zu < %zu), rejecting WRQ",
+                         free_bytes, cfg->min_disk_free_bytes );
+               struct sockaddr_in bound = {0};
+               int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
+               if ( sfd >= 0 )
+               {
+                  uint8_t errbuf[128];
+                  size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+                                                       TFTP_ERRC_DISK_FULL, "Insufficient disk space");
+                  if ( errsz > 0 )
+                     (void)sendto(sfd, errbuf, errsz, 0,
+                                  (const struct sockaddr *)peer_addr, sizeof *peer_addr);
+                  (void)close(sfd);
+               }
+               if ( wrq_bytes_written != nullptr )
+                  *wrq_bytes_written = 0;
+               return TFTP_FSM_RC_WRQ_DISK_CHECK;
+            }
+         }
+      }
+
       // WRQ: open file for writing (overwrites existing per RFC 1350)
       TFTP_FSM_Session.fp = fopen(filename, "wb");
       if ( TFTP_FSM_Session.fp == nullptr )
@@ -242,6 +301,14 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
          }
          return TFTP_FSM_RC_FILE_ERR;
       }
+
+      // WRQ: record start time, session budget, and filename for limit checks
+      clock_gettime(CLOCK_MONOTONIC, &TFTP_FSM_Session.wrq_start_time);
+      TFTP_FSM_Session.wrq_session_budget = wrq_session_budget;
+      TFTP_FSM_Session.wrq_bytes_written = 0;
+      (void)strncpy(TFTP_FSM_Session.wrq_filename, filename,
+                     sizeof TFTP_FSM_Session.wrq_filename - 1);
+      TFTP_FSM_Session.wrq_filename[sizeof TFTP_FSM_Session.wrq_filename - 1] = '\0';
    }
 
    // Create ephemeral UDP socket (new TID per RFC 1350)
@@ -591,6 +658,28 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
 
       case TFTP_FSM_WRQ_DATA:
       {
+         // WRQ DoS: duration check
+         if ( cfg->max_wrq_duration_sec > 0 )
+         {
+            struct timespec now;
+            clock_gettime(CLOCK_MONOTONIC, &now);
+            unsigned int elapsed = (unsigned int)(now.tv_sec - TFTP_FSM_Session.wrq_start_time.tv_sec);
+            if ( elapsed >= cfg->max_wrq_duration_sec )
+            {
+               tftp_log( TFTP_LOG_WARN, "FSM: WRQ duration limit exceeded (%u >= %u sec)",
+                         elapsed, cfg->max_wrq_duration_sec );
+               send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
+                             TFTP_ERRC_DISK_FULL, "Transfer duration limit exceeded");
+               // Close and delete file
+               fclose(TFTP_FSM_Session.fp);
+               TFTP_FSM_Session.fp = nullptr;
+               (void)unlink(TFTP_FSM_Session.wrq_filename);
+               rc = TFTP_FSM_RC_WRQ_DURATION_LIMIT;
+               TFTP_FSM_Session.state = TFTP_FSM_ERR;
+               break;
+            }
+         }
+
          // Wait for DATA from client
          uint8_t databuf[TFTP_DATA_MAX_SZ + 16];
          struct sockaddr_in recv_addr = {0};
@@ -744,6 +833,40 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
             }
          }
 
+         // Track WRQ bytes written
+         TFTP_FSM_Session.wrq_bytes_written += data_len;
+
+         // WRQ DoS: per-file size limit check
+         if ( cfg->max_wrq_file_size > 0 &&
+              TFTP_FSM_Session.wrq_bytes_written > cfg->max_wrq_file_size )
+         {
+            tftp_log( TFTP_LOG_WARN, "FSM: Per-file WRQ size limit exceeded (%zu > %zu)",
+                      TFTP_FSM_Session.wrq_bytes_written, cfg->max_wrq_file_size );
+            send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
+                          TFTP_ERRC_DISK_FULL, "Upload limit exceeded");
+            // Close and delete file
+            fclose(TFTP_FSM_Session.fp);
+            TFTP_FSM_Session.fp = nullptr;
+            (void)unlink(TFTP_FSM_Session.wrq_filename);
+            rc = TFTP_FSM_RC_WRQ_FILE_LIMIT;
+            TFTP_FSM_Session.state = TFTP_FSM_ERR;
+            break;
+         }
+
+         // WRQ DoS: session budget check
+         if ( TFTP_FSM_Session.wrq_session_budget > 0 &&
+              TFTP_FSM_Session.wrq_bytes_written > TFTP_FSM_Session.wrq_session_budget )
+         {
+            tftp_log( TFTP_LOG_WARN, "FSM: WRQ session byte budget exceeded (%zu > %zu)",
+                      TFTP_FSM_Session.wrq_bytes_written, TFTP_FSM_Session.wrq_session_budget );
+            send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
+                          TFTP_ERRC_DISK_FULL, "Upload limit exceeded");
+            // Keep partial file (per spec)
+            rc = TFTP_FSM_RC_WRQ_SESSION_LIMIT;
+            TFTP_FSM_Session.state = TFTP_FSM_ERR;
+            break;
+         }
+
          TFTP_FSM_Session.block_num = data_block;
          TFTP_FSM_Session.retries = 0;
 
@@ -849,6 +972,8 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
 #endif
 
 fsm_cleanup:
+   if ( wrq_bytes_written != nullptr )
+      *wrq_bytes_written = TFTP_FSM_Session.wrq_bytes_written;
    session_cleanup();
    return rc;
 }

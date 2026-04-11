@@ -80,6 +80,12 @@ void test_parsecfg_defaults_produces_sane_values(void)
    TEST_ASSERT_EQUAL( 10000, cfg.max_requests );
    TEST_ASSERT_EQUAL_UINT64( UINT64_MAX, cfg.fault_whitelist );
    TEST_ASSERT_EQUAL_UINT32( 0, cfg.allowed_client_ip ); // 0 = allow all clients
+   TEST_ASSERT_EQUAL( 0, cfg.max_wrq_file_size );
+   TEST_ASSERT_EQUAL( 0, cfg.max_wrq_session_bytes );
+   TEST_ASSERT_EQUAL_UINT( 0, cfg.max_wrq_duration_sec );
+   TEST_ASSERT_EQUAL( 0, cfg.max_wrq_file_count );
+   TEST_ASSERT_EQUAL( 0, cfg.min_disk_free_bytes );
+   TEST_ASSERT_TRUE( cfg.wrq_enabled );
 }
 
 void test_parsecfg_load_nonexistent_file_returns_error(void)
@@ -903,6 +909,83 @@ void test_parsecfg_all_numeric_fields(void)
    (void)remove(path);
 }
 
+void test_parsecfg_wrq_protection_fields_loaded(void)
+{
+   const char *path = "/tmp/tftptest_test_wrq1.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "max_wrq_file_size = 1048576\n"
+      "max_wrq_session_bytes = 10485760\n"
+      "max_wrq_duration_sec = 60\n"
+      "max_wrq_file_count = 100\n"
+      "min_disk_free_bytes = 536870912\n"
+      "wrq_enabled = true\n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL( 1048576, cfg.max_wrq_file_size );
+   TEST_ASSERT_EQUAL( 10485760, cfg.max_wrq_session_bytes );
+   TEST_ASSERT_EQUAL_UINT( 60, cfg.max_wrq_duration_sec );
+   TEST_ASSERT_EQUAL( 100, cfg.max_wrq_file_count );
+   TEST_ASSERT_EQUAL( 536870912, cfg.min_disk_free_bytes );
+   TEST_ASSERT_TRUE( cfg.wrq_enabled );
+   (void)remove(path);
+}
+
+void test_parsecfg_wrq_enabled_false(void)
+{
+   const char *path = "/tmp/tftptest_test_wrq2.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "wrq_enabled = false\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   TEST_ASSERT_TRUE( cfg.wrq_enabled );  // default is true
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_FALSE( cfg.wrq_enabled );
+   (void)remove(path);
+}
+
+void test_parsecfg_wrq_duration_sec_invalid(void)
+{
+   const char *path = "/tmp/tftptest_test_wrq3.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "max_wrq_duration_sec = 99999\n");  // > 86400
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );  // load succeeds (non-fatal)
+   TEST_ASSERT_EQUAL_UINT( 0, cfg.max_wrq_duration_sec );  // unchanged from default
+   (void)remove(path);
+}
+
+void test_parsecfg_wrq_enabled_invalid_value(void)
+{
+   const char *path = "/tmp/tftptest_test_wrq4.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "wrq_enabled = maybe\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );  // load succeeds (non-fatal)
+   TEST_ASSERT_TRUE( cfg.wrq_enabled );  // unchanged from default
+   (void)remove(path);
+}
+
 /*---------------------------------------------------------------------------
  * Packet edge case tests
  *---------------------------------------------------------------------------*/
@@ -1090,6 +1173,10 @@ int main(void)
    RUN_TEST( test_parsecfg_missing_equals_delimiter );
    RUN_TEST( test_parsecfg_root_dir_and_fault_whitelist );
    RUN_TEST( test_parsecfg_all_numeric_fields );
+   RUN_TEST( test_parsecfg_wrq_protection_fields_loaded );
+   RUN_TEST( test_parsecfg_wrq_enabled_false );
+   RUN_TEST( test_parsecfg_wrq_duration_sec_invalid );
+   RUN_TEST( test_parsecfg_wrq_enabled_invalid_value );
 
    // packet edge cases
    RUN_TEST( test_pkt_reject_filename_too_long );

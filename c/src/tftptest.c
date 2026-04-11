@@ -61,6 +61,10 @@ enum MainRC
 
 // File-Scope Variables
 static volatile sig_atomic_t bUserEndedSession = false;
+static size_t   session_wrq_bytes      = 0;
+static size_t   session_wrq_file_count = 0;
+static bool     wrq_session_blocked    = false;
+static uint32_t blocked_peer_ip        = 0;   // network byte order; 0 = none
 
 // Local Function Declarations
 static void handleSIGINT(int sig_num);
@@ -292,8 +296,106 @@ int main(int argc, char * argv[])
                    addrbuf, ntohs(peer_addr.sin_port) );
       }
 
-      // Initiate FSM for session and wait for completion
-      (void)TFTP_FSM_KickOff(buf, (size_t)nbytes, &peer_addr, &cfg, &fault);
+      // Determine request type
+      uint16_t opcode = (uint16_t)(((uint16_t)buf[0] << 8) | buf[1]);
+      bool is_wrq = (opcode == TFTP_OP_WRQ);
+
+      // WRQ pre-KickOff rejection checks
+      if ( is_wrq )
+      {
+         // Blocked attacker IP?
+         if ( blocked_peer_ip != 0 && peer_addr.sin_addr.s_addr == blocked_peer_ip )
+         {
+            tftp_log( TFTP_LOG_WARN, "Blocked IP attempting WRQ, rejecting" );
+            uint8_t errbuf[128];
+            size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+                                                 TFTP_ERRC_ACCESS_VIOLATION, "Access denied");
+            if ( errsz > 0 )
+               (void)sendto(sfd_newconn, errbuf, errsz, 0,
+                            (const struct sockaddr *)&peer_addr, sizeof peer_addr);
+            continue;
+         }
+
+         // File count limit?
+         if ( cfg.max_wrq_file_count > 0 &&
+              session_wrq_file_count >= cfg.max_wrq_file_count )
+         {
+            tftp_log( TFTP_LOG_WARN, "WRQ file count limit (%zu) reached, rejecting",
+                      cfg.max_wrq_file_count );
+            uint8_t errbuf[128];
+            size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+                                                 TFTP_ERRC_DISK_FULL, "Upload limit exceeded");
+            if ( errsz > 0 )
+               (void)sendto(sfd_newconn, errbuf, errsz, 0,
+                            (const struct sockaddr *)&peer_addr, sizeof peer_addr);
+            // Block this IP
+            blocked_peer_ip = peer_addr.sin_addr.s_addr;
+            if ( cfg.allowed_client_ip != 0 && blocked_peer_ip == cfg.allowed_client_ip )
+            {
+               tftp_log( TFTP_LOG_ERR, "Blocked IP is the only allowed client — shutting down" );
+               goto Main_CleanupTag;
+            }
+            continue;
+         }
+
+         // Session bytes already exceeded?
+         if ( wrq_session_blocked )
+         {
+            tftp_log( TFTP_LOG_WARN, "WRQ session byte limit reached, rejecting" );
+            uint8_t errbuf[128];
+            size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+                                                 TFTP_ERRC_DISK_FULL, "Upload limit exceeded");
+            if ( errsz > 0 )
+               (void)sendto(sfd_newconn, errbuf, errsz, 0,
+                            (const struct sockaddr *)&peer_addr, sizeof peer_addr);
+            continue;
+         }
+      }
+
+      // Compute WRQ session budget
+      size_t budget = 0;
+      if ( is_wrq && cfg.max_wrq_session_bytes > 0 )
+      {
+         budget = (session_wrq_bytes >= cfg.max_wrq_session_bytes)
+                  ? 1  // budget exhausted, will fail immediately in FSM
+                  : cfg.max_wrq_session_bytes - session_wrq_bytes;
+      }
+
+      size_t bytes_written = 0;
+      enum TFTP_FSM_RC fsm_rc = TFTP_FSM_KickOff(buf, (size_t)nbytes, &peer_addr, &cfg, &fault,
+                                                    is_wrq ? budget : 0,
+                                                    is_wrq ? &bytes_written : nullptr);
+
+      // WRQ post-KickOff accounting
+      if ( is_wrq )
+      {
+         session_wrq_bytes      += bytes_written;
+         session_wrq_file_count += 1;
+
+         // Did a limit violation happen during transfer?
+         if ( fsm_rc & TFTP_FSM_RC_WRQ_LIMIT_VIOLATION )
+         {
+            blocked_peer_ip = peer_addr.sin_addr.s_addr;
+            char ipbuf[INET_ADDRSTRLEN];
+            (void)inet_ntop(AF_INET, &peer_addr.sin_addr, ipbuf, sizeof ipbuf);
+            tftp_log( TFTP_LOG_WARN, "Limit violation from %s — blocking IP for this session", ipbuf );
+
+            // Exit if this was the only allowed client
+            if ( cfg.allowed_client_ip != 0 && blocked_peer_ip == cfg.allowed_client_ip )
+            {
+               tftp_log( TFTP_LOG_ERR, "Blocked IP is the only allowed client — shutting down" );
+               goto Main_CleanupTag;
+            }
+         }
+
+         // Mark session as WRQ-blocked if session total exceeded
+         if ( cfg.max_wrq_session_bytes > 0 &&
+              session_wrq_bytes >= cfg.max_wrq_session_bytes )
+         {
+            wrq_session_blocked = true;
+            tftp_log( TFTP_LOG_WARN, "WRQ session byte limit reached — no further WRQ accepted" );
+         }
+      }
 
       // Poll control channel for fault mode updates (non-blocking)
       if ( ctrl_sfd >= 0 )
