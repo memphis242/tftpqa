@@ -43,6 +43,7 @@ CLANG_TIDY   := clang-tidy
 CPPCHECK     := cppcheck
 GCOV         := gcov
 GCOVR        := gcovr
+CSPELL       := cspell
 
 # ─── Source Discovery ────────────────────────────────────────────────────────
 
@@ -213,7 +214,7 @@ CPPCHECK_FLAGS := \
 #                                 TARGETS
 ################################################################################
 
-.PHONY: all release debug test coverage analyze clean help fuzz
+.PHONY: all release debug test coverage analyze spell clean help fuzz
 
 # Default target
 all: debug
@@ -393,6 +394,19 @@ analysis_cppcheck: | $(ANALYSIS_DIR)
 $(ANALYSIS_DIR):
 	@mkdir -p $@
 
+# ─── Spell Check ──────────────────────────────────────────────────────────────
+
+spell:
+	@echo -e "\033[33mRunning cspell\033[0m on source, docs, and scripts..."
+	@$(CSPELL) lint --config cspell.json \
+	    "src/**/*.{c,h}"         \
+	    "test/test_tftptest.c"   \
+	    "scripts/**/*.py"        \
+	    "docs/**/*.md"           \
+	    "../*.md"                \
+	    || true
+	@echo "--- spell check complete ---"
+
 # ─── Clean ────────────────────────────────────────────────────────────────────
 
 clean:
@@ -410,6 +424,7 @@ help:
 	@echo "  make test         Build & run Unity unit tests"
 	@echo "  make coverage     Run tests + generate HTML coverage report"
 	@echo "  make analyze      Run GCC -fanalyzer, Clang --analyze, clang-tidy & cppcheck"
+	@echo "  make spell        Spell-check source, docs, and scripts (advisory)"
 	@echo "  make clean        Remove all build artifacts"
 	@echo "  make help         Show this help"
 	@echo "  make fuzz         (TODO) Fuzz the server"
