@@ -38,14 +38,19 @@ tftptest --syslog            # Log to syslog
 Note, CLI options override config file.
 
 ```ini
+# tftptest server port setup (there are two)
 tftp_port = 23069
 ctrl_port = 23070
-root_dir = /var/lib/tftpboot
+
+# blank lines are fine
+
+# TFTP root directory (make sure the TFTP user the server drops to has permissions)
+root_dir = /var/lib/tftpboot # inline comments are fine
 timeout_sec = 5
 max_retransmits = 5
-log_level = info
-fault_whitelist = 0xFFFFFFFFFFFFFFFF
-allowed_client_ip = 192.168.0.24
+log_level = info # there's trace > debug > info > warn > error > fatal
+fault_whitelist = 0xFFFFFFFFFFFFFFFF # bit masks of allowed fault modes (see table at TODO)
+allowed_client_ip = 192.168.0.24 # 0 for no restrictions, specific IP otherwise
 ```
 
 ### Set fault mode via control channel (UDP):

@@ -793,6 +793,25 @@ void test_parsecfg_inline_comments_stripped(void)
    (void)remove(path);
 }
 
+void test_parsecfg_ctrl_port_zero_disables_faults(void)
+{
+   const char *path = "/tmp/tftptest_test_cfg_ctrl_port.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "ctrl_port = 0\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   TEST_ASSERT_NOT_EQUAL( 0, cfg.ctrl_port );  // Default should not be 0
+
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT16( 0, cfg.ctrl_port );  // Should now be 0
+
+   (void)remove(path);
+}
+
 void test_parsecfg_rejects_invalid_port(void)
 {
    const char *path = "/tmp/tftptest_test_cfg3.ini";
@@ -1065,6 +1084,7 @@ int main(void)
    RUN_TEST( test_parsecfg_load_valid_config );
    RUN_TEST( test_parsecfg_ignores_comments_and_blanks );
    RUN_TEST( test_parsecfg_inline_comments_stripped );
+   RUN_TEST( test_parsecfg_ctrl_port_zero_disables_faults );
    RUN_TEST( test_parsecfg_rejects_invalid_port );
    RUN_TEST( test_parsecfg_unknown_key_still_succeeds );
    RUN_TEST( test_parsecfg_missing_equals_delimiter );

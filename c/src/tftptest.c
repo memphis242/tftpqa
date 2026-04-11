@@ -206,13 +206,21 @@ int main(int argc, char * argv[])
    // Fault state
    struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
 
-   // Set up control channel
-   int ctrl_sfd = tftptest_ctrl_init(cfg.ctrl_port);
-   if ( ctrl_sfd < 0 )
+   // Set up control channel (skip if ctrl_port is 0)
+   int ctrl_sfd = -1;
+   if ( cfg.ctrl_port != 0 )
    {
-      tftp_log( TFTP_LOG_WARN, "Failed to create control channel on port %u: %s",
-                (unsigned)cfg.ctrl_port, strerror(errno) );
-      // Non-fatal: continue without control channel
+      ctrl_sfd = tftptest_ctrl_init(cfg.ctrl_port);
+      if ( ctrl_sfd < 0 )
+      {
+         tftp_log( TFTP_LOG_WARN, "Failed to create control channel on port %u: %s",
+                   (unsigned)cfg.ctrl_port, strerror(errno) );
+         // Non-fatal: continue without control channel
+      }
+   }
+   else
+   {
+      tftp_log( TFTP_LOG_INFO, "Fault simulation disabled (ctrl_port = 0)" );
    }
 
    size_t nreps = 0;

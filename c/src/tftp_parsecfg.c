@@ -41,7 +41,7 @@ void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg)
    memset( cfg, 0, sizeof *cfg );
 
    cfg->tftp_port       = DEFAULT_TFTP_PORT;
-   cfg->ctrl_port       = DEFAULT_TFTP_PORT + 1;
+   cfg->ctrl_port       = DEFAULT_TFTP_PORT + 1;  // 0 = disable fault simulation
    cfg->log_level       = TFTP_LOG_INFO;
    cfg->timeout_sec     = DEFAULT_TIMEOUT_SEC;
    cfg->max_retransmits = DEFAULT_MAX_RETX;
@@ -129,14 +129,14 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       else if ( strcmp( key, "ctrl_port" ) == 0 )
       {
          unsigned long v = strtoul( value, nullptr, 10 );
-         if ( v == 0 || v > 65535 )
+         if ( v > 65535 )
          {
             tftp_log( TFTP_LOG_WARN, "Config line %d: invalid ctrl_port '%s'", line_num, value );
             errors++;
          }
          else
          {
-            cfg->ctrl_port = (uint16_t)v;
+            cfg->ctrl_port = (uint16_t)v;  // 0 = disable fault simulation
          }
       }
       else if ( strcmp( key, "root_dir" ) == 0 )
