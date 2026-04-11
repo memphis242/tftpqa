@@ -148,12 +148,14 @@ int main(int argc, char * argv[])
       }
    }
 
-   // Map verbosity to log level (default INFO, -v = DEBUG, -vv = TRACE)
-   enum TFTP_LogLevel log_level = TFTP_LOG_INFO;
-   if ( verbosity >= 2 )
+   // Map verbosity to log level (default WARN, -v = INFO, -vv = DEBUG, -vvv = TRACE)
+   enum TFTP_LogLevel log_level = TFTP_LOG_WARN;
+   if ( verbosity >= 3 )
       log_level = TFTP_LOG_TRACE;
-   else if ( verbosity == 1 )
+   else if ( verbosity == 2 )
       log_level = TFTP_LOG_DEBUG;
+   else if ( verbosity == 1 )
+      log_level = TFTP_LOG_INFO;
 
    tftp_log_init( use_syslog, log_level );
 
