@@ -22,6 +22,7 @@
 #include <signal.h>
 #include <stdatomic.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <time.h>
 
 // Sockets
@@ -66,16 +67,30 @@ static void handleSIGINT(int sig_num);
 static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr, uint16_t port);
 
 /******************************* Main Function ********************************/
+
+// Long option definitions for getopt_long()
+static const struct option long_options[] =
+{
+   { "config",  required_argument, nullptr, 'c' },
+   { "port",    required_argument, nullptr, 'p' },
+   { "user",    required_argument, nullptr, 'u' },
+   { "verbose", no_argument,       nullptr, 'v' },
+   { "syslog",  no_argument,       nullptr, 's' },
+   { "help",    no_argument,       nullptr, 'h' },
+   { nullptr,   0,                 nullptr, 0   },  // Sentinel
+};
+
 static void print_usage(const char *progname)
 {
    fprintf(stderr,
       "Usage: %s [OPTIONS]\n"
-      "  -c <config>  Path to INI config file\n"
-      "  -p <port>    Override TFTP port\n"
-      "  -u <user>    Run as user after chroot (default: nobody)\n"
-      "  -v           Increase verbosity (repeat for more: -vvv)\n"
-      "  -s           Enable syslog output\n"
-      "  -h           Show this help\n",
+      "Options:\n"
+      "  -c, --config <file>     Path to INI config file\n"
+      "  -p, --port <port>       Override TFTP port\n"
+      "  -u, --user <user>       Run as user after chroot (default: nobody)\n"
+      "  -v, --verbose           Increase verbosity (repeat for more: -vvv)\n"
+      "  -s, --syslog            Enable syslog output\n"
+      "  -h, --help              Show this help message\n",
       progname);
 }
 
@@ -95,7 +110,8 @@ int main(int argc, char * argv[])
    bool port_overridden = false;
 
    int opt;
-   while ( (opt = getopt(argc, argv, "c:p:u:vsh")) != -1 )
+   int option_index = 0;
+   while ( (opt = getopt_long(argc, argv, "c:p:u:vsh", long_options, &option_index)) != -1 )
    {
       switch ( opt )
       {

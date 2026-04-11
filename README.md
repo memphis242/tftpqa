@@ -7,12 +7,28 @@ A TFTP (RFC 1350) test server with fault simulation capabilities for thorough te
 ### Starting the Server
 
 ```bash
-tftptest                # Run /w defaults, like port 23069 and "nobody" user
-tftptest -p 6969        # Listen on port 6969
-tftptest -c config.ini  # Load configuration from file
-tftptest -u tftp        # Drop privileges to user 'tftp'
-tftptest -vv            # Verbose output (repeat for more)
-tftptest -s             # Log to syslog
+# Run /w defaults: port 23069, "nobody" user, WARN lvl logging
+tftptest
+
+# Listen on port 6969
+tftptest -p 6969
+tftptest --port 6969
+
+# Load configuration from file
+tftptest -c config.ini
+tftptest --config config.ini
+
+# Drop privileges to user 'tftp-user'
+tftptest -u tftp-user
+tftptest --user tftp-user
+
+# Verbosity control
+tftptest -v   # ≥ INFO
+tftptest -vv  # ≥ DEBUG
+tftptest -vvv # ≥ TRACE (max logging)
+
+tftptest -s                  # Log to syslog
+tftptest --syslog            # Log to syslog
 ```
 
 ### Configuration file (INI format):
