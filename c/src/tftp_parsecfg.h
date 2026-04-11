@@ -26,6 +26,7 @@ struct TFTPTest_Config
    unsigned int       max_retransmits;  // Max retransmit attempts (default 5)
    size_t             max_requests;     // Max TFTP requests before restart (default 10000)
    uint64_t           fault_whitelist;  // Bitmask of allowed fault modes
+   uint32_t           allowed_client_ip; // Restrict to this IP (0.0.0.0 = allow all)
 };
 
 /**

@@ -79,6 +79,7 @@ void test_parsecfg_defaults_produces_sane_values(void)
    TEST_ASSERT_EQUAL_UINT( 5, cfg.max_retransmits );
    TEST_ASSERT_EQUAL( 10000, cfg.max_requests );
    TEST_ASSERT_EQUAL_UINT64( UINT64_MAX, cfg.fault_whitelist );
+   TEST_ASSERT_EQUAL_UINT32( 0, cfg.allowed_client_ip ); // 0 = allow all clients
 }
 
 void test_parsecfg_load_nonexistent_file_returns_error(void)

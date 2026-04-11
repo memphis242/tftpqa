@@ -45,6 +45,7 @@ timeout_sec = 5
 max_retransmits = 5
 log_level = info
 fault_whitelist = 0xFFFFFFFFFFFFFFFF
+allowed_client_ip = 192.168.0.24
 ```
 
 ### Set fault mode via control channel (UDP):

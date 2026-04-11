@@ -15,6 +15,8 @@
 #include <errno.h>
 #include <inttypes.h>
 
+#include <arpa/inet.h>
+
 #include "tftp_parsecfg.h"
 #include "tftp_log.h"
 
@@ -45,6 +47,7 @@ void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg)
    cfg->max_retransmits = DEFAULT_MAX_RETX;
    cfg->max_requests    = DEFAULT_MAX_REQUESTS;
    cfg->fault_whitelist = UINT64_MAX; // All faults allowed by default
+   cfg->allowed_client_ip = 0; // 0.0.0.0 = allow all clients
 
    // Default root dir: current working directory
    (void)strncpy( cfg->root_dir, ".", sizeof cfg->root_dir - 1 );
@@ -214,6 +217,27 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
          else
          {
             cfg->fault_whitelist = v;
+         }
+      }
+      else if ( strcmp( key, "allowed_client_ip" ) == 0 )
+      {
+         // Parse IP address (0.0.0.0 means allow all)
+         if ( strlen( value ) == 0 || strcmp( value, "0.0.0.0" ) == 0 )
+         {
+            cfg->allowed_client_ip = 0; // Allow all clients
+         }
+         else
+         {
+            struct in_addr addr;
+            if ( inet_aton( value, &addr ) == 0 )
+            {
+               tftp_log( TFTP_LOG_WARN, "Config line %d: invalid allowed_client_ip '%s'", line_num, value );
+               errors++;
+            }
+            else
+            {
+               cfg->allowed_client_ip = addr.s_addr; // Store in network byte order
+            }
          }
       }
       else

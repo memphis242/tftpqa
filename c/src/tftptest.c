@@ -271,6 +271,11 @@ int main(int argc, char * argv[])
          tftp_log( TFTP_LOG_WARN, "Received malformed TFTP request, dropping" );
          continue;
       }
+      else if ( cfg.allowed_client_ip != 0 && cfg.allowed_client_ip != peer_addr.sin_addr.s_addr )
+      {
+         // Client IP does not match allowed_client_ip; silently drop the packet
+         continue;
+      }
 
       {
          char addrbuf[INET_ADDRSTRLEN];
