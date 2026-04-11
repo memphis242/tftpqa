@@ -35,6 +35,8 @@ struct TFTPTest_Config
    size_t             max_wrq_file_count;     // Max files written in this server run (0 = unlimited)
    size_t             min_disk_free_bytes;    // Reject WRQ if free disk < this (0 = no check)
    bool               wrq_enabled;            // If false, reject all WRQ with ACCESS_VIOLATION
+   // Session abandonment protection
+   size_t             max_abandoned_sessions;  // Lock out all requests after this many timed-out sessions (0 = unlimited)
 };
 
 /**

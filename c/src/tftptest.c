@@ -66,9 +66,21 @@ static size_t   session_wrq_file_count = 0;
 static bool     wrq_session_blocked    = false;
 static uint32_t blocked_peer_ip        = 0;   // network byte order; 0 = none
 
+// Per-IP abandoned session tracking (prevents per-peer DoS)
+constexpr size_t MAX_TRACKED_PEERS = 20;
+struct PeerAbandonedCount
+{
+   uint32_t peer_ip;   // network byte order
+   size_t   count;
+};
+static struct PeerAbandonedCount peer_abandoned_history[MAX_TRACKED_PEERS];
+static size_t peer_history_count = 0;
+
 // Local Function Declarations
 static void handleSIGINT(int sig_num);
 static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr, uint16_t port);
+static bool is_peer_abandoned_locked_out(uint32_t peer_ip, size_t max_abandoned_sessions);
+static void record_peer_abandoned_session(uint32_t peer_ip);
 
 /******************************* Main Function ********************************/
 
@@ -296,6 +308,21 @@ int main(int argc, char * argv[])
                    addrbuf, ntohs(peer_addr.sin_port) );
       }
 
+      // Per-peer lockout: reject requests from peers that have exceeded the abandoned session limit
+      if ( is_peer_abandoned_locked_out(peer_addr.sin_addr.s_addr, cfg.max_abandoned_sessions) )
+      {
+         char addrbuf[INET_ADDRSTRLEN];
+         (void)inet_ntop( AF_INET, &peer_addr.sin_addr, addrbuf, sizeof addrbuf );
+         tftp_log( TFTP_LOG_WARN, "Peer %s locked out (exceeded max_abandoned_sessions)", addrbuf );
+         uint8_t errbuf[128];
+         size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+                                              TFTP_ERRC_ACCESS_VIOLATION, "Too many abandoned sessions");
+         if ( errsz > 0 )
+            (void)sendto(sfd_newconn, errbuf, errsz, 0,
+                         (const struct sockaddr *)&peer_addr, sizeof peer_addr);
+         continue;
+      }
+
       // Determine request type
       uint16_t opcode = (uint16_t)(((uint16_t)buf[0] << 8) | buf[1]);
       bool is_wrq = (opcode == TFTP_OP_WRQ);
@@ -397,6 +424,22 @@ int main(int argc, char * argv[])
          }
       }
 
+      // Per-peer abandoned session tracking
+      if ( fsm_rc & TFTP_FSM_RC_TIMEOUT )
+      {
+         record_peer_abandoned_session(peer_addr.sin_addr.s_addr);
+
+         // Log if this peer just hit the limit
+         if ( is_peer_abandoned_locked_out(peer_addr.sin_addr.s_addr, cfg.max_abandoned_sessions) )
+         {
+            char addrbuf[INET_ADDRSTRLEN];
+            (void)inet_ntop( AF_INET, &peer_addr.sin_addr, addrbuf, sizeof addrbuf );
+            tftp_log( TFTP_LOG_WARN,
+                      "Peer %s has hit max_abandoned_sessions limit (%zu) — will reject further requests",
+                      addrbuf, cfg.max_abandoned_sessions );
+         }
+      }
+
       // Poll control channel for fault mode updates (non-blocking)
       if ( ctrl_sfd >= 0 )
          tftptest_ctrl_poll(ctrl_sfd, &fault, cfg.fault_whitelist);
@@ -427,6 +470,51 @@ Main_CleanupTag:
 }
  
 /*********************** Local Function Implementations ***********************/
+
+/**
+ * @brief Check if a peer IP has exceeded the abandoned session limit.
+ * @param[in] peer_ip        Peer's IP address (network byte order)
+ * @param[in] max_abandoned  Max abandoned sessions allowed per peer (0 = unlimited)
+ * @return true if peer is locked out; false otherwise
+ */
+static bool is_peer_abandoned_locked_out(uint32_t peer_ip, size_t max_abandoned_sessions)
+{
+   if ( max_abandoned_sessions == 0 )
+      return false;  // Disabled
+
+   for ( size_t i = 0; i < peer_history_count; i++ )
+   {
+      if ( peer_abandoned_history[i].peer_ip == peer_ip &&
+           peer_abandoned_history[i].count >= max_abandoned_sessions )
+         return true;
+   }
+   return false;
+}
+
+/**
+ * @brief Record an abandoned session for a peer IP, incrementing its count.
+ * @param[in] peer_ip  Peer's IP address (network byte order)
+ */
+static void record_peer_abandoned_session(uint32_t peer_ip)
+{
+   // Search for existing entry
+   for ( size_t i = 0; i < peer_history_count; i++ )
+   {
+      if ( peer_abandoned_history[i].peer_ip == peer_ip )
+      {
+         peer_abandoned_history[i].count++;
+         return;
+      }
+   }
+
+   // Not found — add new entry if there's space
+   if ( peer_history_count < MAX_TRACKED_PEERS )
+   {
+      peer_abandoned_history[peer_history_count].peer_ip = peer_ip;
+      peer_abandoned_history[peer_history_count].count = 1;
+      peer_history_count++;
+   }
+}
 
 /**
  * @brief Handle the interrupt signal that a user would trigger /w Ctrl+C

@@ -54,6 +54,7 @@ void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg)
    cfg->max_wrq_file_count = 0;      // 0 = unlimited
    cfg->min_disk_free_bytes = 0;     // 0 = no check
    cfg->wrq_enabled = true;
+   cfg->max_abandoned_sessions = 0;  // 0 = unlimited
 
    // Default root dir: current working directory
    (void)strncpy( cfg->root_dir, ".", sizeof cfg->root_dir - 1 );
@@ -305,6 +306,11 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
             tftp_log( TFTP_LOG_WARN, "Config line %d: invalid wrq_enabled '%s'", line_num, value );
             errors++;
          }
+      }
+      else if ( strcmp( key, "max_abandoned_sessions" ) == 0 )
+      {
+         unsigned long v = strtoul( value, nullptr, 10 );
+         cfg->max_abandoned_sessions = v;
       }
       else
       {

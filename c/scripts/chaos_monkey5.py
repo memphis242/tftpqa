@@ -3,9 +3,12 @@
 Chaos monkey integration test #5: request flood without completion.
 
 Sends N RRQ (or WRQ) packets without ever responding (no ACKs / no DATA).
-Each session times out on the server side.  After N timeouts the server
-should lock out ALL subsequent requests — even legitimate ones — and reply
-with ERROR(2) ACCESS_VIOLATION.
+Each session times out on the server side.  After N timeouts FROM THAT PEER,
+the server should lock out all further requests from that peer (but not others)
+and reply with ERROR(2) ACCESS_VIOLATION.
+
+The per-peer lockout prevents a malicious client from DoSing the entire server
+by flooding it with abandoned sessions — only that peer is locked out.
 
 Server is started with:
   timeout_sec = 1
@@ -310,17 +313,27 @@ def main():
         root     = Path(tmpdir)
         cfg_path = root / "tftptest.conf"
 
+        # Create a test file for RRQ to use (so FSM timeout occurs, not file-not-found error)
+        probe_file = root / "testfile.bin"
+        probe_file.write_bytes(b"test data for RRQ timeout probing")
+
         print(f"Test root dir:  {root}")
 
         results = []
 
         # --- RRQ flood test ---
+        def _run_rrq_flood():
+            # Use testfile.bin which exists; server will time out waiting for ACKs
+            _abandon_sessions(host, port, lambda: _build_rrq("testfile.bin"), flood_count)
+            code, msg = _expect_lockout_error(host, port, _build_rrq("testfile.bin"))
+            return f"lockout confirmed after {flood_count} abandoned RRQs — ERROR({code}): {msg}"
+
         _write_config(cfg_path, port, flood_count)
         print(f"\n=== RRQ Flood Test (max_abandoned_sessions={flood_count}) ===")
         with TFTPTestServer(binary, port, tmpdir, config_path=str(cfg_path)) as _server:
             results.append(run_test(
                 f"RRQ flood ({flood_count} abandoned) → lockout → ERROR(2)",
-                test_cm5_rrq_flood_triggers_lockout, host, port, flood_count
+                _run_rrq_flood
             ))
             print()
             _, stderr = _server.stop()

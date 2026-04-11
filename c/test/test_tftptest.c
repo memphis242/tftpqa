@@ -986,6 +986,29 @@ void test_parsecfg_wrq_enabled_invalid_value(void)
    (void)remove(path);
 }
 
+void test_parsecfg_abandoned_sessions_default_zero(void)
+{
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   TEST_ASSERT_EQUAL( 0, cfg.max_abandoned_sessions );
+}
+
+void test_parsecfg_max_abandoned_sessions_loaded(void)
+{
+   const char *path = "/tmp/tftptest_test_abandon.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "max_abandoned_sessions = 5\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL( 5, cfg.max_abandoned_sessions );
+   (void)remove(path);
+}
+
 /*---------------------------------------------------------------------------
  * Packet edge case tests
  *---------------------------------------------------------------------------*/
@@ -1177,6 +1200,8 @@ int main(void)
    RUN_TEST( test_parsecfg_wrq_enabled_false );
    RUN_TEST( test_parsecfg_wrq_duration_sec_invalid );
    RUN_TEST( test_parsecfg_wrq_enabled_invalid_value );
+   RUN_TEST( test_parsecfg_abandoned_sessions_default_zero );
+   RUN_TEST( test_parsecfg_max_abandoned_sessions_loaded );
 
    // packet edge cases
    RUN_TEST( test_pkt_reject_filename_too_long );
