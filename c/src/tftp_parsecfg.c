@@ -104,6 +104,14 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       char *key   = trim_whitespace( trimmed );
       char *value = trim_whitespace( eq + 1 );
 
+      // Strip inline comments (everything after #)
+      char *hash = strchr( value, '#' );
+      if ( hash != nullptr )
+      {
+         *hash = '\0';
+         value = trim_whitespace( value );
+      }
+
       // Match keys
       if ( strcmp( key, "tftp_port" ) == 0 )
       {

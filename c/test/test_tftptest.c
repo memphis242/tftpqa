@@ -770,6 +770,29 @@ void test_parsecfg_ignores_comments_and_blanks(void)
    (void)remove(path);
 }
 
+void test_parsecfg_inline_comments_stripped(void)
+{
+   const char *path = "/tmp/tftptest_test_cfg_inline.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "tftp_port = 54321 # TFTP listening port\n"
+      "timeout_sec = 5   # Timeout in seconds\n"
+      "log_level = info  # Log verbosity level\n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT16( 54321, cfg.tftp_port );
+   TEST_ASSERT_EQUAL_UINT( 5, cfg.timeout_sec );
+   TEST_ASSERT_EQUAL_INT( TFTP_LOG_INFO, cfg.log_level );
+
+   (void)remove(path);
+}
+
 void test_parsecfg_rejects_invalid_port(void)
 {
    const char *path = "/tmp/tftptest_test_cfg3.ini";
@@ -1041,6 +1064,7 @@ int main(void)
    // config file parsing (with real files)
    RUN_TEST( test_parsecfg_load_valid_config );
    RUN_TEST( test_parsecfg_ignores_comments_and_blanks );
+   RUN_TEST( test_parsecfg_inline_comments_stripped );
    RUN_TEST( test_parsecfg_rejects_invalid_port );
    RUN_TEST( test_parsecfg_unknown_key_still_succeeds );
    RUN_TEST( test_parsecfg_missing_equals_delimiter );
