@@ -26,5 +26,8 @@ leetcode.c
 *.vim
 tags
 
+# Python
+__pycache__/
+
 # Miscellaneous
 plan.md
