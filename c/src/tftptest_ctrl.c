@@ -1,6 +1,6 @@
 /**
  * @file tftptest_ctrl.c
- * @brief UDP control channel for setting fault injection mode.
+ * @brief UDP control channel for setting fault simulation mode.
  * @date Apr 10, 2026
  * @author Abdulla Almosalmi, @memphis242
  */

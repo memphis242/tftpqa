@@ -37,7 +37,7 @@ enum TFTP_FSM_RC
  * @param[in] rqsz       Size of the packet in bytes.
  * @param[in] peer_addr  The client's address (from recvfrom on the main socket).
  * @param[in] cfg        Server configuration.
- * @param[in] fault      Active fault injection state.
+ * @param[in] fault      Active fault simulation state.
  * @return Bitmask of TFTP_FSM_RC values indicating success or failure.
  */
 enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,

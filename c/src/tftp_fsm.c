@@ -147,7 +147,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
       TFTP_FSM_Session.transfer_mode = TFTP_MODE_OCTET;
    TFTP_FSM_Session.netascii_pending_cr = false;
 
-   // --- Fault injection: complete session-level faults ---
+   // --- Fault simulation: complete session-level faults ---
 
    // Total timeout: no response at all
    if ( (opcode == TFTP_OP_RRQ && fault->mode == FAULT_RRQ_TIMEOUT) ||

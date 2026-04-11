@@ -1,6 +1,6 @@
 /**
  * @file tftptest_faultmode.h
- * @brief Fault injection modes for the TFTP test server.
+ * @brief Fault simulation modes for the TFTP test server.
  * @date Apr 10, 2026
  * @author Abdulla Almosalmi, @memphis242
  */
@@ -10,7 +10,7 @@
 
 #include <stdint.h>
 
-// Fault injection modes
+// Fault simulation modes
 // Some modes are parameterized (e.g., block number, error code).
 // The parameter is carried separately in TFTPTest_FaultState.
 enum TFTPTest_FaultMode
