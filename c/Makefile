@@ -58,7 +58,7 @@ COMMON_WARNS := \
 	-Wall -Wextra -Wpedantic \
 	-Wuninitialized -Wshadow \
 	-Wdouble-promotion \
-	-Wformat=2 -Wformat-signedness \
+	-Wformat=2 -Wformat-signedness -Wformat-truncation \
 	-Wundef \
 	-fno-common \
 	-Wconversion \
@@ -96,13 +96,14 @@ GCC_EXTRA_WARNS := \
 	-Wimplicit-fallthrough=3 \
 	-Walloc-zero -Walloc-size \
 	-Wuseless-cast -Wtrampolines \
+	-Wimplicit-fallthrough=4 \
 	-fdiagnostics-color
 
 # Additional warnings only Clang understands
 CLANG_EXTRA_WARNS := \
+	-Wformat-overflow \
 	-Wassign-enum \
 	-Wcast-align \
-	-Wformat-overflow -Wformat-truncation \
 	-Wconditional-uninitialized \
 	-Widiomatic-parentheses \
 	-Wunreachable-code-aggressive \
@@ -141,6 +142,7 @@ DBG_BIN      := $(DBG_DIR)/$(PROJECT)
 TEST_BUILD_DIR  := $(BUILD_DIR)/test
 # Sanitizers appropriate for a network server: UBSan, ASan, LSan (bundled w/ ASan on Linux)
 # Also add -fstack-protector-strong for extra runtime hardening.
+# FIXME: Should you or should you not -fno-sanitize-recover=all
 TEST_SANITIZERS := -fsanitize=undefined,address -fno-sanitize-recover=all
 TEST_CFLAGS     := $(C_STD) -Og -g3 $(COMMON_DEFS) $(COMMON_WARNS) $(GCC_EXTRA_WARNS) $(COMMON_INC) \
                    -I$(UNITY_SRC) \
@@ -407,7 +409,7 @@ help:
 	@echo "  make release      Build with -O2, -Werror"
 	@echo "  make test         Build & run Unity unit tests"
 	@echo "  make coverage     Run tests + generate HTML coverage report"
-	@echo "  make analyze     Run GCC -fanalyzer, Clang --analyze, clang-tidy & cppcheck"
+	@echo "  make analyze      Run GCC -fanalyzer, Clang --analyze, clang-tidy & cppcheck"
 	@echo "  make clean        Remove all build artifacts"
 	@echo "  make help         Show this help"
 	@echo "  make fuzz         (TODO) Fuzz the server"
