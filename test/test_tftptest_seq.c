@@ -12,6 +12,34 @@
 #include <string.h>
 
 /*---------------------------------------------------------------------------
+ * Forward declarations
+ *---------------------------------------------------------------------------*/
+
+void test_seq_load_valid_single_entry_defaults(void);
+void test_seq_load_valid_multiple_entries_with_params(void);
+void test_seq_load_valid_comments_and_blanks(void);
+void test_seq_load_valid_case_insensitive_mode(void);
+void test_seq_load_valid_short_mode_names(void);
+void test_seq_load_valid_field_order_doesnt_matter(void);
+void test_seq_load_nonexistent_file_returns_error(void);
+void test_seq_load_empty_file_returns_error(void);
+void test_seq_load_unknown_fault_mode_returns_error(void);
+void test_seq_load_invalid_param_non_numeric_returns_error(void);
+void test_seq_load_invalid_count_zero_returns_error(void);
+void test_seq_load_invalid_count_non_numeric_returns_error(void);
+void test_seq_load_missing_required_mode_field_returns_error(void);
+void test_seq_load_unknown_key_returns_error(void);
+void test_seq_load_partial_file_on_first_error(void);
+void test_seq_advance_increments_sessions_in_step(void);
+void test_seq_advance_transitions_to_next_entry(void);
+void test_seq_advance_returns_false_when_exhausted(void);
+void test_seq_advance_updates_param_on_transition(void);
+void test_seq_advance_multi_session_entries(void);
+void test_seq_free_zeros_struct(void);
+void test_seq_integration_real_file_good(void);
+void test_seq_integration_real_file_bad_mode(void);
+
+/*---------------------------------------------------------------------------
  * tftptest_seq: sequence file loading and advancement
  *---------------------------------------------------------------------------*/
 

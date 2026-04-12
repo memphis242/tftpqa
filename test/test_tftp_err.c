@@ -10,6 +10,13 @@
 
 #include <string.h>
 
+/*---------------------------------------------------------------------------
+ * Forward declarations
+ *---------------------------------------------------------------------------*/
+
+void test_err_str_returns_non_null_for_all_codes(void);
+void test_err_str_none_is_no_error(void);
+
 void test_err_str_returns_non_null_for_all_codes(void)
 {
    for ( int i = 0; i < TFTP_ERR_COUNT; i++ )

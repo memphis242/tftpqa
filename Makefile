@@ -150,6 +150,13 @@ TEST_CFLAGS     := $(C_STD) -Og -g3 $(COMMON_DEFS) $(COMMON_WARNS) $(GCC_EXTRA_W
                    $(TEST_SANITIZERS) \
                    --coverage -fprofile-arcs -ftest-coverage \
                    -fstack-protector-strong
+# Separate flags for Unity (suppress warnings from its macros and implementation)
+UNITY_CFLAGS    := $(C_STD) -Og -g3 $(COMMON_DEFS) $(COMMON_INC) \
+                   -I$(UNITY_SRC) \
+                   -Wno-float-equal -Wno-useless-cast \
+                   $(TEST_SANITIZERS) \
+                   --coverage -fprofile-arcs -ftest-coverage \
+                   -fstack-protector-strong
 TEST_LDFLAGS    := $(TEST_SANITIZERS) --coverage
 # Application objects for test build (everything except main, so tests supply their own main via Unity)
 # If you keep main() in tftptest.c, split it out or guard it with #ifndef UNIT_TEST.
@@ -313,7 +320,7 @@ $(TEST_BUILD_DIR)/%.o: $(TEST_DIR)/%.c | $(TEST_BUILD_DIR)
 	$(CC) $(TEST_CFLAGS) -c -o $@ $<
 
 $(TEST_BUILD_DIR)/unity.o: $(UNITY_SRC)/unity.c | $(TEST_BUILD_DIR)
-	$(CC) $(TEST_CFLAGS) -Wno-unused-parameter -c -o $@ $<
+	$(CC) $(UNITY_CFLAGS) -c -o $@ $<
 
 $(TEST_BUILD_DIR):
 	@mkdir -p $@

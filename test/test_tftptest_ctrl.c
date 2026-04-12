@@ -17,6 +17,17 @@
 #include <arpa/inet.h>
 
 /*---------------------------------------------------------------------------
+ * Forward declarations
+ *---------------------------------------------------------------------------*/
+
+void test_ctrl_set_fault_and_get(void);
+void test_ctrl_set_fault_with_param(void);
+void test_ctrl_unknown_command(void);
+void test_ctrl_unknown_fault_mode(void);
+void test_ctrl_whitelist_rejects_disallowed_mode(void);
+void test_ctrl_set_fault_missing_mode_name(void);
+
+/*---------------------------------------------------------------------------
  * Control Channel Tests
  *---------------------------------------------------------------------------*/
 

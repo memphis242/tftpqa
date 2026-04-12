@@ -13,6 +13,40 @@
 #include <string.h>
 
 /*---------------------------------------------------------------------------
+ * Forward declarations
+ *---------------------------------------------------------------------------*/
+
+void test_pkt_valid_rrq_octet(void);
+void test_pkt_valid_wrq_netascii(void);
+void test_pkt_valid_rrq_netascii_case_insensitive(void);
+void test_pkt_reject_wrong_opcode(void);
+void test_pkt_reject_missing_filename_nul(void);
+void test_pkt_reject_empty_filename(void);
+void test_pkt_reject_filename_with_slash(void);
+void test_pkt_reject_filename_with_backslash(void);
+void test_pkt_reject_filename_only_dots(void);
+void test_pkt_reject_unsupported_mode_mail(void);
+void test_pkt_reject_missing_mode_nul(void);
+void test_pkt_reject_packet_too_short(void);
+void test_pkt_reject_nonprintable_in_filename(void);
+void test_pkt_parse_request_rrq(void);
+void test_pkt_parse_request_wrq(void);
+void test_pkt_data_round_trip(void);
+void test_pkt_data_empty_payload(void);
+void test_pkt_data_full_512(void);
+void test_pkt_ack_round_trip(void);
+void test_pkt_error_round_trip(void);
+void test_pkt_parse_ack_rejects_short(void);
+void test_pkt_parse_ack_rejects_wrong_opcode(void);
+void test_pkt_parse_data_rejects_short(void);
+void test_pkt_parse_error_rejects_no_nul(void);
+void test_pkt_reject_filename_too_long(void);
+void test_pkt_parse_data_rejects_wrong_opcode(void);
+void test_pkt_build_error_returns_zero_when_buffer_too_small(void);
+void test_pkt_build_error_succeeds_with_adequate_buffer(void);
+void test_pkt_valid_rrq_octet_mixed_case(void);
+
+/*---------------------------------------------------------------------------
  * tftp_pkt: RequestIsValid tests
  *---------------------------------------------------------------------------*/
 

@@ -10,8 +10,7 @@
 
 #include "unity.h"
 
-// Common setup/teardown (defined in test_main.c)
-void setUp(void);
-void tearDown(void);
+// setUp() and tearDown() are declared by unity.h
+// and defined in test_main.c
 
 #endif // TEST_COMMON_H

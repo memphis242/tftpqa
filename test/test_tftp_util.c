@@ -15,6 +15,30 @@
 #include <unistd.h>
 
 /*---------------------------------------------------------------------------
+ * Forward declarations
+ *---------------------------------------------------------------------------*/
+
+void test_util_is_valid_filename_char_accepts_alphanumeric(void);
+void test_util_is_valid_filename_char_rejects_separators(void);
+void test_util_is_valid_filename_char_rejects_control_chars(void);
+void test_util_create_ephemeral_socket_succeeds(void);
+void test_util_set_recv_timeout_succeeds(void);
+void test_util_netascii_bare_lf_becomes_crlf(void);
+void test_util_netascii_bare_cr_becomes_cr_nul(void);
+void test_util_netascii_crlf_passes_through(void);
+void test_util_netascii_pending_cr_across_boundary(void);
+void test_util_netascii_pending_cr_followed_by_non_lf(void);
+void test_util_netascii_no_special_chars(void);
+void test_util_netascii_empty_input(void);
+void test_util_netascii_to_octet_crlf_becomes_lf(void);
+void test_util_netascii_to_octet_cr_nul_becomes_cr(void);
+void test_util_netascii_to_octet_pending_cr_boundary(void);
+void test_util_netascii_to_octet_no_special(void);
+void test_chroot_and_drop_non_root_succeeds(void);
+void test_chroot_and_drop_bad_dir_fails(void);
+void test_pkt_ack_block_zero(void);
+
+/*---------------------------------------------------------------------------
  * tftp_util tests
  *---------------------------------------------------------------------------*/
 

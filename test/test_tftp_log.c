@@ -8,6 +8,12 @@
 #include "test_common.h"
 #include "tftp_log.h"
 
+/*---------------------------------------------------------------------------
+ * Forward declarations
+ *---------------------------------------------------------------------------*/
+
+void test_log_level_str_returns_expected_names(void);
+
 void test_log_level_str_returns_expected_names(void)
 {
    TEST_ASSERT_EQUAL_STRING( "TRACE", tftp_log_level_str( TFTP_LOG_TRACE ) );

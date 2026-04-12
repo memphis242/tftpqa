@@ -12,6 +12,28 @@
 #include <stdlib.h>
 
 /*---------------------------------------------------------------------------
+ * Forward declarations
+ *---------------------------------------------------------------------------*/
+
+void test_parsecfg_defaults_produces_sane_values(void);
+void test_parsecfg_load_nonexistent_file_returns_error(void);
+void test_parsecfg_load_valid_config(void);
+void test_parsecfg_ignores_comments_and_blanks(void);
+void test_parsecfg_inline_comments_stripped(void);
+void test_parsecfg_ctrl_port_zero_disables_faults(void);
+void test_parsecfg_rejects_invalid_port(void);
+void test_parsecfg_unknown_key_still_succeeds(void);
+void test_parsecfg_missing_equals_delimiter(void);
+void test_parsecfg_root_dir_and_fault_whitelist(void);
+void test_parsecfg_all_numeric_fields(void);
+void test_parsecfg_wrq_protection_fields_loaded(void);
+void test_parsecfg_wrq_enabled_false(void);
+void test_parsecfg_wrq_duration_sec_invalid(void);
+void test_parsecfg_wrq_enabled_invalid_value(void);
+void test_parsecfg_abandoned_sessions_default_zero(void);
+void test_parsecfg_max_abandoned_sessions_loaded(void);
+
+/*---------------------------------------------------------------------------
  * tftp_parsecfg tests
  *---------------------------------------------------------------------------*/
 
