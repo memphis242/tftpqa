@@ -80,6 +80,29 @@ echo "GET_FAULT" | nc -u localhost 23070
 echo "RESET" | nc -u localhost 23070
 ```
 
+### Test sequence file (`-t`):
+
+Instead of controlling faults at runtime via UDP, you can specify a sequence of fault modes in a file, almost like a script. When a sequence file is specified, the UDP control channel is disabled and the server steps through the sequence automatically, shutting down gracefully when complete.
+
+```bash
+tftptest -t test_sequence.txt # Or...
+tftptest --sequence test_sequence.txt
+```
+
+Sequence file format (one entry per line, `#` comments, blank lines ignored):
+
+```
+# Fields: mode=FAULT_NAME [param=N] [count=N]
+# - mode: required (full enum name, case-insensitive)
+# - param: optional, default 0
+# - count: optional, default 1 (sessions this fault covers)
+
+mode=FAULT_NONE              count=2   # 2 nominal transfers
+mode=FAULT_RRQ_TIMEOUT       count=1   # then a timeout
+mode=FAULT_CORRUPT_DATA      param=5   count=2   # corrupt block 5 for 2 sessions
+mode=FAULT_SLOW_RESPONSE     param=3000          # 3 second delay, 1 session
+```
+
 ## Fault Simulation Modes
 
 The server supports 33 parameterized fault injection modes for testing TFTP client robustness:

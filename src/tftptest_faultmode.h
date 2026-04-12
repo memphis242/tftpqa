@@ -78,4 +78,8 @@ struct TFTPTest_FaultState
    uint32_t param;  // Block number, error code, etc.
 };
 
+// Name table and lookup (shared by ctrl and seq modules)
+extern const char *const tftptest_fault_mode_names[FAULT_MODE_COUNT];
+int tftptest_fault_lookup_mode(const char *name);
+
 #endif // TFTPTEST_FAULTMODE_H

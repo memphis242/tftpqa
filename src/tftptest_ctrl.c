@@ -26,48 +26,6 @@
 
 #define CTRL_BUF_SZ 256
 
-// Fault mode name table -- must match enum TFTPTest_FaultMode order
-static const char *fault_mode_names[] = {
-   [FAULT_NONE]                     = "NONE",
-   [FAULT_RRQ_TIMEOUT]              = "RRQ_TIMEOUT",
-   [FAULT_WRQ_TIMEOUT]              = "WRQ_TIMEOUT",
-   [FAULT_MID_TIMEOUT_NO_DATA]      = "MID_TIMEOUT_NO_DATA",
-   [FAULT_MID_TIMEOUT_NO_ACK]       = "MID_TIMEOUT_NO_ACK",
-   [FAULT_MID_TIMEOUT_NO_FINAL_ACK] = "MID_TIMEOUT_NO_FINAL_ACK",
-   [FAULT_MID_TIMEOUT_NO_FINAL_DATA]= "MID_TIMEOUT_NO_FINAL_DATA",
-   [FAULT_FILE_NOT_FOUND]           = "FILE_NOT_FOUND",
-   [FAULT_PERM_DENIED_READ]         = "PERM_DENIED_READ",
-   [FAULT_PERM_DENIED_WRITE]        = "PERM_DENIED_WRITE",
-   [FAULT_SEND_ERROR_READ]          = "SEND_ERROR_READ",
-   [FAULT_SEND_ERROR_WRITE]         = "SEND_ERROR_WRITE",
-   [FAULT_DUP_FINAL_DATA]           = "DUP_FINAL_DATA",
-   [FAULT_DUP_FINAL_ACK]            = "DUP_FINAL_ACK",
-   [FAULT_DUP_MID_DATA]             = "DUP_MID_DATA",
-   [FAULT_DUP_MID_ACK]              = "DUP_MID_ACK",
-   [FAULT_SKIP_ACK]                 = "SKIP_ACK",
-   [FAULT_SKIP_DATA]                = "SKIP_DATA",
-   [FAULT_OOO_DATA]                 = "OOO_DATA",
-   [FAULT_OOO_ACK]                  = "OOO_ACK",
-   [FAULT_INVALID_BLOCK_ACK]        = "INVALID_BLOCK_ACK",
-   [FAULT_INVALID_BLOCK_DATA]       = "INVALID_BLOCK_DATA",
-   [FAULT_DATA_TOO_LARGE]           = "DATA_TOO_LARGE",
-   [FAULT_DATA_LEN_MISMATCH]        = "DATA_LEN_MISMATCH",
-   [FAULT_INVALID_OPCODE_READ]      = "INVALID_OPCODE_READ",
-   [FAULT_INVALID_OPCODE_WRITE]     = "INVALID_OPCODE_WRITE",
-   [FAULT_INVALID_ERR_CODE_READ]    = "INVALID_ERR_CODE_READ",
-   [FAULT_INVALID_ERR_CODE_WRITE]   = "INVALID_ERR_CODE_WRITE",
-   [FAULT_WRONG_TID_READ]           = "WRONG_TID_READ",
-   [FAULT_WRONG_TID_WRITE]          = "WRONG_TID_WRITE",
-   [FAULT_SLOW_RESPONSE]            = "SLOW_RESPONSE",
-   [FAULT_CORRUPT_DATA]             = "CORRUPT_DATA",
-   [FAULT_TRUNCATED_PKT]            = "TRUNCATED_PKT",
-   [FAULT_BURST_DATA]               = "BURST_DATA",
-};
-
-_Static_assert(sizeof(fault_mode_names) / sizeof(fault_mode_names[0]) == FAULT_MODE_COUNT,
-               "fault_mode_names must have FAULT_MODE_COUNT entries");
-
-static int lookup_fault_mode(const char *name);
 static void send_reply(int sfd, const struct sockaddr_in *dest,
                         const char *msg, size_t len);
 
@@ -143,7 +101,7 @@ void tftptest_ctrl_poll(int ctrl_sfd, struct TFTPTest_FaultState *fault,
          return;
       }
 
-      int mode_idx = lookup_fault_mode(mode_name);
+      int mode_idx = tftptest_fault_lookup_mode(mode_name);
       if ( mode_idx < 0 )
       {
          reply_len = snprintf(reply, sizeof reply, "ERR unknown mode '%s'\n", mode_name);
@@ -164,16 +122,16 @@ void tftptest_ctrl_poll(int ctrl_sfd, struct TFTPTest_FaultState *fault,
       fault->param = param;
 
       tftp_log(TFTP_LOG_INFO, "Control: fault mode set to %s (param=%u)",
-               fault_mode_names[fault->mode], fault->param);
+               tftptest_fault_mode_names[fault->mode], fault->param);
 
       reply_len = snprintf(reply, sizeof reply, "OK %s %u\n",
-                            fault_mode_names[fault->mode], fault->param);
+                            tftptest_fault_mode_names[fault->mode], fault->param);
       send_reply(ctrl_sfd, &sender, reply, (size_t)reply_len);
    }
    else if ( strncasecmp(buf, "GET_FAULT", 9) == 0 )
    {
       reply_len = snprintf(reply, sizeof reply, "FAULT %s %u\n",
-                            fault_mode_names[fault->mode], fault->param);
+                            tftptest_fault_mode_names[fault->mode], fault->param);
       send_reply(ctrl_sfd, &sender, reply, (size_t)reply_len);
    }
    else if ( strncasecmp(buf, "RESET", 5) == 0 )
@@ -198,16 +156,6 @@ void tftptest_ctrl_shutdown(int ctrl_sfd)
 }
 
 /*********************** Local Function Implementations ***********************/
-
-static int lookup_fault_mode(const char *name)
-{
-   for ( int i = 0; i < FAULT_MODE_COUNT; i++ )
-   {
-      if ( strcasecmp(name, fault_mode_names[i]) == 0 )
-         return i;
-   }
-   return -1;
-}
 
 static void send_reply(int sfd, const struct sockaddr_in *dest,
                         const char *msg, size_t len)

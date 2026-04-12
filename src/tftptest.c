@@ -33,6 +33,7 @@
 // Internal Headers
 #include "tftptest_faultmode.h"
 #include "tftptest_ctrl.h"
+#include "tftptest_seq.h"
 #include "tftp_err.h"
 #include "tftp_fsm.h"
 #include "tftp_log.h"
@@ -87,13 +88,14 @@ static void record_peer_abandoned_session(uint32_t peer_ip);
 // Long option definitions for getopt_long()
 static const struct option long_options[] =
 {
-   { "config",  required_argument, nullptr, 'c' },
-   { "port",    required_argument, nullptr, 'p' },
-   { "user",    required_argument, nullptr, 'u' },
-   { "verbose", no_argument,       nullptr, 'v' },
-   { "syslog",  no_argument,       nullptr, 's' },
-   { "help",    no_argument,       nullptr, 'h' },
-   { nullptr,   0,                 nullptr, 0   },  // Sentinel
+   { "config",   required_argument, nullptr, 'c' },
+   { "port",     required_argument, nullptr, 'p' },
+   { "user",     required_argument, nullptr, 'u' },
+   { "sequence", required_argument, nullptr, 't' },
+   { "verbose",  no_argument,       nullptr, 'v' },
+   { "syslog",   no_argument,       nullptr, 's' },
+   { "help",     no_argument,       nullptr, 'h' },
+   { nullptr,    0,                 nullptr, 0   },  // Sentinel
 };
 
 static void print_usage(const char *progname)
@@ -104,6 +106,7 @@ static void print_usage(const char *progname)
       "  -c, --config <file>     Path to INI config file\n"
       "  -p, --port <port>       Override TFTP port\n"
       "  -u, --user <user>       Run as user after chroot (default: nobody)\n"
+      "  -t, --sequence <file>   Test sequence file (disables control channel)\n"
       "  -v, --verbose           Increase verbosity (repeat for more: -vvv)\n"
       "  -s, --syslog            Enable syslog output\n"
       "  -h, --help              Show this help message\n",
@@ -120,6 +123,7 @@ int main(int argc, char * argv[])
    // Parse CLI arguments
    const char *config_path = nullptr;
    const char *user_override = nullptr;
+   const char *sequence_path = nullptr;
    int verbosity = 0;
    bool use_syslog = false;
    uint16_t port_override = 0;
@@ -127,7 +131,7 @@ int main(int argc, char * argv[])
 
    int opt;
    int option_index = 0;
-   while ( (opt = getopt_long(argc, argv, "c:p:u:vsh", long_options, &option_index)) != -1 )
+   while ( (opt = getopt_long(argc, argv, "c:p:u:t:vsh", long_options, &option_index)) != -1 )
    {
       switch ( opt )
       {
@@ -148,6 +152,9 @@ int main(int argc, char * argv[])
       }
       case 'u':
          user_override = optarg;
+         break;
+      case 't':
+         sequence_path = optarg;
          break;
       case 'v':
          verbosity++;
@@ -222,9 +229,28 @@ int main(int argc, char * argv[])
    // Fault state
    struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
 
-   // Set up control channel (skip if ctrl_port is 0)
+   // Sequence mode vs. control channel mode
+   struct TFTPTest_Seq seq = {0};
+   bool use_sequence = false;
    int ctrl_sfd = -1;
-   if ( cfg.ctrl_port != 0 )
+
+   if ( sequence_path != nullptr )
+   {
+      if ( tftptest_seq_load(sequence_path, &seq) != 0 )
+      {
+         tftp_log( TFTP_LOG_FATAL, "Failed to load sequence file: %s", sequence_path );
+         return EXIT_FAILURE;
+      }
+      use_sequence = true;
+      // Set initial fault from first entry
+      fault.mode  = seq.entries[0].mode;
+      fault.param = seq.entries[0].param;
+      tftp_log( TFTP_LOG_INFO, "Sequence step 1/%zu: %s param=%u, %zu sessions",
+                seq.n_entries, tftptest_fault_mode_names[fault.mode],
+                fault.param, seq.entries[0].count );
+      tftp_log( TFTP_LOG_INFO, "Sequence mode: control channel disabled" );
+   }
+   else if ( cfg.ctrl_port != 0 )
    {
       ctrl_sfd = tftptest_ctrl_init(cfg.ctrl_port);
       if ( ctrl_sfd < 0 )
@@ -440,9 +466,19 @@ int main(int argc, char * argv[])
          }
       }
 
-      // Poll control channel for fault mode updates (non-blocking)
-      if ( ctrl_sfd >= 0 )
+      // Advance fault mode: sequence stepper or control channel
+      if ( use_sequence )
+      {
+         if ( !tftptest_seq_advance(&seq, &fault) )
+         {
+            tftp_log( TFTP_LOG_INFO, "Test sequence complete, shutting down" );
+            break;
+         }
+      }
+      else if ( ctrl_sfd >= 0 )
+      {
          tftptest_ctrl_poll(ctrl_sfd, &fault, cfg.fault_whitelist);
+      }
    }
 
    TFTP_FSM_CleanExit();
@@ -450,6 +486,10 @@ int main(int argc, char * argv[])
    if ( bUserEndedSession )
    {
       tftp_log( TFTP_LOG_INFO, "User ended session (SIGINT)" );
+   }
+   else if ( use_sequence && seq.current >= seq.n_entries )
+   {
+      tftp_log( TFTP_LOG_INFO, "Test sequence completed successfully" );
    }
    else if ( nreps >= cfg.max_requests )
    {
@@ -461,7 +501,10 @@ int main(int argc, char * argv[])
    }
 
 Main_CleanupTag:
-   tftptest_ctrl_shutdown(ctrl_sfd);
+   if ( use_sequence )
+      tftptest_seq_free(&seq);
+   else
+      tftptest_ctrl_shutdown(ctrl_sfd);
    (void)close(sfd_newconn);
    tftp_log( TFTP_LOG_INFO, "Server shutting down (rc=0x%04x)", (unsigned)mainrc );
    tftp_log_shutdown();
