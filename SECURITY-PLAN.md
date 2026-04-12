@@ -42,3 +42,6 @@ In addition to my usual quality-assurance combo (multiple compilers, high warnin
 5. **Protect Against Application Misuse**
 - The application should do its best to prevent itself from getting used in a way that a malicious attacker can take advantage of.
 - The fault simulation modes this TFTP test server supports should not result in harm to the host system or the connecting TFTP client.
+
+6. **Dependency Scans**
+- If dependencies to external libraries are ever added, regular scans of those libraries for security vulnerabilities should be done.
