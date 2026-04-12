@@ -400,7 +400,7 @@ spell:
 	@echo -e "\033[33mRunning cspell\033[0m on source, docs, and scripts..."
 	@$(CSPELL) lint --config cspell.json \
 	    "src/**/*.{c,h}"         \
-	    "test/test_tftptest.c"   \
+	    "test/test_*.c"          \
 	    "scripts/**/*.py"        \
 	    "docs/**/*.md"           \
 	    "../*.md"                \
