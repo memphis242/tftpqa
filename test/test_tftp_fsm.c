@@ -67,8 +67,8 @@ static struct TFTPTest_Config make_test_config(void)
    struct TFTPTest_Config cfg = {0};
    cfg.tftp_port = 23069;
    cfg.ctrl_port = 23070;
-   cfg.timeout_sec = 10;
-   cfg.max_retransmits = 5;
+   cfg.timeout_sec = 1;    // Use very short timeout for fast unit tests
+   cfg.max_retransmits = 1; // Minimal retries for testing
    cfg.max_requests = 1000;
    cfg.wrq_enabled = true;
    cfg.min_disk_free_bytes = 0;
