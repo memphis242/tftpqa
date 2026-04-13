@@ -182,6 +182,20 @@ extern void test_seq_advance_multi_session_entries(void);
 extern void test_seq_free_zeros_struct(void);
 extern void test_seq_integration_real_file_good(void);
 extern void test_seq_integration_real_file_bad_mode(void);
+extern void test_seq_load_inline_comment_makes_empty_line(void);
+extern void test_seq_load_field_with_inline_comment(void);
+extern void test_seq_load_various_param_values(void);
+extern void test_seq_load_various_count_values(void);
+extern void test_seq_advance_single_session_entry(void);
+extern void test_seq_advance_large_count_entry(void);
+extern void test_seq_load_only_comments_and_blanks(void);
+extern void test_seq_load_trailing_spaces_before_comment(void);
+extern void test_seq_load_all_whitespace_line_mixed(void);
+extern void test_seq_advance_exact_boundary(void);
+extern void test_seq_load_count_boundary_values(void);
+extern void test_seq_advance_multiple_transitions(void);
+extern void test_seq_load_comment_only_line_with_tabs(void);
+extern void test_seq_load_spaces_then_comment_then_spaces(void);
 
 /*---------------------------------------------------------------------------
  * Main test runner
@@ -364,6 +378,20 @@ int main(void)
    RUN_TEST( test_seq_free_zeros_struct );
    RUN_TEST( test_seq_integration_real_file_good );
    RUN_TEST( test_seq_integration_real_file_bad_mode );
+   RUN_TEST( test_seq_load_inline_comment_makes_empty_line );
+   RUN_TEST( test_seq_load_field_with_inline_comment );
+   RUN_TEST( test_seq_load_various_param_values );
+   RUN_TEST( test_seq_load_various_count_values );
+   RUN_TEST( test_seq_advance_single_session_entry );
+   RUN_TEST( test_seq_advance_large_count_entry );
+   RUN_TEST( test_seq_load_only_comments_and_blanks );
+   RUN_TEST( test_seq_load_trailing_spaces_before_comment );
+   RUN_TEST( test_seq_load_all_whitespace_line_mixed );
+   RUN_TEST( test_seq_advance_exact_boundary );
+   RUN_TEST( test_seq_load_count_boundary_values );
+   RUN_TEST( test_seq_advance_multiple_transitions );
+   RUN_TEST( test_seq_load_comment_only_line_with_tabs );
+   RUN_TEST( test_seq_load_spaces_then_comment_then_spaces );
 
    return UNITY_END();
 }

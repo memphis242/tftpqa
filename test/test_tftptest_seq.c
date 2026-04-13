@@ -511,3 +511,343 @@ void test_seq_integration_real_file_bad_mode(void)
    TEST_ASSERT_NULL( seq.entries );
 }
 
+void test_seq_load_inline_comment_makes_empty_line(void)
+{
+   // Test line that becomes empty after inline comment is stripped
+   const char *path = "/tmp/tftptest_seq_comment_empty.txt";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "mode=FAULT_NONE count=1\n"
+      "  # only a comment after spaces\n"
+      "mode=FAULT_RRQ_TIMEOUT count=2\n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Seq seq = {0};
+   int rc = tftptest_seq_load(path, &seq);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_size_t( 2, seq.n_entries );
+   TEST_ASSERT_EQUAL_INT( FAULT_NONE, seq.entries[0].mode );
+   TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, seq.entries[1].mode );
+
+   tftptest_seq_free(&seq);
+}
+
+void test_seq_load_field_with_inline_comment(void)
+{
+   // Test line with fields followed by inline comment
+   const char *path = "/tmp/tftptest_seq_field_comment.txt";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "mode=FAULT_NONE count=1 # this is a comment\n"
+      "mode=FAULT_RRQ_TIMEOUT param=5 count=2 # another comment\n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Seq seq = {0};
+   int rc = tftptest_seq_load(path, &seq);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_size_t( 2, seq.n_entries );
+   TEST_ASSERT_EQUAL_INT( FAULT_NONE, seq.entries[0].mode );
+   TEST_ASSERT_EQUAL_INT( 0, seq.entries[0].param );
+   TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, seq.entries[1].mode );
+   TEST_ASSERT_EQUAL_INT( 5, seq.entries[1].param );
+
+   tftptest_seq_free(&seq);
+}
+
+void test_seq_load_various_param_values(void)
+{
+   // Test different parameter values to exercise strtoul conditions
+   const char *path = "/tmp/tftptest_seq_params.txt";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "mode=FAULT_NONE param=0 count=1\n"
+      "mode=FAULT_RRQ_TIMEOUT param=1 count=1\n"
+      "mode=FAULT_WRQ_TIMEOUT param=255 count=1\n"
+      "mode=FAULT_CORRUPT_DATA param=4294967295 count=1\n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Seq seq = {0};
+   int rc = tftptest_seq_load(path, &seq);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_size_t( 4, seq.n_entries );
+   TEST_ASSERT_EQUAL_INT( 0, seq.entries[0].param );
+   TEST_ASSERT_EQUAL_INT( 1, seq.entries[1].param );
+   TEST_ASSERT_EQUAL_INT( 255, seq.entries[2].param );
+   TEST_ASSERT_EQUAL_INT( 4294967295U, seq.entries[3].param );
+
+   tftptest_seq_free(&seq);
+}
+
+void test_seq_load_various_count_values(void)
+{
+   // Test different count values to exercise boundary conditions
+   const char *path = "/tmp/tftptest_seq_counts.txt";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "mode=FAULT_NONE count=1\n"
+      "mode=FAULT_RRQ_TIMEOUT count=2\n"
+      "mode=FAULT_WRQ_TIMEOUT count=10\n"
+      "mode=FAULT_CORRUPT_DATA count=100\n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Seq seq = {0};
+   int rc = tftptest_seq_load(path, &seq);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_size_t( 4, seq.n_entries );
+   TEST_ASSERT_EQUAL_INT( 1, seq.entries[0].count );
+   TEST_ASSERT_EQUAL_INT( 2, seq.entries[1].count );
+   TEST_ASSERT_EQUAL_INT( 10, seq.entries[2].count );
+   TEST_ASSERT_EQUAL_INT( 100, seq.entries[3].count );
+
+   tftptest_seq_free(&seq);
+}
+
+void test_seq_advance_single_session_entry(void)
+{
+   // Test advance with single-session entries
+   struct TFTPTest_SeqEntry entries[] = {
+      { .mode = FAULT_NONE, .param = 0, .count = 1 },
+      { .mode = FAULT_RRQ_TIMEOUT, .param = 0, .count = 1 },
+   };
+   struct TFTPTest_Seq seq = {
+      .entries = entries,
+      .n_entries = 2,
+      .current = 0,
+      .sessions_in_step = 0,
+   };
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
+
+   // First advance transitions immediately
+   bool keep = tftptest_seq_advance(&seq, &fault);
+   TEST_ASSERT_TRUE( keep );
+   TEST_ASSERT_EQUAL_INT( 1, seq.current );
+   TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
+
+   // Second advance exhausts sequence
+   keep = tftptest_seq_advance(&seq, &fault);
+   TEST_ASSERT_FALSE( keep );
+}
+
+void test_seq_advance_large_count_entry(void)
+{
+   // Test advance with large count values
+   struct TFTPTest_SeqEntry entries[] = {
+      { .mode = FAULT_NONE, .param = 0, .count = 100 },
+   };
+   struct TFTPTest_Seq seq = {
+      .entries = entries,
+      .n_entries = 1,
+      .current = 0,
+      .sessions_in_step = 0,
+   };
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
+
+   // Process 99 sessions (not yet transitioning)
+   for ( int i = 0; i < 99; i++ )
+   {
+      bool keep = tftptest_seq_advance(&seq, &fault);
+      TEST_ASSERT_TRUE( keep );
+      TEST_ASSERT_EQUAL_INT( 0, seq.current );
+   }
+
+   // 100th advance exhausts
+   bool keep = tftptest_seq_advance(&seq, &fault);
+   TEST_ASSERT_FALSE( keep );
+}
+
+void test_seq_load_only_comments_and_blanks(void)
+{
+   // Test file with only comments and blank lines (no entries)
+   const char *path = "/tmp/tftptest_seq_only_comments.txt";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "# Comment line 1\n"
+      "\n"
+      "# Comment line 2\n"
+      "   \n"
+      "# Comment line 3\n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Seq seq = {0};
+   int rc = tftptest_seq_load(path, &seq);
+   TEST_ASSERT_EQUAL_INT( -1, rc );  // Should fail - no entries
+   TEST_ASSERT_NULL( seq.entries );
+}
+
+void test_seq_load_trailing_spaces_before_comment(void)
+{
+   // Test line with content, trailing spaces, then comment
+   const char *path = "/tmp/tftptest_seq_trailing_spaces.txt";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "mode=FAULT_NONE count=1   \n"
+      "mode=FAULT_RRQ_TIMEOUT count=2   # comment with leading spaces\n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Seq seq = {0};
+   int rc = tftptest_seq_load(path, &seq);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_size_t( 2, seq.n_entries );
+   TEST_ASSERT_EQUAL_INT( FAULT_NONE, seq.entries[0].mode );
+   TEST_ASSERT_EQUAL_INT( 1, seq.entries[0].count );
+   TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, seq.entries[1].mode );
+   TEST_ASSERT_EQUAL_INT( 2, seq.entries[1].count );
+
+   tftptest_seq_free(&seq);
+}
+
+void test_seq_load_all_whitespace_line_mixed(void)
+{
+   // Test file with mixed content, some lines becoming effectively empty
+   const char *path = "/tmp/tftptest_seq_mixed_ws.txt";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "mode=FAULT_NONE count=1\n"
+      "   \n"
+      "mode=FAULT_RRQ_TIMEOUT count=1\n"
+      "  \n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Seq seq = {0};
+   int rc = tftptest_seq_load(path, &seq);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_size_t( 2, seq.n_entries );
+
+   tftptest_seq_free(&seq);
+}
+
+void test_seq_advance_exact_boundary(void)
+{
+   // Test advance exactly at count boundary
+   struct TFTPTest_SeqEntry entries[] = {
+      { .mode = FAULT_NONE, .param = 0, .count = 5 },
+      { .mode = FAULT_RRQ_TIMEOUT, .param = 0, .count = 3 },
+   };
+   struct TFTPTest_Seq seq = {
+      .entries = entries,
+      .n_entries = 2,
+      .current = 0,
+      .sessions_in_step = 4,  // Start at 4 out of 5
+   };
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
+
+   // Advance to boundary (5th session of first entry)
+   bool keep = tftptest_seq_advance(&seq, &fault);
+   TEST_ASSERT_TRUE( keep );
+   TEST_ASSERT_EQUAL_INT( 1, seq.current );
+   TEST_ASSERT_EQUAL_INT( 0, seq.sessions_in_step );
+   TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
+}
+
+void test_seq_load_count_boundary_values(void)
+{
+   // Test count field with boundary values
+   const char *path = "/tmp/tftptest_seq_count_bounds.txt";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f,
+      "mode=FAULT_NONE count=1\n"
+      "mode=FAULT_RRQ_TIMEOUT count=1000\n"
+      "mode=FAULT_CORRUPT_DATA count=65535\n"
+   );
+   fclose(f);
+
+   struct TFTPTest_Seq seq = {0};
+   int rc = tftptest_seq_load(path, &seq);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_size_t( 3, seq.n_entries );
+   TEST_ASSERT_EQUAL_INT( 1, seq.entries[0].count );
+   TEST_ASSERT_EQUAL_INT( 1000, seq.entries[1].count );
+   TEST_ASSERT_EQUAL_INT( 65535, seq.entries[2].count );
+
+   tftptest_seq_free(&seq);
+}
+
+void test_seq_advance_multiple_transitions(void)
+{
+   // Test multiple transitions through several entries
+   struct TFTPTest_SeqEntry entries[] = {
+      { .mode = FAULT_NONE, .param = 0, .count = 2 },
+      { .mode = FAULT_RRQ_TIMEOUT, .param = 0, .count = 1 },
+      { .mode = FAULT_CORRUPT_DATA, .param = 5, .count = 2 },
+   };
+   struct TFTPTest_Seq seq = {
+      .entries = entries,
+      .n_entries = 3,
+      .current = 0,
+      .sessions_in_step = 0,
+   };
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
+
+   // Transition 1: from FAULT_NONE to FAULT_RRQ_TIMEOUT
+   tftptest_seq_advance(&seq, &fault);
+   tftptest_seq_advance(&seq, &fault);
+   TEST_ASSERT_EQUAL_INT( 1, seq.current );
+   TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
+
+   // Transition 2: from FAULT_RRQ_TIMEOUT to FAULT_CORRUPT_DATA
+   bool keep = tftptest_seq_advance(&seq, &fault);
+   TEST_ASSERT_TRUE( keep );
+   TEST_ASSERT_EQUAL_INT( 2, seq.current );
+   TEST_ASSERT_EQUAL_INT( FAULT_CORRUPT_DATA, fault.mode );
+   TEST_ASSERT_EQUAL_INT( 5, fault.param );
+
+   // Transition 3: exhaustion
+   tftptest_seq_advance(&seq, &fault);
+   keep = tftptest_seq_advance(&seq, &fault);
+   TEST_ASSERT_FALSE( keep );
+}
+
+void test_seq_load_comment_only_line_with_tabs(void)
+{
+   // Test tab character handling with comments
+   const char *path = "/tmp/tftptest_seq_tabs.txt";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   // Write with tab characters
+   fprintf(f, "mode=FAULT_NONE count=1\n");
+   fprintf(f, "\t\t#comment\n");
+   fprintf(f, "mode=FAULT_RRQ_TIMEOUT count=1\n");
+   fclose(f);
+
+   struct TFTPTest_Seq seq = {0};
+   int rc = tftptest_seq_load(path, &seq);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_size_t( 2, seq.n_entries );
+
+   tftptest_seq_free(&seq);
+}
+
+void test_seq_load_spaces_then_comment_then_spaces(void)
+{
+   // Test line with just spaces around comment
+   const char *path = "/tmp/tftptest_seq_space_comment.txt";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "mode=FAULT_NONE count=1\n");
+   fprintf(f, "   #   \n");
+   fprintf(f, "mode=FAULT_RRQ_TIMEOUT count=1\n");
+   fclose(f);
+
+   struct TFTPTest_Seq seq = {0};
+   int rc = tftptest_seq_load(path, &seq);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_size_t( 2, seq.n_entries );
+
+   tftptest_seq_free(&seq);
+}
+
