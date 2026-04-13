@@ -122,6 +122,14 @@ extern void test_fault_lookup_mode_fault_none_short(void);
 extern void test_fault_lookup_mode_last_mode(void);
 extern void test_fault_lookup_mode_last_mode_short(void);
 extern void test_fault_lookup_mode_partial_match_fails(void);
+extern void test_fault_lookup_mode_middle_modes_full_names(void);
+extern void test_fault_lookup_mode_middle_modes_short_names(void);
+extern void test_fault_lookup_mode_end_modes_both_formats(void);
+extern void test_fault_lookup_mode_alphabetically_before_modes(void);
+extern void test_fault_lookup_mode_alphabetically_after_modes(void);
+extern void test_fault_lookup_mode_multiple_sequential_searches(void);
+extern void test_fault_lookup_mode_mixed_formats_sequential(void);
+extern void test_fault_lookup_mode_all_modes_exhaustive(void);
 
 // tftp_fsm
 extern void test_fsm_kickoff_rejects_null_rqbuf(void);
@@ -296,6 +304,14 @@ int main(void)
    RUN_TEST( test_fault_lookup_mode_last_mode );
    RUN_TEST( test_fault_lookup_mode_last_mode_short );
    RUN_TEST( test_fault_lookup_mode_partial_match_fails );
+   RUN_TEST( test_fault_lookup_mode_middle_modes_full_names );
+   RUN_TEST( test_fault_lookup_mode_middle_modes_short_names );
+   RUN_TEST( test_fault_lookup_mode_end_modes_both_formats );
+   RUN_TEST( test_fault_lookup_mode_alphabetically_before_modes );
+   RUN_TEST( test_fault_lookup_mode_alphabetically_after_modes );
+   RUN_TEST( test_fault_lookup_mode_multiple_sequential_searches );
+   RUN_TEST( test_fault_lookup_mode_mixed_formats_sequential );
+   RUN_TEST( test_fault_lookup_mode_all_modes_exhaustive );
 
    // FSM state machine tests
    RUN_TEST( test_fsm_kickoff_rejects_null_rqbuf );

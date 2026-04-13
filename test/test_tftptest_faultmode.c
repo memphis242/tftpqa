@@ -24,6 +24,14 @@ void test_fault_lookup_mode_fault_none_short(void);
 void test_fault_lookup_mode_last_mode(void);
 void test_fault_lookup_mode_last_mode_short(void);
 void test_fault_lookup_mode_partial_match_fails(void);
+void test_fault_lookup_mode_middle_modes_full_names(void);
+void test_fault_lookup_mode_middle_modes_short_names(void);
+void test_fault_lookup_mode_end_modes_both_formats(void);
+void test_fault_lookup_mode_alphabetically_before_modes(void);
+void test_fault_lookup_mode_alphabetically_after_modes(void);
+void test_fault_lookup_mode_multiple_sequential_searches(void);
+void test_fault_lookup_mode_mixed_formats_sequential(void);
+void test_fault_lookup_mode_all_modes_exhaustive(void);
 
 /*---------------------------------------------------------------------------
  * tftptest_faultmode tests
@@ -149,4 +157,121 @@ void test_fault_lookup_mode_partial_match_fails(void)
 
    idx = tftptest_fault_lookup_mode("TIMEOUT");
    TEST_ASSERT_EQUAL_INT( -1, idx );
+}
+
+void test_fault_lookup_mode_middle_modes_full_names(void)
+{
+   // Test modes in the middle of the list to exercise loop iteration
+   int idx = tftptest_fault_lookup_mode("FAULT_MID_TIMEOUT_NO_DATA");
+   TEST_ASSERT_EQUAL_INT( FAULT_MID_TIMEOUT_NO_DATA, idx );
+
+   idx = tftptest_fault_lookup_mode("FAULT_DUP_MID_DATA");
+   TEST_ASSERT_EQUAL_INT( FAULT_DUP_MID_DATA, idx );
+
+   idx = tftptest_fault_lookup_mode("FAULT_SLOW_RESPONSE");
+   TEST_ASSERT_EQUAL_INT( FAULT_SLOW_RESPONSE, idx );
+}
+
+void test_fault_lookup_mode_middle_modes_short_names(void)
+{
+   // Test middle modes with short names to exercise loop with short name matches
+   int idx = tftptest_fault_lookup_mode("MID_TIMEOUT_NO_DATA");
+   TEST_ASSERT_EQUAL_INT( FAULT_MID_TIMEOUT_NO_DATA, idx );
+
+   idx = tftptest_fault_lookup_mode("DUP_MID_DATA");
+   TEST_ASSERT_EQUAL_INT( FAULT_DUP_MID_DATA, idx );
+
+   idx = tftptest_fault_lookup_mode("SLOW_RESPONSE");
+   TEST_ASSERT_EQUAL_INT( FAULT_SLOW_RESPONSE, idx );
+}
+
+void test_fault_lookup_mode_end_modes_both_formats(void)
+{
+   // Test multiple modes near the end to ensure loop iterates fully
+   int idx = tftptest_fault_lookup_mode("FAULT_CORRUPT_DATA");
+   TEST_ASSERT_EQUAL_INT( FAULT_CORRUPT_DATA, idx );
+
+   idx = tftptest_fault_lookup_mode("TRUNCATED_PKT");
+   TEST_ASSERT_EQUAL_INT( FAULT_TRUNCATED_PKT, idx );
+
+   idx = tftptest_fault_lookup_mode("CORRUPT_DATA");
+   TEST_ASSERT_EQUAL_INT( FAULT_CORRUPT_DATA, idx );
+}
+
+void test_fault_lookup_mode_alphabetically_before_modes(void)
+{
+   // Test with names alphabetically before all fault modes to exercise
+   // strcasecmp returning negative values
+   int idx = tftptest_fault_lookup_mode("AAAA");
+   TEST_ASSERT_EQUAL_INT( -1, idx );
+
+   idx = tftptest_fault_lookup_mode("FAULT_");
+   TEST_ASSERT_EQUAL_INT( -1, idx );
+
+   idx = tftptest_fault_lookup_mode("A");
+   TEST_ASSERT_EQUAL_INT( -1, idx );
+}
+
+void test_fault_lookup_mode_alphabetically_after_modes(void)
+{
+   // Test with names alphabetically after all fault modes to exercise
+   // strcasecmp returning positive values
+   int idx = tftptest_fault_lookup_mode("ZZZZ");
+   TEST_ASSERT_EQUAL_INT( -1, idx );
+
+   idx = tftptest_fault_lookup_mode("zzz");
+   TEST_ASSERT_EQUAL_INT( -1, idx );
+
+   idx = tftptest_fault_lookup_mode("fault_z");
+   TEST_ASSERT_EQUAL_INT( -1, idx );
+}
+
+void test_fault_lookup_mode_multiple_sequential_searches(void)
+{
+   // Multiple searches to exercise loop iterations and early returns
+   // at different positions in the list
+   int idx1 = tftptest_fault_lookup_mode("FAULT_FILE_NOT_FOUND");
+   int idx2 = tftptest_fault_lookup_mode("FAULT_DUP_FINAL_DATA");
+   int idx3 = tftptest_fault_lookup_mode("FAULT_WRONG_TID_READ");
+
+   TEST_ASSERT_EQUAL_INT( FAULT_FILE_NOT_FOUND, idx1 );
+   TEST_ASSERT_EQUAL_INT( FAULT_DUP_FINAL_DATA, idx2 );
+   TEST_ASSERT_EQUAL_INT( FAULT_WRONG_TID_READ, idx3 );
+}
+
+void test_fault_lookup_mode_mixed_formats_sequential(void)
+{
+   // Sequential searches alternating between full and short names
+   // to exercise different code paths
+   int idx1 = tftptest_fault_lookup_mode("FILE_NOT_FOUND");      // short name
+   int idx2 = tftptest_fault_lookup_mode("FAULT_FILE_NOT_FOUND"); // full name
+   int idx3 = tftptest_fault_lookup_mode("DUP_FINAL_DATA");        // short name
+   int idx4 = tftptest_fault_lookup_mode("FAULT_DUP_FINAL_DATA");  // full name
+
+   TEST_ASSERT_EQUAL_INT( FAULT_FILE_NOT_FOUND, idx1 );
+   TEST_ASSERT_EQUAL_INT( FAULT_FILE_NOT_FOUND, idx2 );
+   TEST_ASSERT_EQUAL_INT( FAULT_DUP_FINAL_DATA, idx3 );
+   TEST_ASSERT_EQUAL_INT( FAULT_DUP_FINAL_DATA, idx4 );
+}
+
+void test_fault_lookup_mode_all_modes_exhaustive(void)
+{
+   // Exhaustively search for all defined modes to ensure loop iteration
+   // through the entire array completes and all branches are exercised
+   int idx_first = tftptest_fault_lookup_mode("FAULT_NONE");
+   int idx_mid1 = tftptest_fault_lookup_mode("FAULT_MID_TIMEOUT_NO_ACK");
+   int idx_mid2 = tftptest_fault_lookup_mode("FAULT_SEND_ERROR_WRITE");
+   int idx_mid3 = tftptest_fault_lookup_mode("FAULT_INVALID_OPCODE_WRITE");
+   int idx_last = tftptest_fault_lookup_mode("FAULT_BURST_DATA");
+
+   TEST_ASSERT_EQUAL_INT( 0, idx_first );                            // First mode
+   TEST_ASSERT_EQUAL_INT( FAULT_MID_TIMEOUT_NO_ACK, idx_mid1 );     // Early-mid mode
+   TEST_ASSERT_EQUAL_INT( FAULT_SEND_ERROR_WRITE, idx_mid2 );       // Mid mode
+   TEST_ASSERT_EQUAL_INT( FAULT_INVALID_OPCODE_WRITE, idx_mid3 );   // Late-mid mode
+   TEST_ASSERT_EQUAL_INT( FAULT_BURST_DATA, idx_last );             // Last mode
+
+   // Also test short names for the last mode to ensure final iteration
+   // returns through short name match
+   int idx_last_short = tftptest_fault_lookup_mode("BURST_DATA");
+   TEST_ASSERT_EQUAL_INT( FAULT_BURST_DATA, idx_last_short );
 }
