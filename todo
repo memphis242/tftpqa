@@ -1,0 +1,14 @@
+- evaluate support for c99 (for work's sake...)
+- fix Unity submodule
+- review every file exhaustively
+- review high-level architecture
+- review inter-module linkages/dependencies
+- review coding constructs
+- manually draw out all control flows, so you really know your own app
+- go over nominal situations and manually draw it out
+- create flash cards ^
+- go over unit testing of each function, going inside-out; there's a lot of work to do there
+- go over software QA directives and analyze each file individually /w respect to them, as well as app as a whole
+- go over security directives and analyze each file individually /w respect to them, as well as app as a whole
+- go over performance directives, augment them (because they're pretty sparse), and update app accordingly
+- set up 24/7 multi-instance stress-test runners /w notification system; initial plan is running them continuously for 1mo, /w daily review
