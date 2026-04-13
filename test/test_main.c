@@ -111,6 +111,45 @@ extern void test_ctrl_unknown_fault_mode(void);
 extern void test_ctrl_whitelist_rejects_disallowed_mode(void);
 extern void test_ctrl_set_fault_missing_mode_name(void);
 
+// tftptest_faultmode
+extern void test_fault_mode_names_all_present(void);
+extern void test_fault_lookup_mode_full_name_match(void);
+extern void test_fault_lookup_mode_short_name_match(void);
+extern void test_fault_lookup_mode_case_insensitive(void);
+extern void test_fault_lookup_mode_nonexistent_returns_negative_one(void);
+extern void test_fault_lookup_mode_fault_none(void);
+extern void test_fault_lookup_mode_fault_none_short(void);
+extern void test_fault_lookup_mode_last_mode(void);
+extern void test_fault_lookup_mode_last_mode_short(void);
+extern void test_fault_lookup_mode_partial_match_fails(void);
+
+// tftp_fsm
+extern void test_fsm_kickoff_rejects_null_rqbuf(void);
+extern void test_fsm_kickoff_rejects_null_peer_addr(void);
+extern void test_fsm_kickoff_rejects_null_cfg(void);
+extern void test_fsm_kickoff_rejects_null_fault(void);
+extern void test_fsm_kickoff_rejects_zero_rqsz(void);
+extern void test_fsm_kickoff_unparseable_request_returns_protocol_err(void);
+extern void test_fsm_kickoff_rrq_timeout_returns_fine(void);
+extern void test_fsm_kickoff_wrq_timeout_returns_fine(void);
+extern void test_fsm_kickoff_rrq_file_not_found_fault_returns_fine(void);
+extern void test_fsm_kickoff_wrq_access_violation_returns_fine(void);
+extern void test_fsm_kickoff_rrq_access_violation_fault_returns_fine(void);
+extern void test_fsm_kickoff_file_not_found_returns_file_err(void);
+extern void test_fsm_kickoff_wrq_disabled_returns_wrq_disabled(void);
+extern void test_fsm_kickoff_wrq_disk_check_fails_returns_disk_check(void);
+extern void test_fsm_kickoff_wrq_file_creation_fails_returns_file_err(void);
+extern void test_fsm_kickoff_socket_creation_fails_returns_socket_err(void);
+extern void test_fsm_kickoff_set_recv_timeout_fails_returns_setsockopt_err(void);
+extern void test_fsm_clean_exit_cleans_resources(void);
+extern void test_fsm_clean_exit_closes_file_and_socket(void);
+extern void test_fsm_kickoff_sets_transfer_mode_octet(void);
+extern void test_fsm_kickoff_sets_transfer_mode_netascii(void);
+extern void test_fsm_kickoff_wrq_bytes_written_null_handled(void);
+extern void test_fsm_kickoff_wrq_with_session_budget(void);
+extern void test_fsm_kickoff_rrq_fault_none(void);
+extern void test_fsm_kickoff_wrq_fault_none(void);
+
 // tftptest_seq
 extern void test_seq_load_valid_single_entry_defaults(void);
 extern void test_seq_load_valid_multiple_entries_with_params(void);
@@ -245,6 +284,45 @@ int main(void)
    // chroot_and_drop
    RUN_TEST( test_chroot_and_drop_non_root_succeeds );
    RUN_TEST( test_chroot_and_drop_bad_dir_fails );
+
+   // fault mode names and lookup
+   RUN_TEST( test_fault_mode_names_all_present );
+   RUN_TEST( test_fault_lookup_mode_full_name_match );
+   RUN_TEST( test_fault_lookup_mode_short_name_match );
+   RUN_TEST( test_fault_lookup_mode_case_insensitive );
+   RUN_TEST( test_fault_lookup_mode_nonexistent_returns_negative_one );
+   RUN_TEST( test_fault_lookup_mode_fault_none );
+   RUN_TEST( test_fault_lookup_mode_fault_none_short );
+   RUN_TEST( test_fault_lookup_mode_last_mode );
+   RUN_TEST( test_fault_lookup_mode_last_mode_short );
+   RUN_TEST( test_fault_lookup_mode_partial_match_fails );
+
+   // FSM state machine tests
+   RUN_TEST( test_fsm_kickoff_rejects_null_rqbuf );
+   RUN_TEST( test_fsm_kickoff_rejects_null_peer_addr );
+   RUN_TEST( test_fsm_kickoff_rejects_null_cfg );
+   RUN_TEST( test_fsm_kickoff_rejects_null_fault );
+   RUN_TEST( test_fsm_kickoff_rejects_zero_rqsz );
+   RUN_TEST( test_fsm_kickoff_unparseable_request_returns_protocol_err );
+   RUN_TEST( test_fsm_kickoff_rrq_timeout_returns_fine );
+   RUN_TEST( test_fsm_kickoff_wrq_timeout_returns_fine );
+   RUN_TEST( test_fsm_kickoff_rrq_file_not_found_fault_returns_fine );
+   RUN_TEST( test_fsm_kickoff_wrq_access_violation_returns_fine );
+   RUN_TEST( test_fsm_kickoff_rrq_access_violation_fault_returns_fine );
+   RUN_TEST( test_fsm_kickoff_file_not_found_returns_file_err );
+   RUN_TEST( test_fsm_kickoff_wrq_disabled_returns_wrq_disabled );
+   RUN_TEST( test_fsm_kickoff_wrq_disk_check_fails_returns_disk_check );
+   RUN_TEST( test_fsm_kickoff_wrq_file_creation_fails_returns_file_err );
+   RUN_TEST( test_fsm_kickoff_socket_creation_fails_returns_socket_err );
+   RUN_TEST( test_fsm_kickoff_set_recv_timeout_fails_returns_setsockopt_err );
+   RUN_TEST( test_fsm_clean_exit_cleans_resources );
+   RUN_TEST( test_fsm_clean_exit_closes_file_and_socket );
+   RUN_TEST( test_fsm_kickoff_sets_transfer_mode_octet );
+   RUN_TEST( test_fsm_kickoff_sets_transfer_mode_netascii );
+   RUN_TEST( test_fsm_kickoff_wrq_bytes_written_null_handled );
+   RUN_TEST( test_fsm_kickoff_wrq_with_session_budget );
+   RUN_TEST( test_fsm_kickoff_rrq_fault_none );
+   RUN_TEST( test_fsm_kickoff_wrq_fault_none );
 
    // sequence file loading and advancement
    RUN_TEST( test_seq_load_valid_single_entry_defaults );
