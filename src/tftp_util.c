@@ -41,7 +41,7 @@ int tftp_util_create_ephemeral_udp_socket(struct sockaddr_in *bound_addr)
    }
 
    // Retrieve the assigned address if caller wants it
-   if ( bound_addr != nullptr )
+   if ( bound_addr != NULL )
    {
       socklen_t addrlen = sizeof *bound_addr;
       if ( getsockname( sfd, (struct sockaddr *)bound_addr, &addrlen ) != 0 )
@@ -80,9 +80,9 @@ size_t tftp_util_octet_to_netascii(const uint8_t *in, size_t in_len,
                                     uint8_t *out, size_t out_cap,
                                     bool *pending_cr)
 {
-   assert( in != nullptr || in_len == 0 );
-   assert( out != nullptr );
-   assert( pending_cr != nullptr );
+   assert( in != NULL || in_len == 0 );
+   assert( out != NULL );
+   assert( pending_cr != NULL );
 
    size_t o = 0;
 
@@ -143,9 +143,9 @@ size_t tftp_util_netascii_to_octet(const uint8_t *in, size_t in_len,
                                     uint8_t *out, size_t out_cap,
                                     bool *pending_cr)
 {
-   assert( in != nullptr || in_len == 0 );
-   assert( out != nullptr );
-   assert( pending_cr != nullptr );
+   assert( in != NULL || in_len == 0 );
+   assert( out != NULL );
+   assert( pending_cr != NULL );
 
    size_t o = 0;
 
@@ -194,8 +194,8 @@ size_t tftp_util_netascii_to_octet(const uint8_t *in, size_t in_len,
 
 int tftp_util_chroot_and_drop(const char *dir, const char *user)
 {
-   assert( dir != nullptr );
-   assert( user != nullptr );
+   assert( dir != NULL );
+   assert( user != NULL );
 
    // Step 1: chdir into the target directory
    if ( chdir( dir ) != 0 )
@@ -230,7 +230,7 @@ int tftp_util_chroot_and_drop(const char *dir, const char *user)
    // Step 4: Look up the target user
    errno = 0;
    struct passwd *pw = getpwnam( user );
-   if ( pw == nullptr )
+   if ( pw == NULL )
    {
       if ( errno != 0 )
          tftp_log( TFTP_LOG_ERR, "getpwnam('%s') failed: %s", user, strerror( errno ) );
@@ -248,7 +248,7 @@ int tftp_util_chroot_and_drop(const char *dir, const char *user)
    }
 
    // Drop supplementary groups
-   if ( setgroups( 0, nullptr ) != 0 )
+   if ( setgroups( 0, NULL ) != 0 )
    {
       tftp_log( TFTP_LOG_ERR, "setgroups(0, NULL) failed: %s", strerror( errno ) );
       return -1;

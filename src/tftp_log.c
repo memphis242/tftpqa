@@ -58,7 +58,7 @@ void tftp_log_init(bool use_syslog, enum TFTP_LogLevel min_level)
 
 void tftp_log(enum TFTP_LogLevel level, const char *fmt, ...)
 {
-   assert( fmt != nullptr );
+   assert( fmt != NULL );
    assert( level >= 0 && level < TFTP_LOG_LEVEL_COUNT );
 
    if ( level < g_min_level )

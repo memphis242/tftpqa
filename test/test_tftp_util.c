@@ -184,7 +184,7 @@ void test_util_netascii_empty_input(void)
 {
    uint8_t out[8];
    bool pending_cr = false;
-   size_t n = tftp_util_octet_to_netascii(nullptr, 0, out, sizeof out, &pending_cr);
+   size_t n = tftp_util_octet_to_netascii(NULL, 0, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 0, n );
 }
 

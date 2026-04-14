@@ -68,7 +68,7 @@ static bool     wrq_session_blocked    = false;
 static uint32_t blocked_peer_ip        = 0;   // network byte order; 0 = none
 
 // Per-IP abandoned session tracking (prevents per-peer DoS)
-constexpr size_t MAX_TRACKED_PEERS = 20;
+#define MAX_TRACKED_PEERS ((size_t)20)
 struct PeerAbandonedCount
 {
    uint32_t peer_ip;   // network byte order
@@ -88,14 +88,14 @@ static void record_peer_abandoned_session(uint32_t peer_ip);
 // Long option definitions for getopt_long()
 static const struct option long_options[] =
 {
-   { "config",   required_argument, nullptr, 'c' },
-   { "port",     required_argument, nullptr, 'p' },
-   { "user",     required_argument, nullptr, 'u' },
-   { "sequence", required_argument, nullptr, 't' },
-   { "verbose",  no_argument,       nullptr, 'v' },
-   { "syslog",   no_argument,       nullptr, 's' },
-   { "help",     no_argument,       nullptr, 'h' },
-   { nullptr,    0,                 nullptr, 0   },  // Sentinel
+   { "config",   required_argument, NULL, 'c' },
+   { "port",     required_argument, NULL, 'p' },
+   { "user",     required_argument, NULL, 'u' },
+   { "sequence", required_argument, NULL, 't' },
+   { "verbose",  no_argument,       NULL, 'v' },
+   { "syslog",   no_argument,       NULL, 's' },
+   { "help",     no_argument,       NULL, 'h' },
+   { NULL,    0,                 NULL, 0   },  // Sentinel
 };
 
 static void print_usage(const char *progname)
@@ -121,9 +121,9 @@ int main(int argc, char * argv[])
    int sfd_newconn = 0; // socket id for new connections on the pre-configured port
 
    // Parse CLI arguments
-   const char *config_path = nullptr;
-   const char *user_override = nullptr;
-   const char *sequence_path = nullptr;
+   const char *config_path = NULL;
+   const char *user_override = NULL;
+   const char *sequence_path = NULL;
    int verbosity = 0;
    bool use_syslog = false;
    uint16_t port_override = 0;
@@ -140,7 +140,7 @@ int main(int argc, char * argv[])
          break;
       case 'p':
       {
-         unsigned long p = strtoul(optarg, nullptr, 10);
+         unsigned long p = strtoul(optarg, NULL, 10);
          if ( p == 0 || p > 65535 )
          {
             fprintf(stderr, "Invalid port: %s\n", optarg);
@@ -189,7 +189,7 @@ int main(int argc, char * argv[])
    sa_cfg.sa_handler = handleSIGINT;
    sysrc = sigaction( SIGINT,
                       &sa_cfg,
-                      nullptr /* old sig action */ );
+                      NULL /* old sig action */ );
 
    // Really shouldn't happen, but I'll check just in case.
    if ( sysrc != 0 )
@@ -206,7 +206,7 @@ int main(int argc, char * argv[])
    // Load config
    struct TFTPTest_Config cfg;
    tftp_parsecfg_defaults(&cfg);
-   if ( config_path != nullptr )
+   if ( config_path != NULL )
    {
       if ( tftp_parsecfg_load(config_path, &cfg) != 0 )
          tftp_log( TFTP_LOG_WARN, "Failed to load config '%s', using defaults", config_path );
@@ -218,7 +218,7 @@ int main(int argc, char * argv[])
       cfg.tftp_port = port_override;
       cfg.ctrl_port = (uint16_t)(port_override + 1);
    }
-   if ( user_override != nullptr )
+   if ( user_override != NULL )
    {
       (void)strncpy( cfg.run_as_user, user_override, sizeof cfg.run_as_user - 1 );
       cfg.run_as_user[sizeof cfg.run_as_user - 1] = '\0';
@@ -234,7 +234,7 @@ int main(int argc, char * argv[])
    bool use_sequence = false;
    int ctrl_sfd = -1;
 
-   if ( sequence_path != nullptr )
+   if ( sequence_path != NULL )
    {
       if ( tftptest_seq_load(sequence_path, &seq) != 0 )
       {
@@ -417,7 +417,7 @@ int main(int argc, char * argv[])
       size_t bytes_written = 0;
       enum TFTP_FSM_RC fsm_rc = TFTP_FSM_KickOff(buf, (size_t)nbytes, &peer_addr, &cfg, &fault,
                                                     is_wrq ? budget : 0,
-                                                    is_wrq ? &bytes_written : nullptr);
+                                                    is_wrq ? &bytes_written : NULL);
 
       // WRQ post-KickOff accounting
       if ( is_wrq )
@@ -581,7 +581,7 @@ static void handleSIGINT(int sig_num)
  */
 static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr, uint16_t port)
 {
-   assert(sfd_ptr != nullptr);
+   assert(sfd_ptr != NULL);
 
    int sysrc = 0;
    int sfd = -1;

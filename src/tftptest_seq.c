@@ -23,7 +23,7 @@ static int count_entries(FILE *fp)
    char line[SEQ_LINE_MAX];
    int count = 0;
 
-   while ( fgets(line, (int)sizeof line, fp) != nullptr )
+   while ( fgets(line, (int)sizeof line, fp) != NULL )
    {
       // Skip leading whitespace
       const char *p = line;
@@ -61,7 +61,7 @@ static int parse_token(const char *token, size_t lineno,
    else if ( strncasecmp(token, "param=", 6) == 0 )
    {
       const char *val = token + 6;
-      char *end = nullptr;
+      char *end = NULL;
       unsigned long v = strtoul(val, &end, 0);
       if ( end == val || *end != '\0' )
       {
@@ -74,7 +74,7 @@ static int parse_token(const char *token, size_t lineno,
    else if ( strncasecmp(token, "count=", 6) == 0 )
    {
       const char *val = token + 6;
-      char *end = nullptr;
+      char *end = NULL;
       unsigned long v = strtoul(val, &end, 0);
       if ( end == val || *end != '\0' || v == 0 )
       {
@@ -96,7 +96,7 @@ static int parse_token(const char *token, size_t lineno,
 int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
 {
    FILE *fp = fopen(path, "r");
-   if ( fp == nullptr )
+   if ( fp == NULL )
    {
       tftp_log(TFTP_LOG_ERR, "Cannot open sequence file '%s': %s", path, strerror(errno));
       return -1;
@@ -113,7 +113,7 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
 
    // Allocate
    struct TFTPTest_SeqEntry *entries = calloc((size_t)n, sizeof *entries);
-   if ( entries == nullptr )
+   if ( entries == NULL )
    {
       tftp_log(TFTP_LOG_ERR, "Sequence file: allocation failed");
       fclose(fp);
@@ -128,7 +128,7 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
    int errors = 0;
    size_t total_sessions = 0;
 
-   while ( fgets(line, (int)sizeof line, fp) != nullptr )
+   while ( fgets(line, (int)sizeof line, fp) != NULL )
    {
       lineno++;
 
@@ -148,7 +148,7 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
 
       // Strip inline comments
       char *hash = strchr(p, '#');
-      if ( hash != nullptr )
+      if ( hash != NULL )
       {
          *hash = '\0';
          // Re-strip trailing whitespace
@@ -166,9 +166,9 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
       size_t count = 1;
       bool mode_set = false, param_set = false, count_set = false;
 
-      char *saveptr = nullptr;
+      char *saveptr = NULL;
       char *token = strtok_r(p, " \t", &saveptr);
-      while ( token != nullptr )
+      while ( token != NULL )
       {
          if ( parse_token(token, lineno, &mode, &mode_set,
                           &param, &param_set, &count, &count_set) != 0 )
@@ -176,7 +176,7 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
             errors++;
             break;
          }
-         token = strtok_r(nullptr, " \t", &saveptr);
+         token = strtok_r(NULL, " \t", &saveptr);
       }
 
       if ( !mode_set )
@@ -243,7 +243,7 @@ bool tftptest_seq_advance(struct TFTPTest_Seq *seq, struct TFTPTest_FaultState *
 void tftptest_seq_free(struct TFTPTest_Seq *seq)
 {
    free(seq->entries);
-   seq->entries          = nullptr;
+   seq->entries          = NULL;
    seq->n_entries        = 0;
    seq->current          = 0;
    seq->sessions_in_step = 0;

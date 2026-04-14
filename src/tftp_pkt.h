@@ -13,22 +13,22 @@
 #include <stddef.h>
 
 // TFTP opcodes (RFC 1350 Section 5)
-constexpr uint16_t TFTP_OP_RRQ  = 1;
-constexpr uint16_t TFTP_OP_WRQ  = 2;
-constexpr uint16_t TFTP_OP_DATA = 3;
-constexpr uint16_t TFTP_OP_ACK  = 4;
-constexpr uint16_t TFTP_OP_ERR  = 5;
+#define TFTP_OP_RRQ  ((uint16_t)1)
+#define TFTP_OP_WRQ  ((uint16_t)2)
+#define TFTP_OP_DATA ((uint16_t)3)
+#define TFTP_OP_ACK  ((uint16_t)4)
+#define TFTP_OP_ERR  ((uint16_t)5)
 
 // TFTP error codes (RFC 1350 Section 5)
-constexpr uint16_t TFTP_ERRC_NOT_DEFINED       = 0;
-constexpr uint16_t TFTP_ERRC_FILE_NOT_FOUND    = 1;
-constexpr uint16_t TFTP_ERRC_ACCESS_VIOLATION  = 2;
-constexpr uint16_t TFTP_ERRC_DISK_FULL         = 3;
-constexpr uint16_t TFTP_ERRC_ILLEGAL_OP        = 4;
-constexpr uint16_t TFTP_ERRC_UNKNOWN_TID       = 5;
-constexpr uint16_t TFTP_ERRC_FILE_EXISTS       = 6;
-constexpr uint16_t TFTP_ERRC_NO_SUCH_USER      = 7;
-constexpr uint16_t TFTP_ERRC_COUNT             = 8;
+#define TFTP_ERRC_NOT_DEFINED       ((uint16_t)0)
+#define TFTP_ERRC_FILE_NOT_FOUND    ((uint16_t)1)
+#define TFTP_ERRC_ACCESS_VIOLATION  ((uint16_t)2)
+#define TFTP_ERRC_DISK_FULL         ((uint16_t)3)
+#define TFTP_ERRC_ILLEGAL_OP        ((uint16_t)4)
+#define TFTP_ERRC_UNKNOWN_TID       ((uint16_t)5)
+#define TFTP_ERRC_FILE_EXISTS       ((uint16_t)6)
+#define TFTP_ERRC_NO_SUCH_USER      ((uint16_t)7)
+#define TFTP_ERRC_COUNT             ((uint16_t)8)
 
 /**
  * @brief Validate that a received buffer is a well-formed RRQ or WRQ packet.

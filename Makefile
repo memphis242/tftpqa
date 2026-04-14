@@ -119,7 +119,7 @@ COMMON_DEFS  := -D_POSIX_C_SOURCE=200809L -D_GNU_SOURCE
 COMMON_INC   := -I$(SRC_DIR)
 
 # C standard
-C_STD        := -std=c23
+C_STD        := -std=c99
 
 # Linker flags (add libs as needed; a TFTP server on Linux will likely need -lpthread)
 LDFLAGS      :=

@@ -22,11 +22,11 @@
 
 /***************************** Local Declarations *****************************/
 
-constexpr uint16_t DEFAULT_TFTP_PORT       = 23069;
-constexpr unsigned int DEFAULT_TIMEOUT_SEC = 1;
-constexpr unsigned int DEFAULT_MAX_RETX    = 5;
-constexpr size_t DEFAULT_MAX_REQUESTS      = 10000;
-constexpr size_t MAX_LINE_LEN              = 512;
+#define DEFAULT_TFTP_PORT       23069
+#define DEFAULT_TIMEOUT_SEC 1
+#define DEFAULT_MAX_RETX    5
+#define DEFAULT_MAX_REQUESTS      10000
+#define MAX_LINE_LEN              512
 
 // Local Function Declarations
 static char *trim_whitespace(char *str);
@@ -36,7 +36,7 @@ static int parse_log_level(const char *str, enum TFTP_LogLevel *out);
 
 void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg)
 {
-   assert( cfg != nullptr );
+   assert( cfg != NULL );
 
    memset( cfg, 0, sizeof *cfg );
 
@@ -67,11 +67,11 @@ void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg)
 
 int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
 {
-   assert( path != nullptr );
-   assert( cfg != nullptr );
+   assert( path != NULL );
+   assert( cfg != NULL );
 
    FILE *fp = fopen( path, "r" );
-   if ( fp == nullptr )
+   if ( fp == NULL )
    {
       tftp_log( TFTP_LOG_ERR, "Failed to open config file '%s': %s",
                 path, strerror( errno ) );
@@ -82,7 +82,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
    int line_num = 0;
    int errors = 0;
 
-   while ( fgets( line, (int)sizeof line, fp ) != nullptr )
+   while ( fgets( line, (int)sizeof line, fp ) != NULL )
    {
       line_num++;
 
@@ -100,7 +100,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
 
       // Split on first '='
       char *eq = strchr( trimmed, '=' );
-      if ( eq == nullptr )
+      if ( eq == NULL )
       {
          tftp_log( TFTP_LOG_WARN, "Config line %d: missing '=' delimiter", line_num );
          errors++;
@@ -113,7 +113,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
 
       // Strip inline comments (everything after #)
       char *hash = strchr( value, '#' );
-      if ( hash != nullptr )
+      if ( hash != NULL )
       {
          *hash = '\0';
          value = trim_whitespace( value );
@@ -122,7 +122,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       // Match keys
       if ( strcmp( key, "tftp_port" ) == 0 )
       {
-         unsigned long v = strtoul( value, nullptr, 10 );
+         unsigned long v = strtoul( value, NULL, 10 );
          if ( v == 0 || v > 65535 )
          {
             tftp_log( TFTP_LOG_WARN, "Config line %d: invalid tftp_port '%s'", line_num, value );
@@ -135,7 +135,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       }
       else if ( strcmp( key, "ctrl_port" ) == 0 )
       {
-         unsigned long v = strtoul( value, nullptr, 10 );
+         unsigned long v = strtoul( value, NULL, 10 );
          if ( v > 65535 )
          {
             tftp_log( TFTP_LOG_WARN, "Config line %d: invalid ctrl_port '%s'", line_num, value );
@@ -182,7 +182,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       }
       else if ( strcmp( key, "timeout_sec" ) == 0 )
       {
-         unsigned long v = strtoul( value, nullptr, 10 );
+         unsigned long v = strtoul( value, NULL, 10 );
          if ( v == 0 || v > 300 )
          {
             tftp_log( TFTP_LOG_WARN, "Config line %d: invalid timeout_sec '%s'", line_num, value );
@@ -195,7 +195,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       }
       else if ( strcmp( key, "max_retransmits" ) == 0 )
       {
-         unsigned long v = strtoul( value, nullptr, 10 );
+         unsigned long v = strtoul( value, NULL, 10 );
          if ( v == 0 || v > 100 )
          {
             tftp_log( TFTP_LOG_WARN, "Config line %d: invalid max_retransmits '%s'", line_num, value );
@@ -208,7 +208,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       }
       else if ( strcmp( key, "max_requests" ) == 0 )
       {
-         unsigned long v = strtoul( value, nullptr, 10 );
+         unsigned long v = strtoul( value, NULL, 10 );
          if ( v == 0 )
          {
             tftp_log( TFTP_LOG_WARN, "Config line %d: invalid max_requests '%s'", line_num, value );
@@ -222,7 +222,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       else if ( strcmp( key, "fault_whitelist" ) == 0 )
       {
          // Accept hex (0x...) or decimal
-         char *endptr = nullptr;
+         char *endptr = NULL;
          uint64_t v = strtoull( value, &endptr, 0 );
          if ( endptr == value )
          {
@@ -257,17 +257,17 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       }
       else if ( strcmp( key, "max_wrq_file_size" ) == 0 )
       {
-         unsigned long v = strtoul( value, nullptr, 10 );
+         unsigned long v = strtoul( value, NULL, 10 );
          cfg->max_wrq_file_size = v;
       }
       else if ( strcmp( key, "max_wrq_session_bytes" ) == 0 )
       {
-         unsigned long v = strtoul( value, nullptr, 10 );
+         unsigned long v = strtoul( value, NULL, 10 );
          cfg->max_wrq_session_bytes = v;
       }
       else if ( strcmp( key, "max_wrq_duration_sec" ) == 0 )
       {
-         unsigned long v = strtoul( value, nullptr, 10 );
+         unsigned long v = strtoul( value, NULL, 10 );
          if ( v > 86400 )
          {
             tftp_log( TFTP_LOG_WARN, "Config line %d: invalid max_wrq_duration_sec '%s' (must be 0-86400)",
@@ -281,12 +281,12 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       }
       else if ( strcmp( key, "max_wrq_file_count" ) == 0 )
       {
-         unsigned long v = strtoul( value, nullptr, 10 );
+         unsigned long v = strtoul( value, NULL, 10 );
          cfg->max_wrq_file_count = v;
       }
       else if ( strcmp( key, "min_disk_free_bytes" ) == 0 )
       {
-         unsigned long v = strtoul( value, nullptr, 10 );
+         unsigned long v = strtoul( value, NULL, 10 );
          cfg->min_disk_free_bytes = v;
       }
       else if ( strcmp( key, "wrq_enabled" ) == 0 )
@@ -309,7 +309,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       }
       else if ( strcmp( key, "max_abandoned_sessions" ) == 0 )
       {
-         unsigned long v = strtoul( value, nullptr, 10 );
+         unsigned long v = strtoul( value, NULL, 10 );
          cfg->max_abandoned_sessions = v;
       }
       else
@@ -336,7 +336,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
 
 static char *trim_whitespace(char *str)
 {
-   assert( str != nullptr );
+   assert( str != NULL );
 
    // Leading
    while ( isspace( (unsigned char)*str ) )
@@ -353,8 +353,8 @@ static char *trim_whitespace(char *str)
 
 static int parse_log_level(const char *str, enum TFTP_LogLevel *out)
 {
-   assert( str != nullptr );
-   assert( out != nullptr );
+   assert( str != NULL );
+   assert( out != NULL );
 
    // Case-insensitive comparison
    if ( strcasecmp( str, "trace" ) == 0 )      *out = TFTP_LOG_TRACE;

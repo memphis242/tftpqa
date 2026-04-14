@@ -8,6 +8,7 @@
 /*************************** File Header Inclusions ***************************/
 // Standard C Headers
 #include <assert.h>
+#include <stddef.h>
 
 // Internal Headers
 #include "tftp_err.h"
@@ -35,6 +36,6 @@ static const char *s_err_strings[] =
 const char *tftp_err_str(enum TFTP_Err err)
 {
    assert( err >= 0 && err < TFTP_ERR_COUNT );
-   assert( s_err_strings[err] != nullptr );
+   assert( s_err_strings[err] != NULL );
    return s_err_strings[err];
 }

@@ -123,18 +123,18 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
                                     size_t wrq_session_budget,
                                     size_t *wrq_bytes_written)
 {
-   assert( rqbuf != nullptr );
-   assert( peer_addr != nullptr );
-   assert( cfg != nullptr );
-   assert( fault != nullptr );
+   assert( rqbuf != NULL );
+   assert( peer_addr != NULL );
+   assert( cfg != NULL );
+   assert( fault != NULL );
    assert( rqsz != 0 );
 
    enum TFTP_FSM_RC rc = TFTP_FSM_RC_FINE;
 
    // Parse the request
    uint16_t opcode = 0;
-   const char *filename = nullptr;
-   const char *mode = nullptr;
+   const char *filename = NULL;
+   const char *mode = NULL;
    if ( TFTP_PKT_ParseRequest(rqbuf, rqsz, &opcode, &filename, &mode) != 0 )
    {
       tftp_log( TFTP_LOG_WARN, "FSM: Failed to parse request packet" );
@@ -147,7 +147,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
    // Initialize session
    memset( &TFTP_FSM_Session, 0, sizeof TFTP_FSM_Session );
    TFTP_FSM_Session.sfd = -1;
-   TFTP_FSM_Session.fp = nullptr;
+   TFTP_FSM_Session.fp = NULL;
    TFTP_FSM_Session.peer_addr = *peer_addr;
    TFTP_FSM_Session.block_num = 0;
    TFTP_FSM_Session.retries = 0;
@@ -213,7 +213,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
    if ( opcode == TFTP_OP_RRQ )
    {
       TFTP_FSM_Session.fp = fopen(filename, "rb");
-      if ( TFTP_FSM_Session.fp == nullptr )
+      if ( TFTP_FSM_Session.fp == NULL )
       {
          tftp_log( TFTP_LOG_WARN, "FSM: Cannot open '%s': %s", filename, strerror(errno) );
          // Send file-not-found error via temp socket
@@ -251,7 +251,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
                             (const struct sockaddr *)peer_addr, sizeof *peer_addr);
             (void)close(sfd);
          }
-         if ( wrq_bytes_written != nullptr )
+         if ( wrq_bytes_written != NULL )
             *wrq_bytes_written = 0;
          return TFTP_FSM_RC_WRQ_DISABLED;
       }
@@ -279,7 +279,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
                                   (const struct sockaddr *)peer_addr, sizeof *peer_addr);
                   (void)close(sfd);
                }
-               if ( wrq_bytes_written != nullptr )
+               if ( wrq_bytes_written != NULL )
                   *wrq_bytes_written = 0;
                return TFTP_FSM_RC_WRQ_DISK_CHECK;
             }
@@ -288,7 +288,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
 
       // WRQ: open file for writing (overwrites existing per RFC 1350)
       TFTP_FSM_Session.fp = fopen(filename, "wb");
-      if ( TFTP_FSM_Session.fp == nullptr )
+      if ( TFTP_FSM_Session.fp == NULL )
       {
          tftp_log( TFTP_LOG_WARN, "FSM: Cannot create '%s': %s", filename, strerror(errno) );
          struct sockaddr_in bound = {0};
@@ -325,7 +325,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
       tftp_log( TFTP_LOG_ERR, "FSM: Failed to create ephemeral socket: %s",
                 strerror(errno) );
       fclose(TFTP_FSM_Session.fp);
-      TFTP_FSM_Session.fp = nullptr;
+      TFTP_FSM_Session.fp = NULL;
       return TFTP_FSM_RC_SOCKET_CREATION_ERR;
    }
 
@@ -689,7 +689,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
          {
             // Check if client sent an ERROR
             uint16_t err_code = 0;
-            const char *err_msg = nullptr;
+            const char *err_msg = NULL;
             if ( TFTP_PKT_ParseError(ackbuf, (size_t)nbytes, &err_code, &err_msg) == 0 )
             {
                tftp_log( TFTP_LOG_WARN, "FSM: Client sent ERROR %u: %s",
@@ -762,7 +762,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
                              TFTP_ERRC_DISK_FULL, "Transfer duration limit exceeded");
                // Close and delete file
                fclose(TFTP_FSM_Session.fp);
-               TFTP_FSM_Session.fp = nullptr;
+               TFTP_FSM_Session.fp = NULL;
                (void)unlink(TFTP_FSM_Session.wrq_filename);
                rc = TFTP_FSM_RC_WRQ_DURATION_LIMIT;
                TFTP_FSM_Session.state = TFTP_FSM_ERR;
@@ -834,7 +834,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
          // Check if client sent an ERROR
          {
             uint16_t err_code = 0;
-            const char *err_msg = nullptr;
+            const char *err_msg = NULL;
             if ( TFTP_PKT_ParseError(databuf, (size_t)nbytes, &err_code, &err_msg) == 0 )
             {
                tftp_log( TFTP_LOG_WARN, "FSM: Client sent ERROR %u: %s",
@@ -847,7 +847,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
 
          // Parse DATA
          uint16_t data_block = 0;
-         const uint8_t *data_ptr = nullptr;
+         const uint8_t *data_ptr = NULL;
          size_t data_len = 0;
          if ( TFTP_PKT_ParseData(databuf, (size_t)nbytes, &data_block,
                                   &data_ptr, &data_len) != 0 )
@@ -936,7 +936,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
                           TFTP_ERRC_DISK_FULL, "Upload limit exceeded");
             // Close and delete file
             fclose(TFTP_FSM_Session.fp);
-            TFTP_FSM_Session.fp = nullptr;
+            TFTP_FSM_Session.fp = NULL;
             (void)unlink(TFTP_FSM_Session.wrq_filename);
             rc = TFTP_FSM_RC_WRQ_FILE_LIMIT;
             TFTP_FSM_Session.state = TFTP_FSM_ERR;
@@ -1116,7 +1116,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
 #endif
 
 fsm_cleanup:
-   if ( wrq_bytes_written != nullptr )
+   if ( wrq_bytes_written != NULL )
       *wrq_bytes_written = TFTP_FSM_Session.wrq_bytes_written;
    session_cleanup();
    return rc;
@@ -1131,10 +1131,10 @@ void TFTP_FSM_CleanExit(void)
 
 static void session_cleanup(void)
 {
-   if ( TFTP_FSM_Session.fp != nullptr )
+   if ( TFTP_FSM_Session.fp != NULL )
    {
       (void)fclose(TFTP_FSM_Session.fp);
-      TFTP_FSM_Session.fp = nullptr;
+      TFTP_FSM_Session.fp = NULL;
    }
 
    if ( TFTP_FSM_Session.sfd >= 0 )
@@ -1352,7 +1352,7 @@ static int fault_maybe_wrong_tid(const struct TFTPTest_FaultState *fault,
    if ( !should )
       return -1;
 
-   int sfd = tftp_util_create_ephemeral_udp_socket(nullptr);
+   int sfd = tftp_util_create_ephemeral_udp_socket(NULL);
    if ( sfd >= 0 )
       tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Sending from wrong TID" );
    return sfd;
@@ -1370,5 +1370,5 @@ static void fault_maybe_delay(const struct TFTPTest_FaultState *fault)
    };
 
    tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Delaying response by %u ms", delay_ms );
-   (void)nanosleep(&ts, nullptr);
+   (void)nanosleep(&ts, NULL);
 }

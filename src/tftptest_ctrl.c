@@ -67,7 +67,7 @@ int tftptest_ctrl_init(uint16_t port)
 void tftptest_ctrl_poll(int ctrl_sfd, struct TFTPTest_FaultState *fault,
                          uint64_t whitelist)
 {
-   assert( fault != nullptr );
+   assert( fault != NULL );
 
    char buf[CTRL_BUF_SZ];
    struct sockaddr_in sender = {0};

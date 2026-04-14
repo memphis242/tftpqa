@@ -45,8 +45,9 @@ const char *const tftptest_fault_mode_names[FAULT_MODE_COUNT] = {
    [FAULT_BURST_DATA]               = "FAULT_BURST_DATA",
 };
 
-_Static_assert(sizeof(tftptest_fault_mode_names) / sizeof(tftptest_fault_mode_names[0]) == FAULT_MODE_COUNT,
-               "tftptest_fault_mode_names must have FAULT_MODE_COUNT entries");
+// C99-compatible compile-time assertion: guards against mismatched array size
+typedef char tftptest_fault_mode_names_size_check
+   [(sizeof(tftptest_fault_mode_names) / sizeof(tftptest_fault_mode_names[0]) == FAULT_MODE_COUNT) ? 1 : -1];
 
 int tftptest_fault_lookup_mode(const char *name)
 {

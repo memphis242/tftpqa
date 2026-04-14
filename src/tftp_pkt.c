@@ -36,7 +36,7 @@ static inline void write_u16(uint8_t *p, uint16_t val)
 
 bool TFTP_PKT_RequestIsValid(const uint8_t *buf, size_t sz)
 {
-   assert( buf != nullptr );
+   assert( buf != NULL );
 
    // Minimum size check
    if ( sz < TFTP_RQST_MIN_SZ )
@@ -53,7 +53,7 @@ bool TFTP_PKT_RequestIsValid(const uint8_t *buf, size_t sz)
 
    // Scan for the NUL terminator of the filename
    const uint8_t *fname_end = memchr( payload, '\0', payload_len );
-   if ( fname_end == nullptr )
+   if ( fname_end == NULL )
       return false; // No NUL terminator found
 
    size_t fname_len = (size_t)(fname_end - payload);
@@ -86,7 +86,7 @@ bool TFTP_PKT_RequestIsValid(const uint8_t *buf, size_t sz)
 
    // Scan for the NUL terminator of the mode
    const uint8_t *mode_end = memchr( mode_start, '\0', remaining );
-   if ( mode_end == nullptr )
+   if ( mode_end == NULL )
       return false;
 
    size_t mode_len = (size_t)(mode_end - mode_start);
@@ -107,10 +107,10 @@ int TFTP_PKT_ParseRequest(const uint8_t *buf, size_t sz,
                            const char **filename,
                            const char **mode)
 {
-   assert( buf != nullptr );
-   assert( opcode != nullptr );
-   assert( filename != nullptr );
-   assert( mode != nullptr );
+   assert( buf != NULL );
+   assert( opcode != NULL );
+   assert( filename != NULL );
+   assert( mode != NULL );
 
    if ( sz < TFTP_RQST_MIN_SZ )
       return -1;
@@ -124,7 +124,7 @@ int TFTP_PKT_ParseRequest(const uint8_t *buf, size_t sz,
 
    // Find the NUL terminator of the filename
    const uint8_t *fname_end = memchr( buf + 2, '\0', sz - 2 );
-   if ( fname_end == nullptr )
+   if ( fname_end == NULL )
       return -1;
 
    // Mode starts after the filename NUL
@@ -136,7 +136,7 @@ int TFTP_PKT_ParseRequest(const uint8_t *buf, size_t sz,
 
    // Verify mode is NUL-terminated within the packet
    size_t mode_region_len = sz - fname_nul_offset - 1;
-   if ( memchr( *mode, '\0', mode_region_len ) == nullptr )
+   if ( memchr( *mode, '\0', mode_region_len ) == NULL )
       return -1;
 
    return 0;
@@ -146,9 +146,9 @@ size_t TFTP_PKT_BuildData(uint8_t *out, size_t out_cap,
                            uint16_t block_num,
                            const uint8_t *data, size_t data_len)
 {
-   assert( out != nullptr );
+   assert( out != NULL );
    assert( data_len <= TFTP_BLOCK_DATA_SZ );
-   assert( data != nullptr || data_len == 0 );
+   assert( data != NULL || data_len == 0 );
 
    size_t total = TFTP_DATA_HDR_SZ + data_len;
    if ( out_cap < total )
@@ -165,7 +165,7 @@ size_t TFTP_PKT_BuildData(uint8_t *out, size_t out_cap,
 
 size_t TFTP_PKT_BuildAck(uint8_t *out, size_t out_cap, uint16_t block_num)
 {
-   assert( out != nullptr );
+   assert( out != NULL );
 
    if ( out_cap < TFTP_ACK_SZ )
       return 0;
@@ -179,8 +179,8 @@ size_t TFTP_PKT_BuildAck(uint8_t *out, size_t out_cap, uint16_t block_num)
 size_t TFTP_PKT_BuildError(uint8_t *out, size_t out_cap,
                             uint16_t error_code, const char *errmsg)
 {
-   assert( out != nullptr );
-   assert( errmsg != nullptr );
+   assert( out != NULL );
+   assert( errmsg != NULL );
 
    size_t msg_len = strlen( errmsg );
    size_t total = TFTP_ERR_HDR_SZ + msg_len + 1; // +1 for NUL
@@ -196,8 +196,8 @@ size_t TFTP_PKT_BuildError(uint8_t *out, size_t out_cap,
 
 int TFTP_PKT_ParseAck(const uint8_t *buf, size_t sz, uint16_t *block_num)
 {
-   assert( buf != nullptr );
-   assert( block_num != nullptr );
+   assert( buf != NULL );
+   assert( block_num != NULL );
 
    if ( sz < TFTP_ACK_SZ )
       return -1;
@@ -213,10 +213,10 @@ int TFTP_PKT_ParseData(const uint8_t *buf, size_t sz,
                         uint16_t *block_num,
                         const uint8_t **data, size_t *data_len)
 {
-   assert( buf != nullptr );
-   assert( block_num != nullptr );
-   assert( data != nullptr );
-   assert( data_len != nullptr );
+   assert( buf != NULL );
+   assert( block_num != NULL );
+   assert( data != NULL );
+   assert( data_len != NULL );
 
    if ( sz < TFTP_DATA_HDR_SZ )
       return -1;
@@ -234,9 +234,9 @@ int TFTP_PKT_ParseData(const uint8_t *buf, size_t sz,
 int TFTP_PKT_ParseError(const uint8_t *buf, size_t sz,
                          uint16_t *error_code, const char **errmsg)
 {
-   assert( buf != nullptr );
-   assert( error_code != nullptr );
-   assert( errmsg != nullptr );
+   assert( buf != NULL );
+   assert( error_code != NULL );
+   assert( errmsg != NULL );
 
    // Minimum: 4-byte header + 1-byte NUL
    if ( sz < TFTP_ERR_HDR_SZ + 1 )
@@ -249,7 +249,7 @@ int TFTP_PKT_ParseError(const uint8_t *buf, size_t sz,
    *errmsg = (const char *)(buf + TFTP_ERR_HDR_SZ);
 
    // Verify the error message is NUL-terminated within the packet
-   if ( memchr( *errmsg, '\0', sz - TFTP_ERR_HDR_SZ ) == nullptr )
+   if ( memchr( *errmsg, '\0', sz - TFTP_ERR_HDR_SZ ) == NULL )
       return -1;
 
    return 0;
