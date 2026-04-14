@@ -8,6 +8,8 @@
 - multiple compilers
 - multiple static analyzers
 - unit tests + multiple sanitizers, striving for good _behavioral_ coverage _in addition to_ max possible [MC/DC](https://en.wikipedia.org/wiki/Modified_condition/decision_coverage) coverage
+  - no "coverage probing"!!! (i.e., calling a module's functions without any assertions, just to meet coverage metrics)
+  - do not modify private members of a module in order to meet coverage or test; the module is a black box, and whatever edge cases aren't caught can be reasoned about rationally
 - integration tests (nominal/chaos monkey)
 - fuzz'ing at the function
 - inter-module
