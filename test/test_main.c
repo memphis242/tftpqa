@@ -83,6 +83,12 @@ extern void test_parsecfg_tftp_port_zero_rejected(void);
 extern void test_parsecfg_line_without_trailing_newline(void);
 extern void test_parsecfg_fault_whitelist_decimal(void);
 extern void test_parsecfg_multiple_errors_reports_count(void);
+extern void test_parsecfg_tid_port_range_valid(void);
+extern void test_parsecfg_tid_port_range_single_port(void);
+extern void test_parsecfg_tid_port_range_invalid_format(void);
+extern void test_parsecfg_tid_port_range_min_greater_than_max(void);
+extern void test_parsecfg_tid_port_range_zero_rejected(void);
+extern void test_parsecfg_tid_port_range_over_65535_rejected(void);
 
 // tftp_pkt (validation, parsing, round-trip, rejection, edge cases)
 extern void test_pkt_valid_rrq_octet(void);
@@ -135,6 +141,9 @@ extern void test_util_netascii_to_octet_pending_cr_boundary(void);
 extern void test_util_netascii_to_octet_no_special(void);
 extern void test_chroot_and_drop_non_root_succeeds(void);
 extern void test_chroot_and_drop_bad_dir_fails(void);
+extern void test_util_create_udp_socket_in_range_succeeds(void);
+extern void test_util_create_udp_socket_in_range_single_port(void);
+extern void test_util_create_udp_socket_in_range_all_busy(void);
 
 // tftptest_ctrl
 extern void test_ctrl_set_fault_and_get(void);
@@ -360,6 +369,12 @@ int main(void)
    RUN_TEST( test_parsecfg_line_without_trailing_newline );
    RUN_TEST( test_parsecfg_fault_whitelist_decimal );
    RUN_TEST( test_parsecfg_multiple_errors_reports_count );
+   RUN_TEST( test_parsecfg_tid_port_range_valid );
+   RUN_TEST( test_parsecfg_tid_port_range_single_port );
+   RUN_TEST( test_parsecfg_tid_port_range_invalid_format );
+   RUN_TEST( test_parsecfg_tid_port_range_min_greater_than_max );
+   RUN_TEST( test_parsecfg_tid_port_range_zero_rejected );
+   RUN_TEST( test_parsecfg_tid_port_range_over_65535_rejected );
 
    // packet edge cases
    RUN_TEST( test_pkt_reject_filename_too_long );
@@ -368,6 +383,11 @@ int main(void)
    RUN_TEST( test_pkt_build_error_succeeds_with_adequate_buffer );
    RUN_TEST( test_pkt_valid_rrq_octet_mixed_case );
    RUN_TEST( test_pkt_ack_block_zero );
+
+   // create_udp_socket_in_range
+   RUN_TEST( test_util_create_udp_socket_in_range_succeeds );
+   RUN_TEST( test_util_create_udp_socket_in_range_single_port );
+   RUN_TEST( test_util_create_udp_socket_in_range_all_busy );
 
    // chroot_and_drop
    RUN_TEST( test_chroot_and_drop_non_root_succeeds );

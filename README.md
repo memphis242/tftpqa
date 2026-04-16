@@ -50,6 +50,10 @@ tftptest -vvv # ≥ TRACE (max logging)
 # Enable logging to syslog
 tftptest -s
 tftptest --syslog
+
+# Restrict session TID ports to a range (useful for packet capture filtering)
+tftptest -r 50000:50100
+tftptest --tid-range 50000:50100
 ```
 
 ### Configuration file (INI format):
@@ -78,6 +82,9 @@ fault_whitelist = 0xFFFFFFFFFFFFFFFF # bit masks of allowed fault modes (see tab
 # Extra protections against malicious attackers
 allowed_client_ip = 192.168.0.24    # 0 for no restrictions, specific IP otherwise
 max_abandoned_sessions = 10         # Lock out all requests from a particular IP address after this many timed-out sessions (0 = unlimited)
+
+# TID port range for session sockets (useful for packet capture filtering)
+tid_port_range = 50000-50100        # Restrict session TIDs to ports 50000-50100 (omit for OS-assigned ephemeral)
 
 # WRQ DoS protection
 max_wrq_file_size = 500000000       # Per-file size limit in bytes (0 = unlimited)

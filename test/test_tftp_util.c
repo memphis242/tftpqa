@@ -13,6 +13,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 /*---------------------------------------------------------------------------
  * Forward declarations
@@ -37,6 +40,9 @@ void test_util_netascii_to_octet_no_special(void);
 void test_chroot_and_drop_non_root_succeeds(void);
 void test_chroot_and_drop_bad_dir_fails(void);
 void test_pkt_ack_block_zero(void);
+void test_util_create_udp_socket_in_range_succeeds(void);
+void test_util_create_udp_socket_in_range_single_port(void);
+void test_util_create_udp_socket_in_range_all_busy(void);
 
 /*---------------------------------------------------------------------------
  * tftp_util tests
@@ -288,4 +294,52 @@ void test_pkt_ack_block_zero(void)
    int rc = tftp_pkt_parse_ack(pkt, n, &block);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 0, block );
+}
+
+void test_util_create_udp_socket_in_range_succeeds(void)
+{
+   struct sockaddr_in bound_addr = {0};
+   int sfd = tftp_util_create_udp_socket_in_range(49200, 49210, &bound_addr);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, sfd );
+
+   uint16_t port = ntohs(bound_addr.sin_port);
+   TEST_ASSERT_GREATER_OR_EQUAL( 49200, port );
+   TEST_ASSERT_LESS_OR_EQUAL( 49210, port );
+
+   close(sfd);
+}
+
+void test_util_create_udp_socket_in_range_single_port(void)
+{
+   struct sockaddr_in bound_addr = {0};
+   int sfd = tftp_util_create_udp_socket_in_range(49220, 49220, &bound_addr);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, sfd );
+   TEST_ASSERT_EQUAL_UINT16( 49220, ntohs(bound_addr.sin_port) );
+   close(sfd);
+}
+
+void test_util_create_udp_socket_in_range_all_busy(void)
+{
+   // Occupy a small range of 3 ports, then verify the function returns -1
+   uint16_t base = 49230;
+   int blockers[3];
+   for ( int i = 0; i < 3; i++ )
+   {
+      blockers[i] = socket(AF_INET, SOCK_DGRAM, 0);
+      TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, blockers[i] );
+
+      struct sockaddr_in addr = {0};
+      addr.sin_family      = AF_INET;
+      addr.sin_port        = htons((uint16_t)(base + i));
+      addr.sin_addr.s_addr = htonl(INADDR_ANY);
+      int brc = bind(blockers[i], (struct sockaddr *)&addr, sizeof addr);
+      TEST_ASSERT_EQUAL_INT( 0, brc );
+   }
+
+   // Now try to create a socket in the fully occupied range
+   int sfd = tftp_util_create_udp_socket_in_range(base, (uint16_t)(base + 2), NULL);
+   TEST_ASSERT_EQUAL_INT( -1, sfd );
+
+   for ( int i = 0; i < 3; i++ )
+      close(blockers[i]);
 }

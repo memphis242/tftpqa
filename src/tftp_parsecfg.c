@@ -55,6 +55,8 @@ void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg)
    cfg->min_disk_free_bytes = 0;     // 0 = no check
    cfg->wrq_enabled = true;
    cfg->max_abandoned_sessions = 0;  // 0 = unlimited
+   cfg->tid_port_min = 0;            // 0 = OS-assigned ephemeral
+   cfg->tid_port_max = 0;
 
    // Default root dir: current working directory
    (void)strncpy( cfg->root_dir, ".", sizeof cfg->root_dir - 1 );
@@ -311,6 +313,41 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       {
          unsigned long v = strtoul( value, NULL, 10 );
          cfg->max_abandoned_sessions = v;
+      }
+      else if ( strcmp( key, "tid_port_range" ) == 0 )
+      {
+         // Format: MIN-MAX (e.g., "50000-50100")
+         char *dash = strchr( value, '-' );
+         if ( dash == NULL )
+         {
+            tftp_log( TFTP_LOG_WARN, "Config line %d: invalid tid_port_range '%s' (expected MIN-MAX)",
+                      line_num, value );
+            errors++;
+         }
+         else
+         {
+            *dash = '\0';
+            char *min_str = trim_whitespace( value );
+            char *max_str = trim_whitespace( dash + 1 );
+            unsigned long vmin = strtoul( min_str, NULL, 10 );
+            unsigned long vmax = strtoul( max_str, NULL, 10 );
+            if ( vmin == 0 || vmin > 65535 || vmax == 0 || vmax > 65535 )
+            {
+               tftp_log( TFTP_LOG_WARN, "Config line %d: tid_port_range ports must be 1-65535", line_num );
+               errors++;
+            }
+            else if ( vmin > vmax )
+            {
+               tftp_log( TFTP_LOG_WARN, "Config line %d: tid_port_range min (%lu) > max (%lu)",
+                         line_num, vmin, vmax );
+               errors++;
+            }
+            else
+            {
+               cfg->tid_port_min = (uint16_t)vmin;
+               cfg->tid_port_max = (uint16_t)vmax;
+            }
+         }
       }
       else
       {

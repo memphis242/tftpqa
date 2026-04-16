@@ -317,9 +317,13 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
       TFTP_FSM_Session.wrq_filename[sizeof TFTP_FSM_Session.wrq_filename - 1] = '\0';
    }
 
-   // Create ephemeral UDP socket (new TID per RFC 1350)
+   // Create session UDP socket (new TID per RFC 1350)
    struct sockaddr_in bound_addr = {0};
-   TFTP_FSM_Session.sfd = tftp_util_create_ephemeral_udp_socket(&bound_addr);
+   if ( cfg->tid_port_min != 0 )
+      TFTP_FSM_Session.sfd = tftp_util_create_udp_socket_in_range(
+          cfg->tid_port_min, cfg->tid_port_max, &bound_addr);
+   else
+      TFTP_FSM_Session.sfd = tftp_util_create_ephemeral_udp_socket(&bound_addr);
    if ( TFTP_FSM_Session.sfd < 0 )
    {
       tftp_log( TFTP_LOG_ERR, "FSM: Failed to create ephemeral socket: %s",

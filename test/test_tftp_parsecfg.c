@@ -60,6 +60,12 @@ void test_parsecfg_tftp_port_zero_rejected(void);
 void test_parsecfg_line_without_trailing_newline(void);
 void test_parsecfg_fault_whitelist_decimal(void);
 void test_parsecfg_multiple_errors_reports_count(void);
+void test_parsecfg_tid_port_range_valid(void);
+void test_parsecfg_tid_port_range_single_port(void);
+void test_parsecfg_tid_port_range_invalid_format(void);
+void test_parsecfg_tid_port_range_min_greater_than_max(void);
+void test_parsecfg_tid_port_range_zero_rejected(void);
+void test_parsecfg_tid_port_range_over_65535_rejected(void);
 
 /*---------------------------------------------------------------------------
  * tftp_parsecfg tests
@@ -86,6 +92,8 @@ void test_parsecfg_defaults_produces_sane_values(void)
    TEST_ASSERT_EQUAL( 0, cfg.max_wrq_file_count );
    TEST_ASSERT_EQUAL( 0, cfg.min_disk_free_bytes );
    TEST_ASSERT_TRUE( cfg.wrq_enabled );
+   TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_min );
+   TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_max );
 }
 
 void test_parsecfg_load_nonexistent_file_returns_error(void)
@@ -853,6 +861,109 @@ void test_parsecfg_multiple_errors_reports_count(void)
    TEST_ASSERT_EQUAL_UINT16( 23069, cfg.tftp_port );
    TEST_ASSERT_EQUAL_UINT( 1, cfg.timeout_sec );
    TEST_ASSERT_EQUAL_UINT( 5, cfg.max_retransmits );
+   (void)remove(path);
+}
+
+void test_parsecfg_tid_port_range_valid(void)
+{
+   const char *path = "/tmp/tftptest_test_tid_range.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "tid_port_range = 50000-50100\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT16( 50000, cfg.tid_port_min );
+   TEST_ASSERT_EQUAL_UINT16( 50100, cfg.tid_port_max );
+   (void)remove(path);
+}
+
+void test_parsecfg_tid_port_range_single_port(void)
+{
+   const char *path = "/tmp/tftptest_test_tid_single.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "tid_port_range = 50000-50000\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT16( 50000, cfg.tid_port_min );
+   TEST_ASSERT_EQUAL_UINT16( 50000, cfg.tid_port_max );
+   (void)remove(path);
+}
+
+void test_parsecfg_tid_port_range_invalid_format(void)
+{
+   const char *path = "/tmp/tftptest_test_tid_badfmt.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "tid_port_range = 50000\n"); // Missing dash and max
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc ); // Non-fatal
+   // Should remain at defaults (0/0)
+   TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_min );
+   TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_max );
+   (void)remove(path);
+}
+
+void test_parsecfg_tid_port_range_min_greater_than_max(void)
+{
+   const char *path = "/tmp/tftptest_test_tid_minmax.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "tid_port_range = 50100-50000\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_min );
+   TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_max );
+   (void)remove(path);
+}
+
+void test_parsecfg_tid_port_range_zero_rejected(void)
+{
+   const char *path = "/tmp/tftptest_test_tid_zero.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "tid_port_range = 0-100\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_min );
+   TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_max );
+   (void)remove(path);
+}
+
+void test_parsecfg_tid_port_range_over_65535_rejected(void)
+{
+   const char *path = "/tmp/tftptest_test_tid_over.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "tid_port_range = 50000-70000\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_min );
+   TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_max );
    (void)remove(path);
 }
 

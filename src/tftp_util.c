@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <pwd.h>
@@ -52,6 +53,56 @@ int tftp_util_create_ephemeral_udp_socket(struct sockaddr_in *bound_addr)
    }
 
    return sfd;
+}
+
+int tftp_util_create_udp_socket_in_range(uint16_t port_min, uint16_t port_max,
+                                         struct sockaddr_in *bound_addr)
+{
+   assert( port_min >= 1 );
+   assert( port_max >= port_min );
+
+   unsigned int range_size = (unsigned int)(port_max - port_min) + 1;
+   unsigned int start = (unsigned int)rand() % range_size;
+
+   for ( unsigned int i = 0; i < range_size; i++ )
+   {
+      uint16_t port = (uint16_t)(port_min + ((start + i) % range_size));
+
+      int sfd = socket( AF_INET, SOCK_DGRAM, 0 );
+      if ( sfd < 0 )
+         return -1;
+
+      struct sockaddr_in addr;
+      memset( &addr, 0, sizeof addr );
+      addr.sin_family      = AF_INET;
+      addr.sin_port        = htons( port );
+      addr.sin_addr.s_addr = htonl( INADDR_ANY );
+
+      if ( bind( sfd, (struct sockaddr *)&addr, sizeof addr ) != 0 )
+      {
+         (void)close( sfd );
+         if ( errno == EADDRINUSE )
+            continue;
+         return -1;  // Unexpected error (e.g., EACCES)
+      }
+
+      // Bound successfully
+      if ( bound_addr != NULL )
+      {
+         socklen_t addrlen = sizeof *bound_addr;
+         if ( getsockname( sfd, (struct sockaddr *)bound_addr, &addrlen ) != 0 )
+         {
+            (void)close( sfd );
+            return -1;
+         }
+      }
+
+      return sfd;
+   }
+
+   // All ports in range exhausted
+   errno = EADDRINUSE;
+   return -1;
 }
 
 int tftp_util_set_recv_timeout(int sfd, unsigned int timeout_sec)

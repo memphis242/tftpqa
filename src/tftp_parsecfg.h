@@ -37,6 +37,9 @@ struct TFTPTest_Config
    bool               wrq_enabled;            // If false, reject all WRQ with ACCESS_VIOLATION
    // Session abandonment protection
    size_t             max_abandoned_sessions;  // Lock out all requests after this many timed-out sessions (0 = unlimited)
+   // TID port range (0/0 = OS-assigned ephemeral, current default)
+   uint16_t           tid_port_min;
+   uint16_t           tid_port_max;
 };
 
 /**

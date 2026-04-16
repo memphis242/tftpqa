@@ -20,6 +20,20 @@
 int tftp_util_create_ephemeral_udp_socket(struct sockaddr_in *bound_addr);
 
 /**
+ * @brief Create a UDP socket bound to a random port within [port_min, port_max].
+ *
+ * Picks a random port in the range and retries with other ports on EADDRINUSE.
+ * Tries every port in the range exactly once (random order) before giving up.
+ *
+ * @param[in]  port_min   Minimum port number (inclusive, must be >= 1).
+ * @param[in]  port_max   Maximum port number (inclusive, must be >= port_min).
+ * @param[out] bound_addr Filled with the address the socket was bound to. May be NULL.
+ * @return The socket file descriptor on success, or -1 if no port in range is available.
+ */
+int tftp_util_create_udp_socket_in_range(uint16_t port_min, uint16_t port_max,
+                                         struct sockaddr_in *bound_addr);
+
+/**
  * @brief Set the receive timeout on a socket.
  * @param[in] sfd          Socket file descriptor.
  * @param[in] timeout_sec  Timeout in seconds. 0 means no timeout.

@@ -98,7 +98,9 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
    FILE *fp = fopen(path, "r");
    if ( fp == NULL )
    {
-      tftp_log(TFTP_LOG_ERR, "Cannot open sequence file '%s': %s", path, strerror(errno));
+      tftp_log(TFTP_LOG_ERR,
+               "Cannot open sequence file '%s': %s (%d) : %s",
+               path, strerrorname_np(errno), errno, strerror(errno));
       return -1;
    }
 

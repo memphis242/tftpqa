@@ -92,6 +92,7 @@ static const struct option long_options[] =
    { "port",     required_argument, NULL, 'p' },
    { "user",     required_argument, NULL, 'u' },
    { "sequence", required_argument, NULL, 't' },
+   { "tid-range", required_argument, NULL, 'r' },
    { "verbose",  no_argument,       NULL, 'v' },
    { "syslog",   no_argument,       NULL, 's' },
    { "help",     no_argument,       NULL, 'h' },
@@ -107,6 +108,7 @@ static void print_usage(const char *progname)
       "  -p, --port <port>       Override TFTP port\n"
       "  -u, --user <user>       Run as user after chroot (default: nobody)\n"
       "  -t, --sequence <file>   Test sequence file (disables control channel)\n"
+      "  -r, --tid-range MIN:MAX Restrict session TID ports to this range\n"
       "  -v, --verbose           Increase verbosity (repeat for more: -vvv)\n"
       "  -s, --syslog            Enable syslog output\n"
       "  -h, --help              Show this help message\n",
@@ -128,10 +130,13 @@ int main(int argc, char * argv[])
    bool use_syslog = false;
    uint16_t port_override = 0;
    bool port_overridden = false;
+   uint16_t tid_min_override = 0;
+   uint16_t tid_max_override = 0;
+   bool tid_range_overridden = false;
 
    int opt;
    int option_index = 0;
-   while ( (opt = getopt_long(argc, argv, "c:p:u:t:vsh", long_options, &option_index)) != -1 )
+   while ( (opt = getopt_long(argc, argv, "c:p:u:t:r:vsh", long_options, &option_index)) != -1 )
    {
       switch ( opt )
       {
@@ -156,6 +161,28 @@ int main(int argc, char * argv[])
       case 't':
          sequence_path = optarg;
          break;
+      case 'r':
+      {
+         // Format: MIN:MAX
+         char *colon = strchr(optarg, ':');
+         if ( colon == NULL )
+         {
+            fprintf(stderr, "Invalid --tid-range: expected MIN:MAX, got '%s'\n", optarg);
+            return 1;
+         }
+         *colon = '\0';
+         unsigned long tmin = strtoul(optarg, NULL, 10);
+         unsigned long tmax = strtoul(colon + 1, NULL, 10);
+         if ( tmin == 0 || tmin > 65535 || tmax == 0 || tmax > 65535 || tmin > tmax )
+         {
+            fprintf(stderr, "Invalid --tid-range: ports must be 1-65535 with min <= max\n");
+            return 1;
+         }
+         tid_min_override = (uint16_t)tmin;
+         tid_max_override = (uint16_t)tmax;
+         tid_range_overridden = true;
+         break;
+      }
       case 'v':
          verbosity++;
          break;
@@ -225,6 +252,34 @@ int main(int argc, char * argv[])
    }
    if ( log_level < cfg.log_level )
       cfg.log_level = log_level;
+   if ( tid_range_overridden )
+   {
+      cfg.tid_port_min = tid_min_override;
+      cfg.tid_port_max = tid_max_override;
+   }
+
+   // Validate TID range doesn't overlap with server ports
+   if ( cfg.tid_port_min != 0 )
+   {
+      if ( cfg.tftp_port >= cfg.tid_port_min && cfg.tftp_port <= cfg.tid_port_max )
+      {
+         tftp_log( TFTP_LOG_FATAL, "TID port range %u-%u overlaps with tftp_port %u",
+                   cfg.tid_port_min, cfg.tid_port_max, cfg.tftp_port );
+         return 1;
+      }
+      if ( cfg.ctrl_port != 0 &&
+           cfg.ctrl_port >= cfg.tid_port_min && cfg.ctrl_port <= cfg.tid_port_max )
+      {
+         tftp_log( TFTP_LOG_FATAL, "TID port range %u-%u overlaps with ctrl_port %u",
+                   cfg.tid_port_min, cfg.tid_port_max, cfg.ctrl_port );
+         return 1;
+      }
+      tftp_log( TFTP_LOG_INFO, "TID port range: %u-%u",
+                cfg.tid_port_min, cfg.tid_port_max );
+   }
+
+   // Seed RNG for TID port selection
+   srand((unsigned int)time(NULL));
 
    // Fault state
    struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
