@@ -270,3 +270,4 @@ Read these for context before making architectural or scope decisions:
 
 ## Extra Notes for AI
 - Do **NOT** ever try to `git commit` or `git push` changes! I will handle that.
+- Do **NOT** use "fault injection" phrasing anywhere - use "fault simulation" or "fault emulation" instead.

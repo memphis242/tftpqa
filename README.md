@@ -1,12 +1,12 @@
 # tftptest
 
-A TFTP (RFC 1350) test server that behaves like a nominal TFTP server but through messages on a control port, it will simulate a chosen fault as part of thorough testing of your TFTP client. This server will only answer to a single client at a time, and can be configured to answer to a specific client.
+This is a TFTP (RFC 1350) _Test_ Server that allows developers to exhaustively integration test TFTP clients against fault scenarios (see full list at the bottom). This server can also operate as a standard, nominal TFTP server. Note that for simplicity, this server will only answer to a single client at a time, and can be configured to answer to a _specific_ client as well, among many other test configuration knobs.
 
 ## Basic Usage
 
 ### Starting the Server
 
-Note, CLI options override config file.
+Note, CLI options _override_ the config file's corresponding options.
 
 ```bash
 # Run /w defaults: port 23069, "nobody" user, WARN lvl logging
@@ -35,7 +35,7 @@ tftptest --syslog            # Log to syslog
 
 ### Configuration file (INI format):
 
-Note, CLI options override config file.
+Note, CLI options _override_ the config file's corresponding options.
 
 ```ini
 # tftptest server port setup (there are two)
@@ -59,6 +59,7 @@ fault_whitelist = 0xFFFFFFFFFFFFFFFF # bit masks of allowed fault modes (see tab
 # Extra protections against malicious attackers
 allowed_client_ip = 192.168.0.24    # 0 for no restrictions, specific IP otherwise
 max_abandoned_sessions = 10         # Lock out all requests from a particular IP address after this many timed-out sessions (0 = unlimited)
+
 # WRQ DoS protection
 max_wrq_file_size = 500000000       # Per-file size limit in bytes (0 = unlimited)
 max_wrq_session_bytes = 10000000000 # Cumulative WRQ bytes for entire server run (0 = unlimited)
@@ -68,7 +69,9 @@ min_disk_free_bytes = 20000000000   # Reject WRQ if free disk < this (0 = no che
 wrq_enabled = 1                     # If false, reject all WRQ with ACCESS_VIOLATION
 ```
 
-### Set fault mode via control channel (UDP):
+### Setting the Fault Simulation Mode (Two Options):
+
+#### UDP Control Channel:
 
 Server will listen on a "control" port to go off-nominal and into a particular fault simulation mode.  
 
@@ -80,7 +83,7 @@ echo "GET_FAULT" | nc -u localhost 23070
 echo "RESET" | nc -u localhost 23070
 ```
 
-### Test sequence file (`-t`):
+#### Test sequence file (`-t`):
 
 Instead of controlling faults at runtime via UDP, you can specify a sequence of fault modes in a file, almost like a script. When a sequence file is specified, the UDP control channel is disabled and the server steps through the sequence automatically, shutting down gracefully when complete.
 
@@ -97,15 +100,15 @@ Sequence file format (one entry per line, `#` comments, blank lines ignored):
 # - param: optional, default 0
 # - count: optional, default 1 (sessions this fault covers)
 
-mode=FAULT_NONE              count=2   # 2 nominal transfers
-mode=FAULT_RRQ_TIMEOUT       count=1   # then a timeout
-mode=FAULT_CORRUPT_DATA      param=5   count=2   # corrupt block 5 for 2 sessions
-mode=FAULT_SLOW_RESPONSE     param=3000          # 3 second delay, 1 session
+mode=FAULT_NONE              count=2             # 2 nominal transfers
+mode=FAULT_RRQ_TIMEOUT       count=1             # then a timeout for the subsequent transfer session
+mode=FAULT_CORRUPT_DATA      param=5   count=2   # then corrupt block 5 for 2 sessions
+mode=FAULT_SLOW_RESPONSE     param=3000          # then apply 3 second delay for every response, 1 session
 ```
 
 ## Fault Simulation Modes
 
-The server supports 33 parameterized fault injection modes for testing TFTP client robustness:
+The server supports many parameterized fault simulation modes for testing TFTP client robustness:
 
 1. RRQ timeout
 2. WRQ timeout
