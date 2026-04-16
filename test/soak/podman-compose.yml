@@ -1,0 +1,74 @@
+version: "3"
+
+services:
+  chaos-1:
+    build: .
+    container_name: chaos-1
+    environment:
+      MONKEY_ID: "1"
+    volumes:
+      - ./chaos-logs:/logs
+    restart: unless-stopped
+
+  chaos-2:
+    build: .
+    container_name: chaos-2
+    environment:
+      MONKEY_ID: "2"
+    volumes:
+      - ./chaos-logs:/logs
+    restart: unless-stopped
+
+  chaos-3:
+    build: .
+    container_name: chaos-3
+    environment:
+      MONKEY_ID: "3"
+    volumes:
+      - ./chaos-logs:/logs
+    restart: unless-stopped
+
+  chaos-4:
+    build: .
+    container_name: chaos-4
+    environment:
+      MONKEY_ID: "4"
+    volumes:
+      - ./chaos-logs:/logs
+    restart: unless-stopped
+
+  chaos-5:
+    build: .
+    container_name: chaos-5
+    environment:
+      MONKEY_ID: "5"
+    volumes:
+      - ./chaos-logs:/logs
+    restart: unless-stopped
+
+  chaos-6:
+    build: .
+    container_name: chaos-6
+    environment:
+      MONKEY_ID: "6"
+    volumes:
+      - ./chaos-logs:/logs
+    restart: unless-stopped
+
+  chaos-7:
+    build: .
+    container_name: chaos-7
+    environment:
+      MONKEY_ID: "7"
+    volumes:
+      - ./chaos-logs:/logs
+    restart: unless-stopped
+
+  chaos-8:
+    build: .
+    container_name: chaos-8
+    environment:
+      MONKEY_ID: "8"
+    volumes:
+      - ./chaos-logs:/logs
+    restart: unless-stopped

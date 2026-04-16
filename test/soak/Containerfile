@@ -1,0 +1,17 @@
+# Stage 1: Build tftptest from source
+FROM docker.io/almalinux/9-base AS builder
+RUN dnf install -y gcc make && dnf clean all
+WORKDIR /build
+COPY src/ src/
+COPY Makefile .
+RUN make release
+
+# Stage 2: Runtime (minimal image with Python 3 + binary + scripts)
+FROM docker.io/almalinux/9-minimal
+RUN microdnf install -y python3 && microdnf clean all
+WORKDIR /app
+COPY --from=builder /build/build/release/tftptest ./build/release/tftptest
+COPY scripts/ scripts/
+COPY entrypoint.sh .
+RUN chmod +x entrypoint.sh
+ENTRYPOINT ["./entrypoint.sh"]
