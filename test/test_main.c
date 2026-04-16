@@ -31,6 +31,14 @@ extern void test_err_str_none_is_no_error(void);
 
 // tftp_log
 extern void test_log_level_str_returns_expected_names(void);
+extern void test_log_init_without_syslog_sets_min_level(void);
+extern void test_log_init_with_syslog_opens_syslog(void);
+extern void test_log_message_below_min_level_is_suppressed(void);
+extern void test_log_message_at_min_level_is_emitted(void);
+extern void test_log_message_above_min_level_is_emitted(void);
+extern void test_log_shutdown_without_syslog_is_safe(void);
+extern void test_log_shutdown_with_syslog_closes_syslog(void);
+extern void test_log_message_with_syslog_enabled(void);
 
 // tftp_parsecfg
 extern void test_parsecfg_defaults_produces_sane_values(void);
@@ -50,6 +58,32 @@ extern void test_parsecfg_wrq_duration_sec_invalid(void);
 extern void test_parsecfg_wrq_enabled_invalid_value(void);
 extern void test_parsecfg_abandoned_sessions_default_zero(void);
 extern void test_parsecfg_max_abandoned_sessions_loaded(void);
+extern void test_parsecfg_ctrl_port_over_65535_rejected(void);
+extern void test_parsecfg_root_dir_empty_rejected(void);
+extern void test_parsecfg_root_dir_too_long_rejected(void);
+extern void test_parsecfg_run_as_user_valid(void);
+extern void test_parsecfg_run_as_user_empty_rejected(void);
+extern void test_parsecfg_run_as_user_too_long_rejected(void);
+extern void test_parsecfg_log_level_all_values(void);
+extern void test_parsecfg_log_level_invalid_rejected(void);
+extern void test_parsecfg_timeout_sec_zero_rejected(void);
+extern void test_parsecfg_timeout_sec_over_300_rejected(void);
+extern void test_parsecfg_max_retransmits_zero_rejected(void);
+extern void test_parsecfg_max_retransmits_over_100_rejected(void);
+extern void test_parsecfg_max_requests_zero_rejected(void);
+extern void test_parsecfg_fault_whitelist_invalid_rejected(void);
+extern void test_parsecfg_allowed_client_ip_empty_allows_all(void);
+extern void test_parsecfg_allowed_client_ip_zero_allows_all(void);
+extern void test_parsecfg_allowed_client_ip_valid(void);
+extern void test_parsecfg_allowed_client_ip_invalid_rejected(void);
+extern void test_parsecfg_wrq_enabled_yes(void);
+extern void test_parsecfg_wrq_enabled_one(void);
+extern void test_parsecfg_wrq_enabled_no(void);
+extern void test_parsecfg_wrq_enabled_zero(void);
+extern void test_parsecfg_tftp_port_zero_rejected(void);
+extern void test_parsecfg_line_without_trailing_newline(void);
+extern void test_parsecfg_fault_whitelist_decimal(void);
+extern void test_parsecfg_multiple_errors_reports_count(void);
 
 // tftp_pkt (validation, parsing, round-trip, rejection, edge cases)
 extern void test_pkt_valid_rrq_octet(void);
@@ -164,7 +198,7 @@ extern void test_seq_load_valid_multiple_entries_with_params(void);
 extern void test_seq_load_valid_comments_and_blanks(void);
 extern void test_seq_load_valid_case_insensitive_mode(void);
 extern void test_seq_load_valid_short_mode_names(void);
-extern void test_seq_load_valid_field_order_doesnt_matter(void);
+extern void test_seq_load_valid_field_order_doesn't_matter(void);
 extern void test_seq_load_nonexistent_file_returns_error(void);
 extern void test_seq_load_empty_file_returns_error(void);
 extern void test_seq_load_unknown_fault_mode_returns_error(void);
@@ -211,6 +245,14 @@ int main(void)
 
    // tftp_log
    RUN_TEST( test_log_level_str_returns_expected_names );
+   RUN_TEST( test_log_init_without_syslog_sets_min_level );
+   RUN_TEST( test_log_init_with_syslog_opens_syslog );
+   RUN_TEST( test_log_message_below_min_level_is_suppressed );
+   RUN_TEST( test_log_message_at_min_level_is_emitted );
+   RUN_TEST( test_log_message_above_min_level_is_emitted );
+   RUN_TEST( test_log_shutdown_without_syslog_is_safe );
+   RUN_TEST( test_log_shutdown_with_syslog_closes_syslog );
+   RUN_TEST( test_log_message_with_syslog_enabled );
 
    // tftp_parsecfg
    RUN_TEST( test_parsecfg_defaults_produces_sane_values );
@@ -294,6 +336,32 @@ int main(void)
    RUN_TEST( test_parsecfg_wrq_enabled_invalid_value );
    RUN_TEST( test_parsecfg_abandoned_sessions_default_zero );
    RUN_TEST( test_parsecfg_max_abandoned_sessions_loaded );
+   RUN_TEST( test_parsecfg_ctrl_port_over_65535_rejected );
+   RUN_TEST( test_parsecfg_root_dir_empty_rejected );
+   RUN_TEST( test_parsecfg_root_dir_too_long_rejected );
+   RUN_TEST( test_parsecfg_run_as_user_valid );
+   RUN_TEST( test_parsecfg_run_as_user_empty_rejected );
+   RUN_TEST( test_parsecfg_run_as_user_too_long_rejected );
+   RUN_TEST( test_parsecfg_log_level_all_values );
+   RUN_TEST( test_parsecfg_log_level_invalid_rejected );
+   RUN_TEST( test_parsecfg_timeout_sec_zero_rejected );
+   RUN_TEST( test_parsecfg_timeout_sec_over_300_rejected );
+   RUN_TEST( test_parsecfg_max_retransmits_zero_rejected );
+   RUN_TEST( test_parsecfg_max_retransmits_over_100_rejected );
+   RUN_TEST( test_parsecfg_max_requests_zero_rejected );
+   RUN_TEST( test_parsecfg_fault_whitelist_invalid_rejected );
+   RUN_TEST( test_parsecfg_allowed_client_ip_empty_allows_all );
+   RUN_TEST( test_parsecfg_allowed_client_ip_zero_allows_all );
+   RUN_TEST( test_parsecfg_allowed_client_ip_valid );
+   RUN_TEST( test_parsecfg_allowed_client_ip_invalid_rejected );
+   RUN_TEST( test_parsecfg_wrq_enabled_yes );
+   RUN_TEST( test_parsecfg_wrq_enabled_one );
+   RUN_TEST( test_parsecfg_wrq_enabled_no );
+   RUN_TEST( test_parsecfg_wrq_enabled_zero );
+   RUN_TEST( test_parsecfg_tftp_port_zero_rejected );
+   RUN_TEST( test_parsecfg_line_without_trailing_newline );
+   RUN_TEST( test_parsecfg_fault_whitelist_decimal );
+   RUN_TEST( test_parsecfg_multiple_errors_reports_count );
 
    // packet edge cases
    RUN_TEST( test_pkt_reject_filename_too_long );
@@ -360,7 +428,7 @@ int main(void)
    RUN_TEST( test_seq_load_valid_comments_and_blanks );
    RUN_TEST( test_seq_load_valid_case_insensitive_mode );
    RUN_TEST( test_seq_load_valid_short_mode_names );
-   RUN_TEST( test_seq_load_valid_field_order_doesnt_matter );
+   RUN_TEST( test_seq_load_valid_field_order_doesn't_matter );
    RUN_TEST( test_seq_load_nonexistent_file_returns_error );
    RUN_TEST( test_seq_load_empty_file_returns_error );
    RUN_TEST( test_seq_load_unknown_fault_mode_returns_error );

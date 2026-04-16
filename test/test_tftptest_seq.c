@@ -20,7 +20,7 @@ void test_seq_load_valid_multiple_entries_with_params(void);
 void test_seq_load_valid_comments_and_blanks(void);
 void test_seq_load_valid_case_insensitive_mode(void);
 void test_seq_load_valid_short_mode_names(void);
-void test_seq_load_valid_field_order_doesnt_matter(void);
+void test_seq_load_valid_field_order_doesn't_matter(void);
 void test_seq_load_nonexistent_file_returns_error(void);
 void test_seq_load_empty_file_returns_error(void);
 void test_seq_load_unknown_fault_mode_returns_error(void);
@@ -168,7 +168,7 @@ void test_seq_load_valid_short_mode_names(void)
    tftptest_seq_free(&seq);
 }
 
-void test_seq_load_valid_field_order_doesnt_matter(void)
+void test_seq_load_valid_field_order_doesn't_matter(void)
 {
    const char *path = "/tmp/tftptest_seq_order.txt";
    FILE *f = fopen(path, "w");
