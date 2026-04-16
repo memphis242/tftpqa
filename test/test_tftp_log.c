@@ -16,7 +16,6 @@
  * Forward declarations
  *---------------------------------------------------------------------------*/
 
-void test_log_level_str_returns_expected_names(void);
 void test_log_init_without_syslog_sets_min_level(void);
 void test_log_init_with_syslog_opens_syslog(void);
 void test_log_message_below_min_level_is_suppressed(void);
@@ -68,16 +67,6 @@ static ssize_t stderr_capture_end(int pipefd[2], int saved,
 /*---------------------------------------------------------------------------
  * tftp_log tests
  *---------------------------------------------------------------------------*/
-
-void test_log_level_str_returns_expected_names(void)
-{
-   TEST_ASSERT_EQUAL_STRING( "TRACE", tftp_log_level_str( TFTP_LOG_TRACE ) );
-   TEST_ASSERT_EQUAL_STRING( "DEBUG", tftp_log_level_str( TFTP_LOG_DEBUG ) );
-   TEST_ASSERT_EQUAL_STRING( "INFO",  tftp_log_level_str( TFTP_LOG_INFO ) );
-   TEST_ASSERT_EQUAL_STRING( "WARN",  tftp_log_level_str( TFTP_LOG_WARN ) );
-   TEST_ASSERT_EQUAL_STRING( "ERROR", tftp_log_level_str( TFTP_LOG_ERR ) );
-   TEST_ASSERT_EQUAL_STRING( "FATAL", tftp_log_level_str( TFTP_LOG_FATAL ) );
-}
 
 void test_log_init_without_syslog_sets_min_level(void)
 {

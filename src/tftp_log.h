@@ -43,9 +43,4 @@ void tftp_log(enum TFTP_LogLevel level, const char *fmt, ...);
  */
 void tftp_log_shutdown(void);
 
-/**
- * @brief Return the human-readable name for a log level.
- */
-const char *tftp_log_level_str(enum TFTP_LogLevel level);
-
 #endif // TFTP_LOG_H

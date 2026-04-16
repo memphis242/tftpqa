@@ -1,6 +1,6 @@
 /**
  * @file tftp_log.c
- * @brief Logging implementation -- stderr + optional syslog.
+ * @brief Logging implementation -- console output + optional syslog
  * @date Apr 10, 2026
  * @author Abdulla Almosalmi, @memphis242
  */
@@ -41,6 +41,11 @@ static const char *s_level_names[] =
    [TFTP_LOG_FATAL] = "FATAL",
 };
 
+/**
+ * @brief Return the human-readable name for a log level.
+ */
+static const char *tftp_log_level_str(enum TFTP_LogLevel level);
+
 /********************** Public Function Implementations ***********************/
 
 void tftp_log_init(bool use_syslog, enum TFTP_LogLevel min_level)
@@ -66,24 +71,27 @@ void tftp_log(enum TFTP_LogLevel level, const char *fmt, ...)
 
    va_list ap;
 
-   // stderr: prefix with timestamp and level
+   // Print out to console: prefix with timestamp and level
    {
       struct timespec ts;
       (void)clock_gettime( CLOCK_REALTIME, &ts );
       struct tm tm_buf;
       (void)localtime_r( &ts.tv_sec, &tm_buf );
 
-      (void)fprintf( stderr, "%04d-%02d-%02d %02d:%02d:%02d.%03ld [%-5s] ",
-                     tm_buf.tm_year + 1900, tm_buf.tm_mon + 1, tm_buf.tm_mday,
-                     tm_buf.tm_hour, tm_buf.tm_min, tm_buf.tm_sec,
-                     ts.tv_nsec / 1000000L,
-                     s_level_names[level] );
+      FILE *flog = level > TFTP_LOG_WARN ? stderr : stdout;
+
+      (void)fprintf( flog,
+               "[%-5s] %04d-%02d-%02d %02d:%02d:%02d.%03ld ",
+               tftp_log_level_str(level),
+               tm_buf.tm_year + 1900, tm_buf.tm_mon + 1, tm_buf.tm_mday,
+               tm_buf.tm_hour, tm_buf.tm_min, tm_buf.tm_sec,
+               ts.tv_nsec / 1000000L );
 
       va_start( ap, fmt );
-      (void)vfprintf( stderr, fmt, ap );
+      (void)vfprintf( flog, fmt, ap );
       va_end( ap );
 
-      (void)fputc( '\n', stderr );
+      fputc( '\n', flog );
    }
 
    // syslog (if enabled)
@@ -104,7 +112,7 @@ void tftp_log_shutdown(void)
    }
 }
 
-const char *tftp_log_level_str(enum TFTP_LogLevel level)
+static const char *tftp_log_level_str(enum TFTP_LogLevel level)
 {
    assert( level >= 0 && level < TFTP_LOG_LEVEL_COUNT );
    return s_level_names[level];

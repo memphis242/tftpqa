@@ -30,7 +30,6 @@ extern void test_err_str_returns_non_null_for_all_codes(void);
 extern void test_err_str_none_is_no_error(void);
 
 // tftp_log
-extern void test_log_level_str_returns_expected_names(void);
 extern void test_log_init_without_syslog_sets_min_level(void);
 extern void test_log_init_with_syslog_opens_syslog(void);
 extern void test_log_message_below_min_level_is_suppressed(void);
@@ -244,7 +243,6 @@ int main(void)
    RUN_TEST( test_err_str_none_is_no_error );
 
    // tftp_log
-   RUN_TEST( test_log_level_str_returns_expected_names );
    RUN_TEST( test_log_init_without_syslog_sets_min_level );
    RUN_TEST( test_log_init_with_syslog_opens_syslog );
    RUN_TEST( test_log_message_below_min_level_is_suppressed );
