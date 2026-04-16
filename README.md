@@ -1,6 +1,8 @@
 # tftptest
 
-This is a TFTP (RFC 1350) _Test_ Server that allows developers to exhaustively integration test TFTP clients against fault scenarios (see full list at the bottom). This server can also operate as a standard, nominal TFTP server. Note that for simplicity, this server will only answer to a single client at a time, and can be configured to answer to a _specific_ client as well, among many other test configuration knobs.
+This is a TFTP (RFC 1350) _Test_ Server that allows developers to exhaustively integration test TFTP clients against a variety of fault scenarios (see full list at the bottom).
+
+This server can also operate as a standard, nominal TFTP server. Note that for simplicity, this server will only answer to a single client at a time, and can be configured to answer to a _specific_ client as well (see `allowed_client_ip` config file option below), among _many_ other test configuration knobs.
 
 ## Basic Usage
 
