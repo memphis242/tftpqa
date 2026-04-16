@@ -51,7 +51,7 @@ enum TFTP_FSM_RC
  * @param[out] wrq_bytes_written  Bytes written by this WRQ session (may be NULL for RRQ).
  * @return Bitmask of TFTP_FSM_RC values indicating success or failure.
  */
-enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
+enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                                     const struct sockaddr_in *peer_addr,
                                     const struct TFTPTest_Config *cfg,
                                     const struct TFTPTest_FaultState *fault,
@@ -61,6 +61,6 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
 /**
  * @brief Pre-empts the FSM, cleans up its content, and frees resources.
  */
-void TFTP_FSM_CleanExit(void);
+void tftp_fsm_clean_exit(void);
 
 #endif // TFTP_FSM_H

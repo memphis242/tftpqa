@@ -316,7 +316,7 @@ int main(int argc, char * argv[])
          tftp_log( TFTP_LOG_WARN, "Received packet too small (%zd bytes), dropping", nbytes );
          continue;
       }
-      else if ( !TFTP_PKT_RequestIsValid(buf, (size_t)nbytes) )
+      else if ( !tftp_pkt_request_is_valid(buf, (size_t)nbytes) )
       {
          tftp_log( TFTP_LOG_WARN, "Received malformed TFTP request, dropping" );
          continue;
@@ -341,7 +341,7 @@ int main(int argc, char * argv[])
          (void)inet_ntop( AF_INET, &peer_addr.sin_addr, addrbuf, sizeof addrbuf );
          tftp_log( TFTP_LOG_WARN, "Peer %s locked out (exceeded max_abandoned_sessions)", addrbuf );
          uint8_t errbuf[128];
-         size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+         size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                               TFTP_ERRC_ACCESS_VIOLATION, "Too many abandoned sessions");
          if ( errsz > 0 )
             (void)sendto(sfd_newconn, errbuf, errsz, 0,
@@ -361,7 +361,7 @@ int main(int argc, char * argv[])
          {
             tftp_log( TFTP_LOG_WARN, "Blocked IP attempting WRQ, rejecting" );
             uint8_t errbuf[128];
-            size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+            size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                                  TFTP_ERRC_ACCESS_VIOLATION, "Access denied");
             if ( errsz > 0 )
                (void)sendto(sfd_newconn, errbuf, errsz, 0,
@@ -376,7 +376,7 @@ int main(int argc, char * argv[])
             tftp_log( TFTP_LOG_WARN, "WRQ file count limit (%zu) reached, rejecting",
                       cfg.max_wrq_file_count );
             uint8_t errbuf[128];
-            size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+            size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                                  TFTP_ERRC_DISK_FULL, "Upload limit exceeded");
             if ( errsz > 0 )
                (void)sendto(sfd_newconn, errbuf, errsz, 0,
@@ -396,7 +396,7 @@ int main(int argc, char * argv[])
          {
             tftp_log( TFTP_LOG_WARN, "WRQ session byte limit reached, rejecting" );
             uint8_t errbuf[128];
-            size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+            size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                                  TFTP_ERRC_DISK_FULL, "Upload limit exceeded");
             if ( errsz > 0 )
                (void)sendto(sfd_newconn, errbuf, errsz, 0,
@@ -415,7 +415,7 @@ int main(int argc, char * argv[])
       }
 
       size_t bytes_written = 0;
-      enum TFTP_FSM_RC fsm_rc = TFTP_FSM_KickOff(buf, (size_t)nbytes, &peer_addr, &cfg, &fault,
+      enum TFTP_FSM_RC fsm_rc = tftp_fsm_kickoff(buf, (size_t)nbytes, &peer_addr, &cfg, &fault,
                                                     is_wrq ? budget : 0,
                                                     is_wrq ? &bytes_written : NULL);
 
@@ -481,7 +481,7 @@ int main(int argc, char * argv[])
       }
    }
 
-   TFTP_FSM_CleanExit();
+   tftp_fsm_clean_exit();
 
    if ( bUserEndedSession )
    {

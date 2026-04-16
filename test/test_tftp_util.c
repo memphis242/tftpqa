@@ -281,11 +281,11 @@ void test_chroot_and_drop_bad_dir_fails(void)
 void test_pkt_ack_block_zero(void)
 {
    uint8_t pkt[TFTP_ACK_SZ];
-   size_t n = TFTP_PKT_BuildAck(pkt, sizeof pkt, 0);
+   size_t n = tftp_pkt_build_ack(pkt, sizeof pkt, 0);
    TEST_ASSERT_EQUAL( TFTP_ACK_SZ, n );
 
    uint16_t block;
-   int rc = TFTP_PKT_ParseAck(pkt, n, &block);
+   int rc = tftp_pkt_parse_ack(pkt, n, &block);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 0, block );
 }

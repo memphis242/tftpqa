@@ -132,7 +132,7 @@ void test_fsm_kickoff_rejects_null_rqbuf(void)
    struct TFTPTest_Config cfg = make_test_config();
    struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
-   // TFTP_FSM_KickOff asserts on null rqbuf, so this test verifies
+   // tftp_fsm_kickoff asserts on null rqbuf, so this test verifies
    // that the function validates input at entry
    uint8_t buf[512];
    size_t rqsz = build_rrq_octet(buf, sizeof buf, "test.txt");
@@ -207,7 +207,7 @@ void test_fsm_kickoff_unparseable_request_returns_protocol_err(void)
    struct TFTPTest_Config cfg = make_test_config();
    struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, sizeof buf, &peer, &cfg, &fault, 0, NULL);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, sizeof buf, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_PROTOCOL_ERR, rc);
 }
 
@@ -219,7 +219,7 @@ void test_fsm_kickoff_rrq_timeout_returns_fine(void)
    struct TFTPTest_Config cfg = make_test_config();
    struct TFTPTest_FaultState fault = {.mode = FAULT_RRQ_TIMEOUT, .param = 0};
 
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FINE, rc);
 }
 
@@ -231,7 +231,7 @@ void test_fsm_kickoff_wrq_timeout_returns_fine(void)
    struct TFTPTest_Config cfg = make_test_config();
    struct TFTPTest_FaultState fault = {.mode = FAULT_WRQ_TIMEOUT, .param = 0};
 
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FINE, rc);
 }
 
@@ -243,7 +243,7 @@ void test_fsm_kickoff_rrq_file_not_found_fault_returns_fine(void)
    struct TFTPTest_Config cfg = make_test_config();
    struct TFTPTest_FaultState fault = {.mode = FAULT_FILE_NOT_FOUND, .param = 0};
 
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FINE, rc);
 }
 
@@ -255,7 +255,7 @@ void test_fsm_kickoff_wrq_access_violation_returns_fine(void)
    struct TFTPTest_Config cfg = make_test_config();
    struct TFTPTest_FaultState fault = {.mode = FAULT_PERM_DENIED_WRITE, .param = 0};
 
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FINE, rc);
 }
 
@@ -267,7 +267,7 @@ void test_fsm_kickoff_rrq_access_violation_fault_returns_fine(void)
    struct TFTPTest_Config cfg = make_test_config();
    struct TFTPTest_FaultState fault = {.mode = FAULT_PERM_DENIED_READ, .param = 0};
 
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FINE, rc);
 }
 
@@ -279,7 +279,7 @@ void test_fsm_kickoff_file_not_found_returns_file_err(void)
    struct TFTPTest_Config cfg = make_test_config();
    struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FILE_ERR, rc);
 }
 
@@ -293,7 +293,7 @@ void test_fsm_kickoff_wrq_disabled_returns_wrq_disabled(void)
    struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    size_t bytes_written = 0;
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, 0, &bytes_written);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, &bytes_written);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_WRQ_DISABLED, rc);
    TEST_ASSERT_EQUAL_size_t(0, bytes_written);
 }
@@ -308,7 +308,7 @@ void test_fsm_kickoff_wrq_disk_check_fails_returns_disk_check(void)
    struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    size_t bytes_written = 0;
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, 0, &bytes_written);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, &bytes_written);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_WRQ_DISK_CHECK, rc);
    TEST_ASSERT_EQUAL_size_t(0, bytes_written);
 }
@@ -316,14 +316,14 @@ void test_fsm_kickoff_wrq_disk_check_fails_returns_disk_check(void)
 void test_fsm_kickoff_wrq_file_creation_fails_returns_file_err(void)
 {
    uint8_t buf[512];
-   // Use a filename in a directory that (hopefully) doesn't exist or we can't write to
+   // Use a filename in a directory that (hopefully) doesnt exist or we can't write to
    size_t rqsz = build_wrq_octet(buf, sizeof buf, "/dev/null/cannot_create_file_here");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
    struct TFTPTest_Config cfg = make_test_config();
    struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    size_t bytes_written = 0;
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, 0, &bytes_written);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, &bytes_written);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FILE_ERR, rc);
 }
 
@@ -360,16 +360,16 @@ void test_fsm_kickoff_set_recv_timeout_fails_returns_setsockopt_err(void)
 
 void test_fsm_clean_exit_cleans_resources(void)
 {
-   // TFTP_FSM_CleanExit should be safe to call multiple times
-   TFTP_FSM_CleanExit();
-   TFTP_FSM_CleanExit();
+   // tftp_fsm_clean_exit should be safe to call multiple times
+   tftp_fsm_clean_exit();
+   tftp_fsm_clean_exit();
    TEST_ASSERT_TRUE(true);
 }
 
 void test_fsm_clean_exit_closes_file_and_socket(void)
 {
    // Verify CleanExit can be called without crashing
-   TFTP_FSM_CleanExit();
+   tftp_fsm_clean_exit();
    TEST_ASSERT_TRUE(true);
 }
 
@@ -382,7 +382,7 @@ void test_fsm_kickoff_sets_transfer_mode_octet(void)
    struct TFTPTest_FaultState fault = {.mode = FAULT_RRQ_TIMEOUT, .param = 0};
 
    // Timeout fault returns fine immediately, so transfer mode is set but not used
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FINE, rc);
 }
 
@@ -403,7 +403,7 @@ void test_fsm_kickoff_sets_transfer_mode_netascii(void)
    struct TFTPTest_Config cfg = make_test_config();
    struct TFTPTest_FaultState fault = {.mode = FAULT_RRQ_TIMEOUT, .param = 0};
 
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, off, &peer, &cfg, &fault, 0, NULL);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, off, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FINE, rc);
 }
 
@@ -417,7 +417,7 @@ void test_fsm_kickoff_wrq_bytes_written_null_handled(void)
    struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    // Pass NULL for wrq_bytes_written - function should handle it
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_WRQ_DISABLED, rc);
 }
 
@@ -432,7 +432,7 @@ void test_fsm_kickoff_wrq_with_session_budget(void)
 
    size_t budget = 1024;
    size_t bytes_written = 0;
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, budget, &bytes_written);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, budget, &bytes_written);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_WRQ_DISABLED, rc);
 }
 
@@ -444,7 +444,7 @@ void test_fsm_kickoff_rrq_fault_none(void)
    struct TFTPTest_Config cfg = make_test_config();
    struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    // File not found should return FILE_ERR, but it could also be TIMEOUT on some systems
    TEST_ASSERT_TRUE((rc == TFTP_FSM_RC_FILE_ERR) || (rc == TFTP_FSM_RC_TIMEOUT));
 }
@@ -458,7 +458,7 @@ void test_fsm_kickoff_wrq_fault_none(void)
    struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    size_t bytes_written = 0;
-   enum TFTP_FSM_RC rc = TFTP_FSM_KickOff(buf, rqsz, &peer, &cfg, &fault, 0, &bytes_written);
+   enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, &bytes_written);
    // Will fail because we can't actually create a file in the current directory
    // without setting up a proper test environment
    TEST_ASSERT_TRUE(rc != 0 || rc == TFTP_FSM_RC_FINE);

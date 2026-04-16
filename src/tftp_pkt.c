@@ -34,7 +34,7 @@ static inline void write_u16(uint8_t *p, uint16_t val)
 
 /********************** Public Function Implementations ***********************/
 
-bool TFTP_PKT_RequestIsValid(const uint8_t *buf, size_t sz)
+bool tftp_pkt_request_is_valid(const uint8_t *buf, size_t sz)
 {
    assert( buf != NULL );
 
@@ -102,7 +102,7 @@ bool TFTP_PKT_RequestIsValid(const uint8_t *buf, size_t sz)
    return true;
 }
 
-int TFTP_PKT_ParseRequest(const uint8_t *buf, size_t sz,
+int tftp_pkt_parse_request(const uint8_t *buf, size_t sz,
                            uint16_t *opcode,
                            const char **filename,
                            const char **mode)
@@ -142,7 +142,7 @@ int TFTP_PKT_ParseRequest(const uint8_t *buf, size_t sz,
    return 0;
 }
 
-size_t TFTP_PKT_BuildData(uint8_t *out, size_t out_cap,
+size_t tftp_pkt_build_data(uint8_t *out, size_t out_cap,
                            uint16_t block_num,
                            const uint8_t *data, size_t data_len)
 {
@@ -163,7 +163,7 @@ size_t TFTP_PKT_BuildData(uint8_t *out, size_t out_cap,
    return total;
 }
 
-size_t TFTP_PKT_BuildAck(uint8_t *out, size_t out_cap, uint16_t block_num)
+size_t tftp_pkt_build_ack(uint8_t *out, size_t out_cap, uint16_t block_num)
 {
    assert( out != NULL );
 
@@ -176,7 +176,7 @@ size_t TFTP_PKT_BuildAck(uint8_t *out, size_t out_cap, uint16_t block_num)
    return TFTP_ACK_SZ;
 }
 
-size_t TFTP_PKT_BuildError(uint8_t *out, size_t out_cap,
+size_t tftp_pkt_build_error(uint8_t *out, size_t out_cap,
                             uint16_t error_code, const char *errmsg)
 {
    assert( out != NULL );
@@ -194,7 +194,7 @@ size_t TFTP_PKT_BuildError(uint8_t *out, size_t out_cap,
    return total;
 }
 
-int TFTP_PKT_ParseAck(const uint8_t *buf, size_t sz, uint16_t *block_num)
+int tftp_pkt_parse_ack(const uint8_t *buf, size_t sz, uint16_t *block_num)
 {
    assert( buf != NULL );
    assert( block_num != NULL );
@@ -209,7 +209,7 @@ int TFTP_PKT_ParseAck(const uint8_t *buf, size_t sz, uint16_t *block_num)
    return 0;
 }
 
-int TFTP_PKT_ParseData(const uint8_t *buf, size_t sz,
+int tftp_pkt_parse_data(const uint8_t *buf, size_t sz,
                         uint16_t *block_num,
                         const uint8_t **data, size_t *data_len)
 {
@@ -231,7 +231,7 @@ int TFTP_PKT_ParseData(const uint8_t *buf, size_t sz,
    return 0;
 }
 
-int TFTP_PKT_ParseError(const uint8_t *buf, size_t sz,
+int tftp_pkt_parse_error(const uint8_t *buf, size_t sz,
                          uint16_t *error_code, const char **errmsg)
 {
    assert( buf != NULL );

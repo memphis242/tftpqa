@@ -198,7 +198,7 @@ extern void test_seq_load_valid_multiple_entries_with_params(void);
 extern void test_seq_load_valid_comments_and_blanks(void);
 extern void test_seq_load_valid_case_insensitive_mode(void);
 extern void test_seq_load_valid_short_mode_names(void);
-extern void test_seq_load_valid_field_order_doesn't_matter(void);
+extern void test_seq_load_valid_field_order_doesnt_matter(void);
 extern void test_seq_load_nonexistent_file_returns_error(void);
 extern void test_seq_load_empty_file_returns_error(void);
 extern void test_seq_load_unknown_fault_mode_returns_error(void);
@@ -428,7 +428,7 @@ int main(void)
    RUN_TEST( test_seq_load_valid_comments_and_blanks );
    RUN_TEST( test_seq_load_valid_case_insensitive_mode );
    RUN_TEST( test_seq_load_valid_short_mode_names );
-   RUN_TEST( test_seq_load_valid_field_order_doesn't_matter );
+   RUN_TEST( test_seq_load_valid_field_order_doesnt_matter );
    RUN_TEST( test_seq_load_nonexistent_file_returns_error );
    RUN_TEST( test_seq_load_empty_file_returns_error );
    RUN_TEST( test_seq_load_unknown_fault_mode_returns_error );

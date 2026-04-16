@@ -44,7 +44,7 @@ static ssize_t ctrl_send_recv(uint16_t port, const char *msg,
       .sin_addr.s_addr = htonl(INADDR_LOOPBACK),
    };
 
-   // Set recv timeout so test doesn't hang
+   // Set recv timeout so test doesnt hang
    struct timeval tv = { .tv_sec = 1, .tv_usec = 0 };
    (void)setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
 

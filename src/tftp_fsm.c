@@ -116,7 +116,7 @@ static void fault_maybe_delay(const struct TFTPTest_FaultState *fault);
 
 /********************** Public Function Implementations ***********************/
 
-enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
+enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                                     const struct sockaddr_in *peer_addr,
                                     const struct TFTPTest_Config *cfg,
                                     const struct TFTPTest_FaultState *fault,
@@ -135,7 +135,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
    uint16_t opcode = 0;
    const char *filename = NULL;
    const char *mode = NULL;
-   if ( TFTP_PKT_ParseRequest(rqbuf, rqsz, &opcode, &filename, &mode) != 0 )
+   if ( tftp_pkt_parse_request(rqbuf, rqsz, &opcode, &filename, &mode) != 0 )
    {
       tftp_log( TFTP_LOG_WARN, "FSM: Failed to parse request packet" );
       return TFTP_FSM_RC_PROTOCOL_ERR;
@@ -180,7 +180,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
       if ( sfd >= 0 )
       {
          uint8_t errbuf[128];
-         size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+         size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                               TFTP_ERRC_FILE_NOT_FOUND, "File not found");
          if ( errsz > 0 )
             (void)sendto(sfd, errbuf, errsz, 0,
@@ -199,7 +199,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
       if ( sfd >= 0 )
       {
          uint8_t errbuf[128];
-         size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+         size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                               TFTP_ERRC_ACCESS_VIOLATION, "Access denied");
          if ( errsz > 0 )
             (void)sendto(sfd, errbuf, errsz, 0,
@@ -222,7 +222,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
          if ( sfd >= 0 )
          {
             uint8_t errbuf[128];
-            size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+            size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                                  TFTP_ERRC_FILE_NOT_FOUND,
                                                  "File not found");
             if ( errsz > 0 )
@@ -244,7 +244,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
          if ( sfd >= 0 )
          {
             uint8_t errbuf[128];
-            size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+            size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                                  TFTP_ERRC_ACCESS_VIOLATION, "WRQ disabled");
             if ( errsz > 0 )
                (void)sendto(sfd, errbuf, errsz, 0,
@@ -272,7 +272,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
                if ( sfd >= 0 )
                {
                   uint8_t errbuf[128];
-                  size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+                  size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                                        TFTP_ERRC_DISK_FULL, "Insufficient disk space");
                   if ( errsz > 0 )
                      (void)sendto(sfd, errbuf, errsz, 0,
@@ -298,7 +298,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
             uint16_t ecode = (errno == EACCES) ? TFTP_ERRC_ACCESS_VIOLATION
                                                : TFTP_ERRC_NOT_DEFINED;
             uint8_t errbuf[128];
-            size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf,
+            size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                                  ecode, "Cannot create file");
             if ( errsz > 0 )
                (void)sendto(sfd, errbuf, errsz, 0,
@@ -351,7 +351,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
    {
       // WRQ: send ACK block 0, then wait for DATA
       TFTP_FSM_Session.block_num = 0;
-      TFTP_FSM_Session.sendbuf_len = TFTP_PKT_BuildAck(
+      TFTP_FSM_Session.sendbuf_len = tftp_pkt_build_ack(
          TFTP_FSM_Session.sendbuf, sizeof TFTP_FSM_Session.sendbuf, 0);
       assert( TFTP_FSM_Session.sendbuf_len > 0 );
 
@@ -455,7 +455,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
          TFTP_FSM_Session.retries = 0;
 
          // Build DATA packet
-         TFTP_FSM_Session.sendbuf_len = TFTP_PKT_BuildData(
+         TFTP_FSM_Session.sendbuf_len = tftp_pkt_build_data(
             TFTP_FSM_Session.sendbuf, sizeof TFTP_FSM_Session.sendbuf,
             TFTP_FSM_Session.block_num, payload, payload_len);
          assert( TFTP_FSM_Session.sendbuf_len > 0 );
@@ -590,7 +590,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
 
                TFTP_FSM_Session.block_num++;
                uint8_t burst_pkt[TFTP_DATA_MAX_SZ];
-               size_t burst_pkt_len = TFTP_PKT_BuildData(
+               size_t burst_pkt_len = tftp_pkt_build_data(
                   burst_pkt, sizeof burst_pkt,
                   TFTP_FSM_Session.block_num, burst_payload, burst_len);
 
@@ -685,12 +685,12 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
 
          // Parse ACK
          uint16_t ack_block = 0;
-         if ( TFTP_PKT_ParseAck(ackbuf, (size_t)nbytes, &ack_block) != 0 )
+         if ( tftp_pkt_parse_ack(ackbuf, (size_t)nbytes, &ack_block) != 0 )
          {
             // Check if client sent an ERROR
             uint16_t err_code = 0;
             const char *err_msg = NULL;
-            if ( TFTP_PKT_ParseError(ackbuf, (size_t)nbytes, &err_code, &err_msg) == 0 )
+            if ( tftp_pkt_parse_error(ackbuf, (size_t)nbytes, &err_code, &err_msg) == 0 )
             {
                tftp_log( TFTP_LOG_WARN, "FSM: Client sent ERROR %u: %s",
                          err_code, err_msg );
@@ -835,7 +835,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
          {
             uint16_t err_code = 0;
             const char *err_msg = NULL;
-            if ( TFTP_PKT_ParseError(databuf, (size_t)nbytes, &err_code, &err_msg) == 0 )
+            if ( tftp_pkt_parse_error(databuf, (size_t)nbytes, &err_code, &err_msg) == 0 )
             {
                tftp_log( TFTP_LOG_WARN, "FSM: Client sent ERROR %u: %s",
                          err_code, err_msg );
@@ -849,7 +849,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
          uint16_t data_block = 0;
          const uint8_t *data_ptr = NULL;
          size_t data_len = 0;
-         if ( TFTP_PKT_ParseData(databuf, (size_t)nbytes, &data_block,
+         if ( tftp_pkt_parse_data(databuf, (size_t)nbytes, &data_block,
                                   &data_ptr, &data_len) != 0 )
          {
             tftp_log( TFTP_LOG_WARN, "FSM: Expected DATA, got unexpected packet" );
@@ -869,7 +869,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
             tftp_log( TFTP_LOG_DEBUG, "FSM: Duplicate DATA block %u, re-ACKing",
                       data_block );
             uint8_t dup_ack[TFTP_ACK_SZ];
-            size_t ack_sz = TFTP_PKT_BuildAck(dup_ack, sizeof dup_ack, data_block);
+            size_t ack_sz = tftp_pkt_build_ack(dup_ack, sizeof dup_ack, data_block);
             (void)sendto(TFTP_FSM_Session.sfd, dup_ack, ack_sz, 0,
                          (const struct sockaddr *)&TFTP_FSM_Session.peer_addr,
                          sizeof TFTP_FSM_Session.peer_addr);
@@ -989,7 +989,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
          {
             // Build and send ACK(N+1) — the current block
             uint8_t ack_now[TFTP_ACK_SZ];
-            size_t ack_now_len = TFTP_PKT_BuildAck(ack_now, sizeof ack_now,
+            size_t ack_now_len = tftp_pkt_build_ack(ack_now, sizeof ack_now,
                                                     TFTP_FSM_Session.block_num);
             tftp_log( TFTP_LOG_INFO, "FSM: FAULT: OOO sending ACK %u before stashed ACK %u",
                       TFTP_FSM_Session.block_num, TFTP_FSM_Session.ooo_stashed_block );
@@ -1023,7 +1023,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
                // Stash ACK for this block, wait for next DATA to arrive
                tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Stashing ACK block %u for OOO swap",
                          TFTP_FSM_Session.block_num );
-               TFTP_FSM_Session.ooo_stashed_len = TFTP_PKT_BuildAck(
+               TFTP_FSM_Session.ooo_stashed_len = tftp_pkt_build_ack(
                   TFTP_FSM_Session.ooo_stashed_pkt, sizeof TFTP_FSM_Session.ooo_stashed_pkt,
                   TFTP_FSM_Session.block_num);
                TFTP_FSM_Session.ooo_stashed_block = TFTP_FSM_Session.block_num;
@@ -1035,7 +1035,7 @@ enum TFTP_FSM_RC TFTP_FSM_KickOff(const uint8_t *rqbuf, size_t rqsz,
          }
 
          // Send ACK
-         TFTP_FSM_Session.sendbuf_len = TFTP_PKT_BuildAck(
+         TFTP_FSM_Session.sendbuf_len = tftp_pkt_build_ack(
             TFTP_FSM_Session.sendbuf, sizeof TFTP_FSM_Session.sendbuf,
             TFTP_FSM_Session.block_num);
          assert( TFTP_FSM_Session.sendbuf_len > 0 );
@@ -1122,7 +1122,7 @@ fsm_cleanup:
    return rc;
 }
 
-void TFTP_FSM_CleanExit(void)
+void tftp_fsm_clean_exit(void)
 {
    session_cleanup();
 }
@@ -1161,7 +1161,7 @@ static enum TFTP_FSM_RC send_error_to(int sfd, const struct sockaddr_in *dest,
                                        uint16_t error_code, const char *msg)
 {
    uint8_t errbuf[128];
-   size_t errsz = TFTP_PKT_BuildError(errbuf, sizeof errbuf, error_code, msg);
+   size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf, error_code, msg);
    if ( errsz == 0 )
       return TFTP_FSM_RC_SENDTO_ERR;
 
@@ -1301,7 +1301,7 @@ static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
    {
       uint16_t bad_code = (uint16_t)fault->param;
       if ( bad_code <= 7 ) bad_code = 99;
-      size_t esz = TFTP_PKT_BuildError(pkt, pkt_cap, bad_code, "Injected bad error");
+      size_t esz = tftp_pkt_build_error(pkt, pkt_cap, bad_code, "Injected bad error");
       if ( esz > 0 )
       {
          *pkt_len = esz;
