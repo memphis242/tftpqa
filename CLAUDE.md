@@ -242,21 +242,7 @@ The project follows a phased roadmap (see `build/debug/tftptest` executable and 
 
 **Next Steps:** Complete remaining fault injection modes (~25 parameterized faults), then run full QA suite (fuzz, chaos monkey, coverage targets).
 
-## Important: Work Only in `c/`
-
-- All active development is in the `c/` directory
-- Do not create or edit files in `cpp/` or `python/` directories unless explicitly requested
-- Any Python utility scripts belong in `c/scripts/` (e.g., test automation, API scripts)
-
 ## Important Implementation Notes
-
-### Assertions Audit (Recent)
-All assertions have been audited against `SOFTWARE-QA-MANIFESTO.md` guidelines:
-- **Public function parameters** → replaced with error handling + early return
-- **External input** (network, files) → explicit validation checks with logging
-- **Code-controlled results** → assertions remain (TFTP_PKT_Build*, privilege drop verification)
-
-This is a critical distinction: do not re-add asserts on external input.
 
 ### File I/O and Jailing
 - `tftp_util_chroot_and_drop()` is called after socket setup, before main loop
@@ -281,3 +267,6 @@ Read these for context before making architectural or scope decisions:
 - `SOFTWARE-QA-MANIFESTO.md` — QA principles and assertion guidelines (recently updated)
 - `SECURITY-PLAN.md` — Security hardening strategy and vulnerability analysis plan
 - `PERFORMANCE-MANIFESTO.md` — Performance optimization principles
+
+## Extra Notes for AI
+- Do **NOT** ever try to `git commit` or `git push` changes! I will handle that.
