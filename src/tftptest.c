@@ -44,7 +44,7 @@
 
 /***************************** Local Declarations *****************************/
 
-#define DEFAULT_TFTP_RQST_PORT 23069
+#define DEFAULT_TFTP_RQST_PORT ((unsigned short)23069)
 
 // Types
 enum MainRC
@@ -79,7 +79,7 @@ static size_t peer_history_count = 0;
 
 // Local Function Declarations
 static void handleSIGINT(int sig_num);
-static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr, uint16_t port);
+static enum MainRC tftptest_new_conn_sock(int * const sfd_ptr, uint16_t port);
 static bool is_peer_abandoned_locked_out(uint32_t peer_ip, size_t max_abandoned_sessions);
 static void record_peer_abandoned_session(uint32_t peer_ip);
 
@@ -95,7 +95,7 @@ static const struct option long_options[] =
    { "verbose",  no_argument,       NULL, 'v' },
    { "syslog",   no_argument,       NULL, 's' },
    { "help",     no_argument,       NULL, 'h' },
-   { NULL,    0,                 NULL, 0   },  // Sentinel
+   { NULL,       0,                 NULL,  0  },  // sentinel
 };
 
 static void print_usage(const char *progname)
@@ -269,7 +269,7 @@ int main(int argc, char * argv[])
 
    // Set up socket for listening on for new session requests...
    // (Must bind before chroot, since socket setup needs the network stack)
-   mainrc |= (int)TFTP_Test_SetUpNewConnSock(&sfd_newconn, cfg.tftp_port);
+   mainrc |= (int)tftptest_new_conn_sock(&sfd_newconn, cfg.tftp_port);
    if ( mainrc != MAINRC_FINE )
       goto Main_CleanupTag;
 
@@ -579,7 +579,7 @@ static void handleSIGINT(int sig_num)
 /**
  * @brief TODO
  */
-static enum MainRC TFTP_Test_SetUpNewConnSock(int * const sfd_ptr, uint16_t port)
+static enum MainRC tftptest_new_conn_sock(int * const sfd_ptr, uint16_t port)
 {
    assert(sfd_ptr != NULL);
 
