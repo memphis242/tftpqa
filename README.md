@@ -127,38 +127,50 @@ mode=FAULT_SLOW_RESPONSE     param=3000          # then apply 3 second delay for
 
 ## Fault Simulation Modes
 
-The server supports many parameterized fault simulation modes for testing TFTP client robustness:
+All 33 modes are supported in the test sequence file. Modes marked with `param` use the `param=N` field in the sequence entry.
 
-1. RRQ timeout
-2. WRQ timeout
-3. File not found (RRQ)
-4. Permission denied (RRQ)
-5. Permission denied (WRQ)
-6. Mid-transfer timeout: no DATA on read
-7. Mid-transfer timeout: no ACK on write
-8. Mid-transfer timeout: no final ACK on write
-9. Mid-transfer timeout: no final DATA on read
-10. Duplicate final DATA packet (read)
-11. Duplicate final ACK packet (write)
-12. Duplicate DATA packet mid-transfer (read)
-13. Duplicate ACK packet mid-transfer (write) [Sorcerer's Apprentice]
-14. Error packet mid-transfer with code 0-7 (read)
-15. Error packet mid-transfer with code 0-7 (write)
-16. Skip ACK for block N (write)
-17. Skip DATA for block N (read)
-18. DATA packets out-of-order (read)
-19. ACK packets out-of-order (write)
-20. Invalid block number in ACK (write)
-21. Invalid block number in DATA (read)
-22. Invalid DATA packet size (too large)
-23. Invalid DATA packet size (payload mismatch)
-24. Invalid opcode in packet (read)
-25. Invalid opcode in packet (write)
-26. Invalid error code in ERROR packet (read)
-27. Invalid error code in ERROR packet (write)
-28. Wrong transfer ID: incorrect source port (read)
-29. Wrong transfer ID: incorrect source port (write)
-30. Slow/delayed response (param: delay in ms)
-31. Corrupt DATA payload (param: block number)
-32. Truncated packet (send packet shorter than minimum valid size)
-33. Burst DATA: send multiple DATA packets without waiting for ACK (param: burst count)
+| `FAULT_NAME` | Description |
+|---|---|
+| `FAULT_NONE` | Normal operation; no fault applied |
+| **Timeout faults** | |
+| `FAULT_RRQ_TIMEOUT` | No response to RRQ at all |
+| `FAULT_WRQ_TIMEOUT` | No response to WRQ at all |
+| `FAULT_MID_TIMEOUT_NO_DATA` | Stop sending DATA mid-transfer (`param` = block# at which to stop) |
+| `FAULT_MID_TIMEOUT_NO_ACK` | Stop sending ACK mid-transfer (`param` = block# at which to stop) |
+| `FAULT_MID_TIMEOUT_NO_FINAL_DATA` | Suppress the final short DATA packet (last block of RRQ) |
+| `FAULT_MID_TIMEOUT_NO_FINAL_ACK` | Suppress the final ACK (after last DATA received on WRQ) |
+| **Error response faults** | |
+| `FAULT_FILE_NOT_FOUND` | Respond to RRQ with a FILE\_NOT\_FOUND error |
+| `FAULT_PERM_DENIED_READ` | Respond to RRQ with ACCESS\_VIOLATION |
+| `FAULT_PERM_DENIED_WRITE` | Respond to WRQ with ACCESS\_VIOLATION |
+| `FAULT_SEND_ERROR_READ` | Send ERROR mid-transfer during RRQ (`param` = error code, 0–7) |
+| `FAULT_SEND_ERROR_WRITE` | Send ERROR mid-transfer during WRQ (`param` = error code, 0–7) |
+| **Duplicate faults** | |
+| `FAULT_DUP_FINAL_DATA` | Re-send the final DATA packet (last block of RRQ) |
+| `FAULT_DUP_FINAL_ACK` | Re-send the final ACK (WRQ completion) |
+| `FAULT_DUP_MID_DATA` | Duplicate DATA at a specific block during RRQ (`param` = block#) |
+| `FAULT_DUP_MID_ACK` | Duplicate ACK at a specific block during WRQ — Sorcerer's Apprentice (`param` = block#) |
+| **Sequence / skip faults** | |
+| `FAULT_SKIP_DATA` | Withhold DATA for one block during RRQ (`param` = block#) |
+| `FAULT_SKIP_ACK` | Withhold ACK for one block during WRQ (`param` = block#) |
+| `FAULT_OOO_DATA` | Send two adjacent DATA blocks out of order during RRQ (`param` = first block# of the swapped pair) |
+| `FAULT_OOO_ACK` | Send two adjacent ACKs out of order during WRQ (`param` = first block# of the swapped pair) |
+| **Invalid field faults** | |
+| `FAULT_INVALID_BLOCK_DATA` | Send DATA with a wrong block number during RRQ (`param` = bogus block# to use) |
+| `FAULT_INVALID_BLOCK_ACK` | Send ACK with a wrong block number during WRQ (`param` = bogus block# to use) |
+| `FAULT_DATA_TOO_LARGE` | Send a DATA payload larger than 512 bytes |
+| `FAULT_DATA_LEN_MISMATCH` | Send a DATA packet shorter than its declared length |
+| `FAULT_INVALID_OPCODE_READ` | Send a packet with an invalid opcode during RRQ |
+| `FAULT_INVALID_OPCODE_WRITE` | Send a packet with an invalid opcode during WRQ |
+| `FAULT_INVALID_ERR_CODE_READ` | Send ERROR with an out-of-range code during RRQ (`param` = error code value) |
+| `FAULT_INVALID_ERR_CODE_WRITE` | Send ERROR with an out-of-range code during WRQ (`param` = error code value) |
+| **TID faults** | |
+| `FAULT_WRONG_TID_READ` | Send packets from an unexpected source port during RRQ |
+| `FAULT_WRONG_TID_WRITE` | Send packets from an unexpected source port during WRQ |
+| **Timing faults** | |
+| `FAULT_SLOW_RESPONSE` | Delay every response (`param` = delay in milliseconds) |
+| **Payload faults** | |
+| `FAULT_CORRUPT_DATA` | Flip bits in the DATA payload at a specific block (`param` = block#) |
+| `FAULT_TRUNCATED_PKT` | Send a packet shorter than the minimum valid size |
+| **Protocol violation faults** | |
+| `FAULT_BURST_DATA` | Send N DATA packets in a row without waiting for ACK (`param` = burst count) |
