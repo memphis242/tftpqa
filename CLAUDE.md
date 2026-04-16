@@ -281,4 +281,3 @@ Read these for context before making architectural or scope decisions:
 - `SOFTWARE-QA-MANIFESTO.md` — QA principles and assertion guidelines (recently updated)
 - `SECURITY-PLAN.md` — Security hardening strategy and vulnerability analysis plan
 - `PERFORMANCE-MANIFESTO.md` — Performance optimization principles
-- `SecurityPlan.md` — Implementation checklist for security measures (chroot, privilege drop, etc.)
