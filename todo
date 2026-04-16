@@ -1,5 +1,3 @@
-- evaluate support for c99 (for work's sake...)
-- fix Unity submodule
 - review every file exhaustively
 - review high-level architecture
 - review inter-module linkages/dependencies
