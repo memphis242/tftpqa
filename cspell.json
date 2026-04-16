@@ -117,7 +117,9 @@
     "PRNG",
     "Homoglyphs",
     "homoglyphs",
-    "WASC"
+    "WASC",
+    "ctrlport",
+    "unparseable"
   ],
   "ignorePaths": [
     "test/Unity/**",
