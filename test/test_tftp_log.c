@@ -64,6 +64,29 @@ static ssize_t stderr_capture_end(int pipefd[2], int saved,
    return n;
 }
 
+static int stdout_capture_begin(int pipefd[2])
+{
+   TEST_ASSERT_EQUAL_INT( 0, pipe( pipefd ) );
+   int saved = dup( STDOUT_FILENO );
+   TEST_ASSERT_NOT_EQUAL( -1, saved );
+   dup2( pipefd[1], STDOUT_FILENO );
+   return saved;
+}
+
+static ssize_t stdout_capture_end(int pipefd[2], int saved,
+                                  char *buf, size_t bufsz)
+{
+   fflush( stdout );
+   dup2( saved, STDOUT_FILENO );
+   close( saved );
+   close( pipefd[1] );
+
+   ssize_t n = read( pipefd[0], buf, bufsz - 1 );
+   close( pipefd[0] );
+   if ( n > 0 ) buf[n] = '\0';
+   return n;
+}
+
 /*---------------------------------------------------------------------------
  * tftp_log tests
  *---------------------------------------------------------------------------*/
@@ -115,19 +138,29 @@ void test_log_message_below_min_level_is_suppressed(void)
 
 void test_log_message_at_min_level_is_emitted(void)
 {
-   tftp_log_init( false, TFTP_LOG_WARN );
+   tftp_log_init( false, TFTP_LOG_TRACE );
 
-   int pipefd[2];
-   int saved = stderr_capture_begin( pipefd );
+   // Capture both stdout and stderr
+   int stdout_pipefd[2];
+   int stdout_saved = stdout_capture_begin( stdout_pipefd );
 
-   tftp_log( TFTP_LOG_WARN, "expected warning message" );
+   int stderr_pipefd[2];
+   int stderr_saved = stderr_capture_begin( stderr_pipefd );
 
-   char buf[1024];
-   ssize_t n = stderr_capture_end( pipefd, saved, buf, sizeof buf );
+   // Log at TRACE level (minimum, should go to stdout since level <= TFTP_LOG_WARN)
+   tftp_log( TFTP_LOG_TRACE, "trace at minimum level" );
 
-   TEST_ASSERT_GREATER_THAN( 0, (int)n );
-   TEST_ASSERT_NOT_NULL( strstr( buf, "WARN" ) );
-   TEST_ASSERT_NOT_NULL( strstr( buf, "expected warning message" ) );
+   char stdout_buf[1024];
+   char stderr_buf[1024];
+   ssize_t stdout_n = stdout_capture_end( stdout_pipefd, stdout_saved, stdout_buf, sizeof stdout_buf );
+   ssize_t stderr_n = stderr_capture_end( stderr_pipefd, stderr_saved, stderr_buf, sizeof stderr_buf );
+
+   // TRACE should be in stdout (level <= TFTP_LOG_WARN)
+   TEST_ASSERT_GREATER_THAN( 0, (int)stdout_n );
+   TEST_ASSERT_NOT_NULL( strstr( stdout_buf, "TRACE" ) );
+   TEST_ASSERT_NOT_NULL( strstr( stdout_buf, "trace at minimum level" ) );
+   // Should not be in stderr
+   TEST_ASSERT_EQUAL_INT( 0, (int)stderr_n );
 
    tftp_log_shutdown();
 }
@@ -172,9 +205,14 @@ void test_log_message_with_syslog_enabled(void)
 {
    tftp_log_init( true, TFTP_LOG_TRACE );
 
-   int pipefd[2];
-   int saved = stderr_capture_begin( pipefd );
+   // Capture both stdout and stderr
+   int stdout_pipefd[2];
+   int stdout_saved = stdout_capture_begin( stdout_pipefd );
 
+   int stderr_pipefd[2];
+   int stderr_saved = stderr_capture_begin( stderr_pipefd );
+
+   // Log at all levels
    tftp_log( TFTP_LOG_TRACE, "trace with syslog" );
    tftp_log( TFTP_LOG_DEBUG, "debug with syslog" );
    tftp_log( TFTP_LOG_INFO, "info with syslog" );
@@ -182,17 +220,22 @@ void test_log_message_with_syslog_enabled(void)
    tftp_log( TFTP_LOG_ERR, "error with syslog" );
    tftp_log( TFTP_LOG_FATAL, "fatal with syslog" );
 
-   char buf[4096];
-   ssize_t n = stderr_capture_end( pipefd, saved, buf, sizeof buf );
+   char stdout_buf[4096];
+   char stderr_buf[4096];
+   ssize_t stdout_n = stdout_capture_end( stdout_pipefd, stdout_saved, stdout_buf, sizeof stdout_buf );
+   ssize_t stderr_n = stderr_capture_end( stderr_pipefd, stderr_saved, stderr_buf, sizeof stderr_buf );
 
-   TEST_ASSERT_GREATER_THAN( 0, (int)n );
+   // Low-level messages (TRACE/DEBUG/INFO/WARN) go to stdout (level <= TFTP_LOG_WARN)
+   TEST_ASSERT_GREATER_THAN( 0, (int)stdout_n );
+   TEST_ASSERT_NOT_NULL( strstr( stdout_buf, "TRACE" ) );
+   TEST_ASSERT_NOT_NULL( strstr( stdout_buf, "DEBUG" ) );
+   TEST_ASSERT_NOT_NULL( strstr( stdout_buf, "INFO" ) );
+   TEST_ASSERT_NOT_NULL( strstr( stdout_buf, "WARN" ) );
 
-   TEST_ASSERT_NOT_NULL( strstr( buf, "TRACE" ) );
-   TEST_ASSERT_NOT_NULL( strstr( buf, "DEBUG" ) );
-   TEST_ASSERT_NOT_NULL( strstr( buf, "INFO" ) );
-   TEST_ASSERT_NOT_NULL( strstr( buf, "WARN" ) );
-   TEST_ASSERT_NOT_NULL( strstr( buf, "ERROR" ) );
-   TEST_ASSERT_NOT_NULL( strstr( buf, "FATAL" ) );
+   // High-level messages (ERR/FATAL) go to stderr (level > TFTP_LOG_WARN)
+   TEST_ASSERT_GREATER_THAN( 0, (int)stderr_n );
+   TEST_ASSERT_NOT_NULL( strstr( stderr_buf, "ERROR" ) );
+   TEST_ASSERT_NOT_NULL( strstr( stderr_buf, "FATAL" ) );
 
    tftp_log_shutdown();
 }
