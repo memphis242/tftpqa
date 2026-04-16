@@ -17,7 +17,7 @@
 - manual + multi-agent scans of codebase against common enumerated vulnerabilities
 - manual + agent scan of codebase against for best-practice idiomatic constructs in language + library usage
 - builds for multiple platforms
-- over-night automated chaos-monkey runs across several server instances, some running /w different instrumentation (e.g., memory profilers)
+- **soak testing**: over-night automated chaos-monkey runs across several server instances, some running /w different instrumentation (e.g., memory profilers)
 
 ## Architecture-Level Robustness
 - Maximize encapsulation of data/functionality internal to a module
