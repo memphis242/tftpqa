@@ -6,6 +6,22 @@ This server can also operate as a standard, nominal TFTP server. Note that for s
 
 ## Basic Usage
 
+### Build
+
+- There are no external library dependencies
+- Environment:
+  - POSIX system
+  - gcc is the default compiler
+  - clang used for extra static analysis
+
+```bash
+# At any point, to print out a useful list of available make targets
+make help
+
+# To build release target
+make release
+```
+
 ### Starting the Server
 
 Note, CLI options _override_ the config file's corresponding options.
@@ -31,8 +47,9 @@ tftptest -v   # ≥ INFO
 tftptest -vv  # ≥ DEBUG
 tftptest -vvv # ≥ TRACE (max logging)
 
-tftptest -s                  # Log to syslog
-tftptest --syslog            # Log to syslog
+# Enable logging to syslog
+tftptest -s
+tftptest --syslog
 ```
 
 ### Configuration file (INI format):
