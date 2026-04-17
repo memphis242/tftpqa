@@ -62,7 +62,7 @@ int tftptest_ctrl_init(uint16_t port)
       return -1;
    }
 
-   tftp_log(TFTP_LOG_INFO, "Control channel listening on port %u", (unsigned)port);
+   tftp_log(TFTP_LOG_INFO, NULL, "Control channel listening on port %u", (unsigned)port);
    return sfd;
 }
 
@@ -125,7 +125,7 @@ void tftptest_ctrl_poll(int ctrl_sfd, struct TFTPTest_FaultState *fault,
       fault->mode = mode_idx;
       fault->param = param;
 
-      tftp_log(TFTP_LOG_INFO, "Control: fault mode set to %s (param=%u)",
+      tftp_log(TFTP_LOG_INFO, NULL, "Control: fault mode set to %s (param=%u)",
                tftptest_fault_mode_names[fault->mode], fault->param);
 
       reply_len = snprintf(reply, sizeof reply, "OK %s %u\n",
@@ -142,7 +142,7 @@ void tftptest_ctrl_poll(int ctrl_sfd, struct TFTPTest_FaultState *fault,
    {
       fault->mode = FAULT_NONE;
       fault->param = 0;
-      tftp_log(TFTP_LOG_INFO, "Control: fault mode reset");
+      tftp_log(TFTP_LOG_INFO, NULL, "Control: fault mode reset");
       reply_len = snprintf(reply, sizeof reply, "OK 0\n");
       send_reply(ctrl_sfd, &sender, reply, (size_t)reply_len);
    }

@@ -98,7 +98,7 @@ void test_log_init_without_syslog_sets_min_level(void)
    int pipefd[2];
    int saved = stderr_capture_begin( pipefd );
 
-   tftp_log( TFTP_LOG_DEBUG, "should be suppressed" );
+   tftp_log( TFTP_LOG_DEBUG, __func__, "should be suppressed" );
 
    char buf[512];
    ssize_t n = stderr_capture_end( pipefd, saved, buf, sizeof buf );
@@ -112,7 +112,7 @@ void test_log_init_without_syslog_sets_min_level(void)
 void test_log_init_with_syslog_opens_syslog(void)
 {
    tftp_log_init( true, TFTP_LOG_TRACE );
-   tftp_log( TFTP_LOG_INFO, "test syslog integration" );
+   tftp_log( TFTP_LOG_INFO, NULL, "test syslog integration" );
    tftp_log_shutdown();
 }
 
@@ -123,10 +123,10 @@ void test_log_message_below_min_level_is_suppressed(void)
    int pipefd[2];
    int saved = stderr_capture_begin( pipefd );
 
-   tftp_log( TFTP_LOG_TRACE, "trace msg" );
-   tftp_log( TFTP_LOG_DEBUG, "debug msg" );
-   tftp_log( TFTP_LOG_INFO, "info msg" );
-   tftp_log( TFTP_LOG_WARN, "warn msg" );
+   tftp_log( TFTP_LOG_TRACE, __func__, "trace msg" );
+   tftp_log( TFTP_LOG_DEBUG, __func__, "debug msg" );
+   tftp_log( TFTP_LOG_INFO, NULL, "info msg" );
+   tftp_log( TFTP_LOG_WARN, __func__, "warn msg" );
 
    char buf[512];
    ssize_t n = stderr_capture_end( pipefd, saved, buf, sizeof buf );
@@ -148,7 +148,7 @@ void test_log_message_at_min_level_is_emitted(void)
    int stderr_saved = stderr_capture_begin( stderr_pipefd );
 
    // Log at TRACE level (minimum, should go to stdout since level <= TFTP_LOG_WARN)
-   tftp_log( TFTP_LOG_TRACE, "trace at minimum level" );
+   tftp_log( TFTP_LOG_TRACE, __func__, "trace at minimum level" );
 
    char stdout_buf[1024];
    char stderr_buf[1024];
@@ -172,7 +172,7 @@ void test_log_message_above_min_level_is_emitted(void)
    int pipefd[2];
    int saved = stderr_capture_begin( pipefd );
 
-   tftp_log( TFTP_LOG_FATAL, "fatal test message %d", 42 );
+   tftp_log( TFTP_LOG_FATAL, __func__, "fatal test message %d", 42 );
 
    char buf[1024];
    ssize_t n = stderr_capture_end( pipefd, saved, buf, sizeof buf );
@@ -195,7 +195,7 @@ void test_log_shutdown_without_syslog_is_safe(void)
 void test_log_shutdown_with_syslog_closes_syslog(void)
 {
    tftp_log_init( true, TFTP_LOG_DEBUG );
-   tftp_log( TFTP_LOG_INFO, "pre-shutdown syslog message" );
+   tftp_log( TFTP_LOG_INFO, NULL, "pre-shutdown syslog message" );
    tftp_log_shutdown();
    // Second shutdown — g_syslog_open should now be false
    tftp_log_shutdown();
@@ -213,12 +213,12 @@ void test_log_message_with_syslog_enabled(void)
    int stderr_saved = stderr_capture_begin( stderr_pipefd );
 
    // Log at all levels
-   tftp_log( TFTP_LOG_TRACE, "trace with syslog" );
-   tftp_log( TFTP_LOG_DEBUG, "debug with syslog" );
-   tftp_log( TFTP_LOG_INFO, "info with syslog" );
-   tftp_log( TFTP_LOG_WARN, "warn with syslog" );
-   tftp_log( TFTP_LOG_ERR, "error with syslog" );
-   tftp_log( TFTP_LOG_FATAL, "fatal with syslog" );
+   tftp_log( TFTP_LOG_TRACE, __func__, "trace with syslog" );
+   tftp_log( TFTP_LOG_DEBUG, __func__, "debug with syslog" );
+   tftp_log( TFTP_LOG_INFO, NULL, "info with syslog" );
+   tftp_log( TFTP_LOG_WARN, __func__, "warn with syslog" );
+   tftp_log( TFTP_LOG_ERR, __func__, "error with syslog" );
+   tftp_log( TFTP_LOG_FATAL, __func__, "fatal with syslog" );
 
    char stdout_buf[4096];
    char stderr_buf[4096];

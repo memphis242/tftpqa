@@ -75,7 +75,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
    FILE *fp = fopen( path, "r" );
    if ( fp == NULL )
    {
-      tftp_log( TFTP_LOG_ERR, "Failed to open config file '%s': %s",
+      tftp_log( TFTP_LOG_ERR, __func__, "Failed to open config file '%s': %s",
                 path, strerror( errno ) );
       return -1;
    }
@@ -104,7 +104,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       char *eq = strchr( trimmed, '=' );
       if ( eq == NULL )
       {
-         tftp_log( TFTP_LOG_WARN, "Config line %d: missing '=' delimiter", line_num );
+         tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: missing '=' delimiter", line_num );
          errors++;
          continue;
       }
@@ -127,7 +127,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
          unsigned long v = strtoul( value, NULL, 10 );
          if ( v == 0 || v > 65535 )
          {
-            tftp_log( TFTP_LOG_WARN, "Config line %d: invalid tftp_port '%s'", line_num, value );
+            tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: invalid tftp_port '%s'", line_num, value );
             errors++;
          }
          else
@@ -140,7 +140,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
          unsigned long v = strtoul( value, NULL, 10 );
          if ( v > 65535 )
          {
-            tftp_log( TFTP_LOG_WARN, "Config line %d: invalid ctrl_port '%s'", line_num, value );
+            tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: invalid ctrl_port '%s'", line_num, value );
             errors++;
          }
          else
@@ -152,7 +152,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       {
          if ( strlen( value ) == 0 || strlen( value ) >= sizeof cfg->root_dir )
          {
-            tftp_log( TFTP_LOG_WARN, "Config line %d: root_dir empty or too long", line_num );
+            tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: root_dir empty or too long", line_num );
             errors++;
          }
          else
@@ -165,7 +165,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       {
          if ( strlen( value ) == 0 || strlen( value ) >= sizeof cfg->run_as_user )
          {
-            tftp_log( TFTP_LOG_WARN, "Config line %d: run_as_user empty or too long", line_num );
+            tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: run_as_user empty or too long", line_num );
             errors++;
          }
          else
@@ -178,7 +178,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       {
          if ( parse_log_level( value, &cfg->log_level ) != 0 )
          {
-            tftp_log( TFTP_LOG_WARN, "Config line %d: unknown log_level '%s'", line_num, value );
+            tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: unknown log_level '%s'", line_num, value );
             errors++;
          }
       }
@@ -187,7 +187,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
          unsigned long v = strtoul( value, NULL, 10 );
          if ( v == 0 || v > 300 )
          {
-            tftp_log( TFTP_LOG_WARN, "Config line %d: invalid timeout_sec '%s'", line_num, value );
+            tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: invalid timeout_sec '%s'", line_num, value );
             errors++;
          }
          else
@@ -200,7 +200,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
          unsigned long v = strtoul( value, NULL, 10 );
          if ( v == 0 || v > 100 )
          {
-            tftp_log( TFTP_LOG_WARN, "Config line %d: invalid max_retransmits '%s'", line_num, value );
+            tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: invalid max_retransmits '%s'", line_num, value );
             errors++;
          }
          else
@@ -213,7 +213,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
          unsigned long v = strtoul( value, NULL, 10 );
          if ( v == 0 )
          {
-            tftp_log( TFTP_LOG_WARN, "Config line %d: invalid max_requests '%s'", line_num, value );
+            tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: invalid max_requests '%s'", line_num, value );
             errors++;
          }
          else
@@ -228,7 +228,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
          uint64_t v = strtoull( value, &endptr, 0 );
          if ( endptr == value )
          {
-            tftp_log( TFTP_LOG_WARN, "Config line %d: invalid fault_whitelist '%s'", line_num, value );
+            tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: invalid fault_whitelist '%s'", line_num, value );
             errors++;
          }
          else
@@ -248,7 +248,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
             struct in_addr addr;
             if ( inet_aton( value, &addr ) == 0 )
             {
-               tftp_log( TFTP_LOG_WARN, "Config line %d: invalid allowed_client_ip '%s'", line_num, value );
+               tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: invalid allowed_client_ip '%s'", line_num, value );
                errors++;
             }
             else
@@ -272,7 +272,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
          unsigned long v = strtoul( value, NULL, 10 );
          if ( v > 86400 )
          {
-            tftp_log( TFTP_LOG_WARN, "Config line %d: invalid max_wrq_duration_sec '%s' (must be 0-86400)",
+            tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: invalid max_wrq_duration_sec '%s' (must be 0-86400)",
                       line_num, value );
             errors++;
          }
@@ -305,7 +305,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
          }
          else
          {
-            tftp_log( TFTP_LOG_WARN, "Config line %d: invalid wrq_enabled '%s'", line_num, value );
+            tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: invalid wrq_enabled '%s'", line_num, value );
             errors++;
          }
       }
@@ -320,7 +320,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
          char *dash = strchr( value, '-' );
          if ( dash == NULL )
          {
-            tftp_log( TFTP_LOG_WARN, "Config line %d: invalid tid_port_range '%s' (expected MIN-MAX)",
+            tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: invalid tid_port_range '%s' (expected MIN-MAX)",
                       line_num, value );
             errors++;
          }
@@ -333,12 +333,12 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
             unsigned long vmax = strtoul( max_str, NULL, 10 );
             if ( vmin == 0 || vmin > 65535 || vmax == 0 || vmax > 65535 )
             {
-               tftp_log( TFTP_LOG_WARN, "Config line %d: tid_port_range ports must be 1-65535", line_num );
+               tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: tid_port_range ports must be 1-65535", line_num );
                errors++;
             }
             else if ( vmin > vmax )
             {
-               tftp_log( TFTP_LOG_WARN, "Config line %d: tid_port_range min (%lu) > max (%lu)",
+               tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: tid_port_range min (%lu) > max (%lu)",
                          line_num, vmin, vmax );
                errors++;
             }
@@ -351,7 +351,7 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
       }
       else
       {
-         tftp_log( TFTP_LOG_WARN, "Config line %d: unknown key '%s'", line_num, key );
+         tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: unknown key '%s'", line_num, key );
       }
    }
 
@@ -359,11 +359,11 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
 
    if ( errors > 0 )
    {
-      tftp_log( TFTP_LOG_WARN, "Config file '%s': %d error(s) encountered", path, errors );
+      tftp_log( TFTP_LOG_WARN, __func__, "Config file '%s': %d error(s) encountered", path, errors );
    }
    else
    {
-      tftp_log( TFTP_LOG_INFO, "Config file '%s' loaded successfully", path );
+      tftp_log( TFTP_LOG_INFO, NULL, "Config file '%s' loaded successfully", path );
    }
 
    return 0;

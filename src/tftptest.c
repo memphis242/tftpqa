@@ -221,7 +221,7 @@ int main(int argc, char * argv[])
    // Really shouldn't happen, but I'll check just in case.
    if ( sysrc != 0 )
    {
-      tftp_log( TFTP_LOG_ERR,
+      tftp_log( TFTP_LOG_ERR, __func__,
                "sigaction() failed to register SIGINT handler. "
                "Returned: %d, errno: %s (%d): %s. "
                "Ctrl+C won't trigger graceful shutdown.",
@@ -236,7 +236,7 @@ int main(int argc, char * argv[])
    if ( config_path != NULL )
    {
       if ( tftp_parsecfg_load(config_path, &cfg) != 0 )
-         tftp_log( TFTP_LOG_WARN, "Failed to load config '%s', using defaults", config_path );
+         tftp_log( TFTP_LOG_WARN, __func__, "Failed to load config '%s', using defaults", config_path );
    }
 
    // CLI overrides take precedence over config file
@@ -263,18 +263,18 @@ int main(int argc, char * argv[])
    {
       if ( cfg.tftp_port >= cfg.tid_port_min && cfg.tftp_port <= cfg.tid_port_max )
       {
-         tftp_log( TFTP_LOG_FATAL, "TID port range %u-%u overlaps with tftp_port %u",
+         tftp_log( TFTP_LOG_FATAL, __func__, "TID port range %u-%u overlaps with tftp_port %u",
                    cfg.tid_port_min, cfg.tid_port_max, cfg.tftp_port );
          return 1;
       }
       if ( cfg.ctrl_port != 0 &&
            cfg.ctrl_port >= cfg.tid_port_min && cfg.ctrl_port <= cfg.tid_port_max )
       {
-         tftp_log( TFTP_LOG_FATAL, "TID port range %u-%u overlaps with ctrl_port %u",
+         tftp_log( TFTP_LOG_FATAL, __func__, "TID port range %u-%u overlaps with ctrl_port %u",
                    cfg.tid_port_min, cfg.tid_port_max, cfg.ctrl_port );
          return 1;
       }
-      tftp_log( TFTP_LOG_INFO, "TID port range: %u-%u",
+      tftp_log( TFTP_LOG_INFO, NULL, "TID port range: %u-%u",
                 cfg.tid_port_min, cfg.tid_port_max );
    }
 
@@ -293,31 +293,31 @@ int main(int argc, char * argv[])
    {
       if ( tftptest_seq_load(sequence_path, &seq) != 0 )
       {
-         tftp_log( TFTP_LOG_FATAL, "Failed to load sequence file: %s", sequence_path );
+         tftp_log( TFTP_LOG_FATAL, __func__, "Failed to load sequence file: %s", sequence_path );
          return EXIT_FAILURE;
       }
       use_sequence = true;
       // Set initial fault from first entry
       fault.mode  = seq.entries[0].mode;
       fault.param = seq.entries[0].param;
-      tftp_log( TFTP_LOG_INFO, "Sequence step 1/%zu: %s param=%u, %zu sessions",
+      tftp_log( TFTP_LOG_INFO, NULL, "Sequence step 1/%zu: %s param=%u, %zu sessions",
                 seq.n_entries, tftptest_fault_mode_names[fault.mode],
                 fault.param, seq.entries[0].count );
-      tftp_log( TFTP_LOG_INFO, "Sequence mode: control channel disabled" );
+      tftp_log( TFTP_LOG_INFO, NULL, "Sequence mode: control channel disabled" );
    }
    else if ( cfg.ctrl_port != 0 )
    {
       ctrl_sfd = tftptest_ctrl_init(cfg.ctrl_port);
       if ( ctrl_sfd < 0 )
       {
-         tftp_log( TFTP_LOG_WARN, "Failed to create control channel on port %u: %s",
+         tftp_log( TFTP_LOG_WARN, __func__, "Failed to create control channel on port %u: %s",
                    (unsigned)cfg.ctrl_port, strerror(errno) );
          // Non-fatal: continue without control channel
       }
    }
    else
    {
-      tftp_log( TFTP_LOG_INFO, "Fault simulation disabled (ctrl_port = 0)" );
+      tftp_log( TFTP_LOG_INFO, NULL, "Fault simulation disabled (ctrl_port = 0)" );
    }
 
    size_t nreps = 0;
@@ -331,7 +331,7 @@ int main(int argc, char * argv[])
    // Chroot into TFTP root directory and drop privileges
    if ( tftp_util_chroot_and_drop( cfg.root_dir, cfg.run_as_user ) != 0 )
    {
-      tftp_log( TFTP_LOG_ERR, "Failed to chroot/drop privileges" );
+      tftp_log( TFTP_LOG_ERR, __func__, "Failed to chroot/drop privileges" );
       mainrc |= MAINRC_FAILED_CLOSE;
       goto Main_CleanupTag;
    }
@@ -353,27 +353,27 @@ int main(int argc, char * argv[])
       assert( nbytes <= (ssize_t)sizeof(buf) );
       if ( nbytes == sizeof buf )
       {
-         tftp_log( TFTP_LOG_WARN, "Received oversized packet (%zd bytes), dropping", nbytes );
+         tftp_log( TFTP_LOG_WARN, __func__, "Received oversized packet (%zd bytes), dropping", nbytes );
          continue;
       }
       else if ( nbytes < 0 )
       {
-         tftp_log( TFTP_LOG_ERR, "recvfrom() failed: %s (%d)", strerror(errno), errno );
+         tftp_log( TFTP_LOG_ERR, __func__, "recvfrom() failed: %s (%d)", strerror(errno), errno );
          continue;
       }
       else if ( addrlen > sizeof peer_addr )
       {
-         tftp_log( TFTP_LOG_WARN, "Received request from non-IPv4 peer, dropping" );
+         tftp_log( TFTP_LOG_WARN, __func__, "Received request from non-IPv4 peer, dropping" );
          continue;
       }
       else if ( nbytes < (ssize_t)TFTP_RQST_MIN_SZ )
       {
-         tftp_log( TFTP_LOG_WARN, "Received packet too small (%zd bytes), dropping", nbytes );
+         tftp_log( TFTP_LOG_WARN, __func__, "Received packet too small (%zd bytes), dropping", nbytes );
          continue;
       }
       else if ( !tftp_pkt_request_is_valid(buf, (size_t)nbytes) )
       {
-         tftp_log( TFTP_LOG_WARN, "Received malformed TFTP request, dropping" );
+         tftp_log( TFTP_LOG_WARN, __func__, "Received malformed TFTP request, dropping" );
          continue;
       }
       else if ( cfg.allowed_client_ip != 0 && cfg.allowed_client_ip != peer_addr.sin_addr.s_addr )
@@ -385,7 +385,7 @@ int main(int argc, char * argv[])
       {
          char addrbuf[INET_ADDRSTRLEN];
          (void)inet_ntop( AF_INET, &peer_addr.sin_addr, addrbuf, sizeof addrbuf );
-         tftp_log( TFTP_LOG_INFO, "Received request from %s:%d",
+         tftp_log( TFTP_LOG_INFO, NULL, "Received request from %s:%d",
                    addrbuf, ntohs(peer_addr.sin_port) );
       }
 
@@ -394,7 +394,7 @@ int main(int argc, char * argv[])
       {
          char addrbuf[INET_ADDRSTRLEN];
          (void)inet_ntop( AF_INET, &peer_addr.sin_addr, addrbuf, sizeof addrbuf );
-         tftp_log( TFTP_LOG_WARN, "Peer %s locked out (exceeded max_abandoned_sessions)", addrbuf );
+         tftp_log( TFTP_LOG_WARN, __func__, "Peer %s locked out (exceeded max_abandoned_sessions)", addrbuf );
          uint8_t errbuf[128];
          size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                               TFTP_ERRC_ACCESS_VIOLATION, "Too many abandoned sessions");
@@ -414,7 +414,7 @@ int main(int argc, char * argv[])
          // Blocked attacker IP?
          if ( blocked_peer_ip != 0 && peer_addr.sin_addr.s_addr == blocked_peer_ip )
          {
-            tftp_log( TFTP_LOG_WARN, "Blocked IP attempting WRQ, rejecting" );
+            tftp_log( TFTP_LOG_WARN, __func__, "Blocked IP attempting WRQ, rejecting" );
             uint8_t errbuf[128];
             size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                                  TFTP_ERRC_ACCESS_VIOLATION, "Access denied");
@@ -428,7 +428,7 @@ int main(int argc, char * argv[])
          if ( cfg.max_wrq_file_count > 0 &&
               session_wrq_file_count >= cfg.max_wrq_file_count )
          {
-            tftp_log( TFTP_LOG_WARN, "WRQ file count limit (%zu) reached, rejecting",
+            tftp_log( TFTP_LOG_WARN, __func__, "WRQ file count limit (%zu) reached, rejecting",
                       cfg.max_wrq_file_count );
             uint8_t errbuf[128];
             size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
@@ -440,7 +440,7 @@ int main(int argc, char * argv[])
             blocked_peer_ip = peer_addr.sin_addr.s_addr;
             if ( cfg.allowed_client_ip != 0 && blocked_peer_ip == cfg.allowed_client_ip )
             {
-               tftp_log( TFTP_LOG_ERR, "Blocked IP is the only allowed client — shutting down" );
+               tftp_log( TFTP_LOG_ERR, __func__, "Blocked IP is the only allowed client — shutting down" );
                goto Main_CleanupTag;
             }
             continue;
@@ -449,7 +449,7 @@ int main(int argc, char * argv[])
          // Session bytes already exceeded?
          if ( wrq_session_blocked )
          {
-            tftp_log( TFTP_LOG_WARN, "WRQ session byte limit reached, rejecting" );
+            tftp_log( TFTP_LOG_WARN, __func__, "WRQ session byte limit reached, rejecting" );
             uint8_t errbuf[128];
             size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                                  TFTP_ERRC_DISK_FULL, "Upload limit exceeded");
@@ -486,12 +486,12 @@ int main(int argc, char * argv[])
             blocked_peer_ip = peer_addr.sin_addr.s_addr;
             char ipbuf[INET_ADDRSTRLEN];
             (void)inet_ntop(AF_INET, &peer_addr.sin_addr, ipbuf, sizeof ipbuf);
-            tftp_log( TFTP_LOG_WARN, "Limit violation from %s — blocking IP for this session", ipbuf );
+            tftp_log( TFTP_LOG_WARN, __func__, "Limit violation from %s — blocking IP for this session", ipbuf );
 
             // Exit if this was the only allowed client
             if ( cfg.allowed_client_ip != 0 && blocked_peer_ip == cfg.allowed_client_ip )
             {
-               tftp_log( TFTP_LOG_ERR, "Blocked IP is the only allowed client — shutting down" );
+               tftp_log( TFTP_LOG_ERR, __func__, "Blocked IP is the only allowed client — shutting down" );
                goto Main_CleanupTag;
             }
          }
@@ -501,7 +501,7 @@ int main(int argc, char * argv[])
               session_wrq_bytes >= cfg.max_wrq_session_bytes )
          {
             wrq_session_blocked = true;
-            tftp_log( TFTP_LOG_WARN, "WRQ session byte limit reached — no further WRQ accepted" );
+            tftp_log( TFTP_LOG_WARN, __func__, "WRQ session byte limit reached — no further WRQ accepted" );
          }
       }
 
@@ -515,7 +515,7 @@ int main(int argc, char * argv[])
          {
             char addrbuf[INET_ADDRSTRLEN];
             (void)inet_ntop( AF_INET, &peer_addr.sin_addr, addrbuf, sizeof addrbuf );
-            tftp_log( TFTP_LOG_WARN,
+            tftp_log( TFTP_LOG_WARN, __func__,
                       "Peer %s has hit max_abandoned_sessions limit (%zu) — will reject further requests",
                       addrbuf, cfg.max_abandoned_sessions );
          }
@@ -526,7 +526,7 @@ int main(int argc, char * argv[])
       {
          if ( !tftptest_seq_advance(&seq, &fault) )
          {
-            tftp_log( TFTP_LOG_INFO, "Test sequence complete, shutting down" );
+            tftp_log( TFTP_LOG_INFO, NULL, "Test sequence complete, shutting down" );
             break;
          }
       }
@@ -540,19 +540,19 @@ int main(int argc, char * argv[])
 
    if ( bUserEndedSession )
    {
-      tftp_log( TFTP_LOG_INFO, "User ended session (SIGINT)" );
+      tftp_log( TFTP_LOG_INFO, NULL, "User ended session (SIGINT)" );
    }
    else if ( use_sequence && seq.current >= seq.n_entries )
    {
-      tftp_log( TFTP_LOG_INFO, "Test sequence completed successfully" );
+      tftp_log( TFTP_LOG_INFO, NULL, "Test sequence completed successfully" );
    }
    else if ( nreps >= cfg.max_requests )
    {
-      tftp_log( TFTP_LOG_WARN, "Max request limit (%zu) reached, shutting down", cfg.max_requests );
+      tftp_log( TFTP_LOG_WARN, __func__, "Max request limit (%zu) reached, shutting down", cfg.max_requests );
    }
    else
    {
-      tftp_log( TFTP_LOG_ERR, "Main loop exited unexpectedly" );
+      tftp_log( TFTP_LOG_ERR, __func__, "Main loop exited unexpectedly" );
    }
 
 Main_CleanupTag:
@@ -561,7 +561,7 @@ Main_CleanupTag:
    else
       tftptest_ctrl_shutdown(ctrl_sfd);
    (void)close(sfd_newconn);
-   tftp_log( TFTP_LOG_INFO, "Server shutting down (rc=0x%04x)", (unsigned)mainrc );
+   tftp_log( TFTP_LOG_INFO, NULL, "Server shutting down (rc=0x%04x)", (unsigned)mainrc );
    tftp_log_shutdown();
 
    return mainrc;
@@ -641,13 +641,13 @@ static enum MainRC tftptest_new_conn_sock(int * const sfd_ptr, uint16_t port)
    int sysrc = 0;
    int sfd = -1;
 
-   tftp_log( TFTP_LOG_DEBUG, "Creating listening socket on port %u...", (unsigned)port );
+   tftp_log( TFTP_LOG_DEBUG, __func__, "Creating listening socket on port %u...", (unsigned)port );
 
    // Create socket
    sfd = socket(AF_INET, SOCK_DGRAM, 0);
    if ( sfd < 0 )
    {
-      tftp_log( TFTP_LOG_ERR,
+      tftp_log( TFTP_LOG_ERR, __func__,
                "Failed to create listening socket. "
                "socket() returned: %d, errno: %s (%d): %s",
                sfd,
@@ -682,7 +682,7 @@ static enum MainRC tftptest_new_conn_sock(int * const sfd_ptr, uint16_t port)
       char addrbuf[INET_ADDRSTRLEN];
       (void)inet_ntop(AF_INET, &numerical_addr, addrbuf, INET_ADDRSTRLEN);
 
-      tftp_log( TFTP_LOG_ERR,
+      tftp_log( TFTP_LOG_ERR, __func__,
                "Failed to bind socket to %s:%u. "
                "bind() returned: %d, errno: %s (%d): %s",
                addrbuf, (unsigned)port, sysrc,

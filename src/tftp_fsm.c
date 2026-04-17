@@ -137,11 +137,11 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
    const char *mode = NULL;
    if ( tftp_pkt_parse_request(rqbuf, rqsz, &opcode, &filename, &mode) != 0 )
    {
-      tftp_log( TFTP_LOG_WARN, "FSM: Failed to parse request packet" );
+      tftp_log( TFTP_LOG_WARN, __func__, "FSM: Failed to parse request packet" );
       return TFTP_FSM_RC_PROTOCOL_ERR;
    }
 
-   tftp_log( TFTP_LOG_INFO, "FSM: %s request for '%s' (mode: %s)",
+   tftp_log( TFTP_LOG_INFO, NULL, "FSM: %s request for '%s' (mode: %s)",
              opcode == TFTP_OP_RRQ ? "RRQ" : "WRQ", filename, mode );
 
    // Initialize session
@@ -167,14 +167,14 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
    if ( (opcode == TFTP_OP_RRQ && fault->mode == FAULT_RRQ_TIMEOUT) ||
         (opcode == TFTP_OP_WRQ && fault->mode == FAULT_WRQ_TIMEOUT) )
    {
-      tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Simulating timeout (no response)" );
+      tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Simulating timeout (no response)" );
       return TFTP_FSM_RC_FINE;
    }
 
    // Fake error responses
    if ( fault->mode == FAULT_FILE_NOT_FOUND && opcode == TFTP_OP_RRQ )
    {
-      tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Simulating file-not-found" );
+      tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Simulating file-not-found" );
       struct sockaddr_in bound = {0};
       int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
       if ( sfd >= 0 )
@@ -193,7 +193,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
    if ( (fault->mode == FAULT_PERM_DENIED_READ && opcode == TFTP_OP_RRQ) ||
         (fault->mode == FAULT_PERM_DENIED_WRITE && opcode == TFTP_OP_WRQ) )
    {
-      tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Simulating access violation" );
+      tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Simulating access violation" );
       struct sockaddr_in bound = {0};
       int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
       if ( sfd >= 0 )
@@ -215,7 +215,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
       TFTP_FSM_Session.fp = fopen(filename, "rb");
       if ( TFTP_FSM_Session.fp == NULL )
       {
-         tftp_log( TFTP_LOG_WARN, "FSM: Cannot open '%s': %s", filename, strerror(errno) );
+         tftp_log( TFTP_LOG_WARN, __func__, "FSM: Cannot open '%s': %s", filename, strerror(errno) );
          // Send file-not-found error via temp socket
          struct sockaddr_in bound = {0};
          int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
@@ -238,7 +238,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
       // WRQ DoS protection: wrq_enabled check
       if ( !cfg->wrq_enabled )
       {
-         tftp_log( TFTP_LOG_WARN, "FSM: WRQ disabled by config, rejecting" );
+         tftp_log( TFTP_LOG_WARN, __func__, "FSM: WRQ disabled by config, rejecting" );
          struct sockaddr_in bound = {0};
          int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
          if ( sfd >= 0 )
@@ -265,7 +265,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             size_t free_bytes = sv.f_bavail * sv.f_frsize;
             if ( free_bytes < cfg->min_disk_free_bytes )
             {
-               tftp_log( TFTP_LOG_WARN, "FSM: Insufficient disk space (%zu < %zu), rejecting WRQ",
+               tftp_log( TFTP_LOG_WARN, __func__, "FSM: Insufficient disk space (%zu < %zu), rejecting WRQ",
                          free_bytes, cfg->min_disk_free_bytes );
                struct sockaddr_in bound = {0};
                int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
@@ -290,7 +290,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
       TFTP_FSM_Session.fp = fopen(filename, "wb");
       if ( TFTP_FSM_Session.fp == NULL )
       {
-         tftp_log( TFTP_LOG_WARN, "FSM: Cannot create '%s': %s", filename, strerror(errno) );
+         tftp_log( TFTP_LOG_WARN, __func__, "FSM: Cannot create '%s': %s", filename, strerror(errno) );
          struct sockaddr_in bound = {0};
          int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
          if ( sfd >= 0 )
@@ -326,7 +326,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
       TFTP_FSM_Session.sfd = tftp_util_create_ephemeral_udp_socket(&bound_addr);
    if ( TFTP_FSM_Session.sfd < 0 )
    {
-      tftp_log( TFTP_LOG_ERR, "FSM: Failed to create ephemeral socket: %s",
+      tftp_log( TFTP_LOG_ERR, __func__, "FSM: Failed to create ephemeral socket: %s",
                 strerror(errno) );
       fclose(TFTP_FSM_Session.fp);
       TFTP_FSM_Session.fp = NULL;
@@ -337,13 +337,13 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
    if ( tftp_util_set_recv_timeout(TFTP_FSM_Session.sfd,
                                     TFTP_FSM_Session.timeout_sec) != 0 )
    {
-      tftp_log( TFTP_LOG_ERR, "FSM: Failed to set recv timeout: %s",
+      tftp_log( TFTP_LOG_ERR, __func__, "FSM: Failed to set recv timeout: %s",
                 strerror(errno) );
       rc = TFTP_FSM_RC_SETSOCKOPT_ERR;
       goto fsm_cleanup;
    }
 
-   tftp_log( TFTP_LOG_DEBUG, "FSM: Ephemeral socket on port %d",
+   tftp_log( TFTP_LOG_DEBUG, __func__, "FSM: Ephemeral socket on port %d",
              ntohs(bound_addr.sin_port) );
 
    // --- FSM loop ---
@@ -366,11 +366,11 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                              sizeof TFTP_FSM_Session.peer_addr);
       if ( sent < 0 )
       {
-         tftp_log( TFTP_LOG_ERR, "FSM: sendto ACK 0 failed: %s", strerror(errno) );
+         tftp_log( TFTP_LOG_ERR, __func__, "FSM: sendto ACK 0 failed: %s", strerror(errno) );
          rc = TFTP_FSM_RC_SENDTO_ERR;
          goto fsm_cleanup;
       }
-      tftp_log( TFTP_LOG_DEBUG, "FSM: Sent ACK block 0 for WRQ" );
+      tftp_log( TFTP_LOG_DEBUG, __func__, "FSM: Sent ACK block 0 for WRQ" );
       TFTP_FSM_Session.state = TFTP_FSM_WRQ_DATA;
    }
 
@@ -396,7 +396,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             payload_len = fread(payload, 1, sizeof payload, TFTP_FSM_Session.fp);
             if ( ferror(TFTP_FSM_Session.fp) )
             {
-               tftp_log( TFTP_LOG_ERR, "FSM: File read error: %s", strerror(errno) );
+               tftp_log( TFTP_LOG_ERR, __func__, "FSM: File read error: %s", strerror(errno) );
                send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                              TFTP_ERRC_NOT_DEFINED, "File read error");
                rc = TFTP_FSM_RC_FILE_ERR;
@@ -424,7 +424,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                size_t nread = fread(raw, 1, want, TFTP_FSM_Session.fp);
                if ( ferror(TFTP_FSM_Session.fp) )
                {
-                  tftp_log( TFTP_LOG_ERR, "FSM: File read error: %s", strerror(errno) );
+                  tftp_log( TFTP_LOG_ERR, __func__, "FSM: File read error: %s", strerror(errno) );
                   send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                                 TFTP_ERRC_NOT_DEFINED, "File read error");
                   rc = TFTP_FSM_RC_FILE_ERR;
@@ -469,7 +469,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          if ( TFTP_FSM_Session.ooo_pending )
          {
             // Send the current block (N+1) first
-            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: OOO sending block %u before stashed block %u",
+            tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: OOO sending block %u before stashed block %u",
                       TFTP_FSM_Session.block_num, TFTP_FSM_Session.ooo_stashed_block );
             (void)sendto(TFTP_FSM_Session.sfd,
                          TFTP_FSM_Session.sendbuf, TFTP_FSM_Session.sendbuf_len, 0,
@@ -495,7 +495,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             if ( TFTP_FSM_Session.block_num == target )
             {
                // Stash this packet, read next block on next iteration
-               tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Stashing DATA block %u for OOO swap",
+               tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Stashing DATA block %u for OOO swap",
                          TFTP_FSM_Session.block_num );
                memcpy(TFTP_FSM_Session.ooo_stashed_pkt, TFTP_FSM_Session.sendbuf,
                       TFTP_FSM_Session.sendbuf_len);
@@ -511,7 +511,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          // Fault: suppress DATA send?
          if ( fault_should_suppress_data(fault, TFTP_FSM_Session.block_num, is_last) )
          {
-            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Suppressing DATA block %u",
+            tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Suppressing DATA block %u",
                       TFTP_FSM_Session.block_num );
             TFTP_FSM_Session.state = TFTP_FSM_IDLE;
             break;
@@ -521,7 +521,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          if ( fault->mode == FAULT_SEND_ERROR_READ &&
               TFTP_FSM_Session.block_num > 1 )
          {
-            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Sending ERROR %u instead of DATA",
+            tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Sending ERROR %u instead of DATA",
                       fault->param );
             send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                           (uint16_t)fault->param, "Injected error");
@@ -555,7 +555,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
 
          if ( sent < 0 )
          {
-            tftp_log( TFTP_LOG_ERR, "FSM: sendto failed: %s", strerror(errno) );
+            tftp_log( TFTP_LOG_ERR, __func__, "FSM: sendto failed: %s", strerror(errno) );
             rc = TFTP_FSM_RC_SENDTO_ERR;
             TFTP_FSM_Session.state = TFTP_FSM_ERR;
             break;
@@ -564,7 +564,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          // Fault: duplicate DATA?
          if ( fault_should_duplicate(fault, true, TFTP_FSM_Session.block_num, is_last) )
          {
-            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Duplicating DATA block %u",
+            tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Duplicating DATA block %u",
                       TFTP_FSM_Session.block_num );
             (void)sendto(TFTP_FSM_Session.sfd,
                          TFTP_FSM_Session.sendbuf,
@@ -573,7 +573,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                          sizeof TFTP_FSM_Session.peer_addr);
          }
 
-         tftp_log( TFTP_LOG_DEBUG, "FSM: Sent DATA block %u (%zu bytes)",
+         tftp_log( TFTP_LOG_DEBUG, __func__, "FSM: Sent DATA block %u (%zu bytes)",
                    TFTP_FSM_Session.block_num, payload_len );
 
          // Fault: burst — send additional DATA packets without waiting for ACK
@@ -581,7 +581,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
               TFTP_FSM_Session.block_num == 1 )
          {
             uint32_t burst_count = (fault->param > 0) ? fault->param : 3;
-            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Burst-sending %u additional DATA packets",
+            tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Burst-sending %u additional DATA packets",
                       burst_count );
             for ( uint32_t b = 0; b < burst_count && !is_last; b++ )
             {
@@ -602,7 +602,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                             burst_pkt, burst_pkt_len, 0,
                             (const struct sockaddr *)&TFTP_FSM_Session.peer_addr,
                             sizeof TFTP_FSM_Session.peer_addr);
-               tftp_log( TFTP_LOG_DEBUG, "FSM: FAULT: Burst DATA block %u (%zu bytes)",
+               tftp_log( TFTP_LOG_DEBUG, __func__, "FSM: FAULT: Burst DATA block %u (%zu bytes)",
                          TFTP_FSM_Session.block_num, burst_len );
 
                // Keep last burst packet in sendbuf for retransmit
@@ -641,7 +641,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                TFTP_FSM_Session.retries++;
                if ( TFTP_FSM_Session.retries > TFTP_FSM_Session.max_retries )
                {
-                  tftp_log( TFTP_LOG_WARN,
+                  tftp_log( TFTP_LOG_WARN, __func__,
                             "FSM: Max retransmits (%u) exceeded for block %u",
                             TFTP_FSM_Session.max_retries,
                             TFTP_FSM_Session.block_num );
@@ -650,7 +650,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                   break;
                }
 
-               tftp_log( TFTP_LOG_DEBUG, "FSM: Timeout, retransmitting block %u (attempt %u)",
+               tftp_log( TFTP_LOG_DEBUG, __func__, "FSM: Timeout, retransmitting block %u (attempt %u)",
                          TFTP_FSM_Session.block_num, TFTP_FSM_Session.retries );
 
                ssize_t sent = sendto(TFTP_FSM_Session.sfd,
@@ -660,7 +660,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                                       sizeof TFTP_FSM_Session.peer_addr);
                if ( sent < 0 )
                {
-                  tftp_log( TFTP_LOG_ERR, "FSM: Retransmit sendto failed: %s",
+                  tftp_log( TFTP_LOG_ERR, __func__, "FSM: Retransmit sendto failed: %s",
                             strerror(errno) );
                   rc = TFTP_FSM_RC_SENDTO_ERR;
                   TFTP_FSM_Session.state = TFTP_FSM_ERR;
@@ -670,7 +670,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             }
             else
             {
-               tftp_log( TFTP_LOG_ERR, "FSM: recvfrom failed: %s", strerror(errno) );
+               tftp_log( TFTP_LOG_ERR, __func__, "FSM: recvfrom failed: %s", strerror(errno) );
                rc = TFTP_FSM_RC_RECVFROM_ERR;
                TFTP_FSM_Session.state = TFTP_FSM_ERR;
                break;
@@ -680,7 +680,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          // TID validation: source must match peer
          if ( !tid_matches(&recv_addr) )
          {
-            tftp_log( TFTP_LOG_WARN, "FSM: Packet from wrong TID, sending ERROR 5" );
+            tftp_log( TFTP_LOG_WARN, __func__, "FSM: Packet from wrong TID, sending ERROR 5" );
             send_error_to(TFTP_FSM_Session.sfd, &recv_addr,
                           TFTP_ERRC_UNKNOWN_TID, "Unknown transfer ID");
             // Stay in same state, keep waiting for correct peer
@@ -696,14 +696,14 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             const char *err_msg = NULL;
             if ( tftp_pkt_parse_error(ackbuf, (size_t)nbytes, &err_code, &err_msg) == 0 )
             {
-               tftp_log( TFTP_LOG_WARN, "FSM: Client sent ERROR %u: %s",
+               tftp_log( TFTP_LOG_WARN, __func__, "FSM: Client sent ERROR %u: %s",
                          err_code, err_msg );
                rc = TFTP_FSM_RC_PROTOCOL_ERR;
                TFTP_FSM_Session.state = TFTP_FSM_ERR;
                break;
             }
 
-            tftp_log( TFTP_LOG_WARN, "FSM: Expected ACK, got unexpected packet" );
+            tftp_log( TFTP_LOG_WARN, __func__, "FSM: Expected ACK, got unexpected packet" );
             send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                           TFTP_ERRC_ILLEGAL_OP, "Expected ACK");
             rc = TFTP_FSM_RC_PROTOCOL_ERR;
@@ -718,13 +718,13 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             // Use uint16_t subtraction so the comparison is correct across wrap.
             if ( ack_block == (uint16_t)(TFTP_FSM_Session.block_num - 1) )
             {
-               tftp_log( TFTP_LOG_DEBUG, "FSM: Duplicate ACK for block %u (expected %u), ignoring",
+               tftp_log( TFTP_LOG_DEBUG, __func__, "FSM: Duplicate ACK for block %u (expected %u), ignoring",
                          ack_block, TFTP_FSM_Session.block_num );
                break; // Stay in same state
             }
 
             // ACK for an unexpected block -- protocol error
-            tftp_log( TFTP_LOG_WARN, "FSM: ACK for block %u but expected %u",
+            tftp_log( TFTP_LOG_WARN, __func__, "FSM: ACK for block %u but expected %u",
                       ack_block, TFTP_FSM_Session.block_num );
             send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                           TFTP_ERRC_ILLEGAL_OP, "Unexpected block number");
@@ -733,12 +733,12 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             break;
          }
 
-         tftp_log( TFTP_LOG_DEBUG, "FSM: Received ACK for block %u", ack_block );
+         tftp_log( TFTP_LOG_DEBUG, __func__, "FSM: Received ACK for block %u", ack_block );
 
          // If we were in FIN_DATA state, this was the final ACK -- done
          if ( TFTP_FSM_Session.state == TFTP_FSM_RRQ_FIN_DATA )
          {
-            tftp_log( TFTP_LOG_INFO, "FSM: Transfer complete" );
+            tftp_log( TFTP_LOG_INFO, NULL, "FSM: Transfer complete" );
             TFTP_FSM_Session.state = TFTP_FSM_IDLE;
          }
          else
@@ -760,7 +760,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             unsigned int elapsed = (unsigned int)(now.tv_sec - TFTP_FSM_Session.wrq_start_time.tv_sec);
             if ( elapsed >= cfg->max_wrq_duration_sec )
             {
-               tftp_log( TFTP_LOG_WARN, "FSM: WRQ duration limit exceeded (%u >= %u sec)",
+               tftp_log( TFTP_LOG_WARN, __func__, "FSM: WRQ duration limit exceeded (%u >= %u sec)",
                          elapsed, cfg->max_wrq_duration_sec );
                send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                              TFTP_ERRC_DISK_FULL, "Transfer duration limit exceeded");
@@ -791,7 +791,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                TFTP_FSM_Session.retries++;
                if ( TFTP_FSM_Session.retries > TFTP_FSM_Session.max_retries )
                {
-                  tftp_log( TFTP_LOG_WARN,
+                  tftp_log( TFTP_LOG_WARN, __func__,
                             "FSM: Max retransmits (%u) exceeded waiting for DATA block %u",
                             TFTP_FSM_Session.max_retries,
                             (unsigned)(TFTP_FSM_Session.block_num + 1) );
@@ -800,7 +800,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                   break;
                }
 
-               tftp_log( TFTP_LOG_DEBUG, "FSM: Timeout, retransmitting ACK %u (attempt %u)",
+               tftp_log( TFTP_LOG_DEBUG, __func__, "FSM: Timeout, retransmitting ACK %u (attempt %u)",
                          TFTP_FSM_Session.block_num, TFTP_FSM_Session.retries );
 
                ssize_t sent = sendto(TFTP_FSM_Session.sfd,
@@ -810,7 +810,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                                       sizeof TFTP_FSM_Session.peer_addr);
                if ( sent < 0 )
                {
-                  tftp_log( TFTP_LOG_ERR, "FSM: Retransmit sendto failed: %s",
+                  tftp_log( TFTP_LOG_ERR, __func__, "FSM: Retransmit sendto failed: %s",
                             strerror(errno) );
                   rc = TFTP_FSM_RC_SENDTO_ERR;
                   TFTP_FSM_Session.state = TFTP_FSM_ERR;
@@ -819,7 +819,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             }
             else
             {
-               tftp_log( TFTP_LOG_ERR, "FSM: recvfrom failed: %s", strerror(errno) );
+               tftp_log( TFTP_LOG_ERR, __func__, "FSM: recvfrom failed: %s", strerror(errno) );
                rc = TFTP_FSM_RC_RECVFROM_ERR;
                TFTP_FSM_Session.state = TFTP_FSM_ERR;
                break;
@@ -829,7 +829,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          // TID validation
          if ( !tid_matches(&recv_addr) )
          {
-            tftp_log( TFTP_LOG_WARN, "FSM: Packet from wrong TID, sending ERROR 5" );
+            tftp_log( TFTP_LOG_WARN, __func__, "FSM: Packet from wrong TID, sending ERROR 5" );
             send_error_to(TFTP_FSM_Session.sfd, &recv_addr,
                           TFTP_ERRC_UNKNOWN_TID, "Unknown transfer ID");
             break;
@@ -841,7 +841,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             const char *err_msg = NULL;
             if ( tftp_pkt_parse_error(databuf, (size_t)nbytes, &err_code, &err_msg) == 0 )
             {
-               tftp_log( TFTP_LOG_WARN, "FSM: Client sent ERROR %u: %s",
+               tftp_log( TFTP_LOG_WARN, __func__, "FSM: Client sent ERROR %u: %s",
                          err_code, err_msg );
                rc = TFTP_FSM_RC_PROTOCOL_ERR;
                TFTP_FSM_Session.state = TFTP_FSM_ERR;
@@ -856,7 +856,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          if ( tftp_pkt_parse_data(databuf, (size_t)nbytes, &data_block,
                                   &data_ptr, &data_len) != 0 )
          {
-            tftp_log( TFTP_LOG_WARN, "FSM: Expected DATA, got unexpected packet" );
+            tftp_log( TFTP_LOG_WARN, __func__, "FSM: Expected DATA, got unexpected packet" );
             send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                           TFTP_ERRC_ILLEGAL_OP, "Expected DATA");
             rc = TFTP_FSM_RC_PROTOCOL_ERR;
@@ -870,7 +870,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          // Check for duplicate DATA (re-send ACK, don't re-write)
          if ( data_block == TFTP_FSM_Session.block_num )
          {
-            tftp_log( TFTP_LOG_DEBUG, "FSM: Duplicate DATA block %u, re-ACKing",
+            tftp_log( TFTP_LOG_DEBUG, __func__, "FSM: Duplicate DATA block %u, re-ACKing",
                       data_block );
             uint8_t dup_ack[TFTP_ACK_SZ];
             size_t ack_sz = tftp_pkt_build_ack(dup_ack, sizeof dup_ack, data_block);
@@ -883,7 +883,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          // Expect next sequential block (with uint16_t wrap)
          if ( data_block != expected_block )
          {
-            tftp_log( TFTP_LOG_WARN, "FSM: DATA block %u but expected %u",
+            tftp_log( TFTP_LOG_WARN, __func__, "FSM: DATA block %u but expected %u",
                       data_block, (unsigned)expected_block );
             send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                           TFTP_ERRC_ILLEGAL_OP, "Unexpected block number");
@@ -905,7 +905,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
 
                if ( fwrite(raw, 1, raw_len, TFTP_FSM_Session.fp) != raw_len )
                {
-                  tftp_log( TFTP_LOG_ERR, "FSM: File write error: %s", strerror(errno) );
+                  tftp_log( TFTP_LOG_ERR, __func__, "FSM: File write error: %s", strerror(errno) );
                   send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                                 TFTP_ERRC_DISK_FULL, "Write error");
                   rc = TFTP_FSM_RC_FILE_ERR;
@@ -917,7 +917,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             {
                if ( fwrite(data_ptr, 1, data_len, TFTP_FSM_Session.fp) != data_len )
                {
-                  tftp_log( TFTP_LOG_ERR, "FSM: File write error: %s", strerror(errno) );
+                  tftp_log( TFTP_LOG_ERR, __func__, "FSM: File write error: %s", strerror(errno) );
                   send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                                 TFTP_ERRC_DISK_FULL, "Write error");
                   rc = TFTP_FSM_RC_FILE_ERR;
@@ -934,7 +934,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          if ( cfg->max_wrq_file_size > 0 &&
               TFTP_FSM_Session.wrq_bytes_written > cfg->max_wrq_file_size )
          {
-            tftp_log( TFTP_LOG_WARN, "FSM: Per-file WRQ size limit exceeded (%zu > %zu)",
+            tftp_log( TFTP_LOG_WARN, __func__, "FSM: Per-file WRQ size limit exceeded (%zu > %zu)",
                       TFTP_FSM_Session.wrq_bytes_written, cfg->max_wrq_file_size );
             send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                           TFTP_ERRC_DISK_FULL, "Upload limit exceeded");
@@ -951,7 +951,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          if ( TFTP_FSM_Session.wrq_session_budget > 0 &&
               TFTP_FSM_Session.wrq_bytes_written > TFTP_FSM_Session.wrq_session_budget )
          {
-            tftp_log( TFTP_LOG_WARN, "FSM: WRQ session byte budget exceeded (%zu > %zu)",
+            tftp_log( TFTP_LOG_WARN, __func__, "FSM: WRQ session byte budget exceeded (%zu > %zu)",
                       TFTP_FSM_Session.wrq_bytes_written, TFTP_FSM_Session.wrq_session_budget );
             send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                           TFTP_ERRC_DISK_FULL, "Upload limit exceeded");
@@ -969,7 +969,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          // Fault: suppress ACK?
          if ( fault_should_suppress_ack(fault, TFTP_FSM_Session.block_num, wrq_is_last) )
          {
-            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Suppressing ACK block %u",
+            tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Suppressing ACK block %u",
                       TFTP_FSM_Session.block_num );
             TFTP_FSM_Session.state = TFTP_FSM_IDLE;
             break;
@@ -979,7 +979,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          if ( fault->mode == FAULT_SEND_ERROR_WRITE &&
               TFTP_FSM_Session.block_num > 0 )
          {
-            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Sending ERROR %u instead of ACK",
+            tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Sending ERROR %u instead of ACK",
                       fault->param );
             send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
                           (uint16_t)fault->param, "Injected error");
@@ -995,7 +995,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             uint8_t ack_now[TFTP_ACK_SZ];
             size_t ack_now_len = tftp_pkt_build_ack(ack_now, sizeof ack_now,
                                                     TFTP_FSM_Session.block_num);
-            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: OOO sending ACK %u before stashed ACK %u",
+            tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: OOO sending ACK %u before stashed ACK %u",
                       TFTP_FSM_Session.block_num, TFTP_FSM_Session.ooo_stashed_block );
             (void)sendto(TFTP_FSM_Session.sfd, ack_now, ack_now_len, 0,
                          (const struct sockaddr *)&TFTP_FSM_Session.peer_addr,
@@ -1013,7 +1013,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
 
             if ( wrq_is_last )
             {
-               tftp_log( TFTP_LOG_INFO, "FSM: WRQ transfer complete" );
+               tftp_log( TFTP_LOG_INFO, NULL, "FSM: WRQ transfer complete" );
                TFTP_FSM_Session.state = TFTP_FSM_IDLE;
             }
             break;
@@ -1025,7 +1025,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             if ( TFTP_FSM_Session.block_num == target )
             {
                // Stash ACK for this block, wait for next DATA to arrive
-               tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Stashing ACK block %u for OOO swap",
+               tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Stashing ACK block %u for OOO swap",
                          TFTP_FSM_Session.block_num );
                TFTP_FSM_Session.ooo_stashed_len = tftp_pkt_build_ack(
                   TFTP_FSM_Session.ooo_stashed_pkt, sizeof TFTP_FSM_Session.ooo_stashed_pkt,
@@ -1069,7 +1069,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
 
          if ( sent < 0 )
          {
-            tftp_log( TFTP_LOG_ERR, "FSM: sendto ACK failed: %s", strerror(errno) );
+            tftp_log( TFTP_LOG_ERR, __func__, "FSM: sendto ACK failed: %s", strerror(errno) );
             rc = TFTP_FSM_RC_SENDTO_ERR;
             TFTP_FSM_Session.state = TFTP_FSM_ERR;
             break;
@@ -1078,7 +1078,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          // Fault: duplicate ACK?
          if ( fault_should_duplicate(fault, false, TFTP_FSM_Session.block_num, wrq_is_last) )
          {
-            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Duplicating ACK block %u",
+            tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Duplicating ACK block %u",
                       TFTP_FSM_Session.block_num );
             (void)sendto(TFTP_FSM_Session.sfd,
                          TFTP_FSM_Session.sendbuf,
@@ -1087,12 +1087,12 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                          sizeof TFTP_FSM_Session.peer_addr);
          }
 
-         tftp_log( TFTP_LOG_DEBUG, "FSM: Sent ACK block %u", TFTP_FSM_Session.block_num );
+         tftp_log( TFTP_LOG_DEBUG, __func__, "FSM: Sent ACK block %u", TFTP_FSM_Session.block_num );
 
          // If data < 512 bytes, this was the last block
          if ( wrq_is_last )
          {
-            tftp_log( TFTP_LOG_INFO, "FSM: WRQ transfer complete" );
+            tftp_log( TFTP_LOG_INFO, NULL, "FSM: WRQ transfer complete" );
             TFTP_FSM_Session.state = TFTP_FSM_IDLE;
          }
 
@@ -1109,7 +1109,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
       case TFTP_FSM_ERR:
       case TFTP_FSM_INVALID_STATE:
       default:
-         tftp_log( TFTP_LOG_ERR, "FSM: Unexpected state %u", (unsigned)TFTP_FSM_Session.state );
+         tftp_log( TFTP_LOG_ERR, __func__, "FSM: Unexpected state %u", (unsigned)TFTP_FSM_Session.state );
          rc = TFTP_FSM_RC_PROTOCOL_ERR;
          TFTP_FSM_Session.state = TFTP_FSM_ERR;
          break;
@@ -1173,7 +1173,7 @@ static enum TFTP_FSM_RC send_error_to(int sfd, const struct sockaddr_in *dest,
                           (const struct sockaddr *)dest, sizeof *dest);
    if ( sent < 0 )
    {
-      tftp_log( TFTP_LOG_ERR, "FSM: Failed to send ERROR: %s", strerror(errno) );
+      tftp_log( TFTP_LOG_ERR, __func__, "FSM: Failed to send ERROR: %s", strerror(errno) );
       return TFTP_FSM_RC_SENDTO_ERR;
    }
 
@@ -1254,7 +1254,7 @@ static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
       {
          pkt[2] = (uint8_t)((fault->param >> 8) & 0xFF);
          pkt[3] = (uint8_t)(fault->param & 0xFF);
-         tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Set DATA block# to %u", fault->param );
+         tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Set DATA block# to %u", fault->param );
       }
       break;
 
@@ -1263,7 +1263,7 @@ static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
       {
          pkt[2] = (uint8_t)((fault->param >> 8) & 0xFF);
          pkt[3] = (uint8_t)(fault->param & 0xFF);
-         tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Set ACK block# to %u", fault->param );
+         tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Set ACK block# to %u", fault->param );
       }
       break;
 
@@ -1276,7 +1276,7 @@ static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
             if ( *pkt_len < target )
                memset( pkt + *pkt_len, 0, target - *pkt_len );
             *pkt_len = target;
-            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Padded DATA to %zu bytes", *pkt_len );
+            tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Padded DATA to %zu bytes", *pkt_len );
          }
       }
       break;
@@ -1286,7 +1286,7 @@ static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
       {
          size_t payload = *pkt_len - TFTP_DATA_HDR_SZ;
          *pkt_len = TFTP_DATA_HDR_SZ + payload / 2;
-         tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Truncated DATA to %zu bytes", *pkt_len );
+         tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Truncated DATA to %zu bytes", *pkt_len );
       }
       break;
 
@@ -1296,7 +1296,7 @@ static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
       {
          pkt[0] = 0;
          pkt[1] = 9;
-         tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Set opcode to 9 (invalid)" );
+         tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Set opcode to 9 (invalid)" );
       }
       break;
 
@@ -1309,7 +1309,7 @@ static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
       if ( esz > 0 )
       {
          *pkt_len = esz;
-         tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Sent ERROR with code %u", bad_code );
+         tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Sent ERROR with code %u", bad_code );
       }
       break;
    }
@@ -1326,7 +1326,7 @@ static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
             if ( corrupt_len > 4 ) corrupt_len = 4;
             for ( size_t i = 0; i < corrupt_len; i++ )
                pkt[payload_start + i] ^= 0xFF;
-            tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Corrupted DATA block %u payload (%zu bytes)",
+            tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Corrupted DATA block %u payload (%zu bytes)",
                       block_num, corrupt_len );
          }
       }
@@ -1336,7 +1336,7 @@ static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
       if ( *pkt_len > 2 )
       {
          *pkt_len = 2;  // opcode only, no block# or payload
-         tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Truncated packet to 2 bytes" );
+         tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Truncated packet to 2 bytes" );
       }
       break;
 
@@ -1358,7 +1358,7 @@ static int fault_maybe_wrong_tid(const struct TFTPTest_FaultState *fault,
 
    int sfd = tftp_util_create_ephemeral_udp_socket(NULL);
    if ( sfd >= 0 )
-      tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Sending from wrong TID" );
+      tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Sending from wrong TID" );
    return sfd;
 }
 
@@ -1373,6 +1373,6 @@ static void fault_maybe_delay(const struct TFTPTest_FaultState *fault)
       .tv_nsec = (long)(delay_ms % 1000) * 1000000L,
    };
 
-   tftp_log( TFTP_LOG_INFO, "FSM: FAULT: Delaying response by %u ms", delay_ms );
+   tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Delaying response by %u ms", delay_ms );
    (void)nanosleep(&ts, NULL);
 }

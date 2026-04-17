@@ -67,7 +67,7 @@ static int parse_token( const char *token,
 
       if ( (int)mode_idx < 0 )
       {
-         tftp_log( TFTP_LOG_ERR,
+         tftp_log( TFTP_LOG_ERR, __func__,
             "Sequence line %zu: unknown fault mode '%s' :: tftptest_fault_name_lookup_mode(): %d",
             lineno, val, (int)mode_idx );
 
@@ -84,7 +84,7 @@ static int parse_token( const char *token,
       unsigned long v = strtoul(val, &end, 0);
       if ( end == val || *end != '\0' )
       {
-         tftp_log(TFTP_LOG_ERR, "Sequence line %zu: invalid param value '%s'", lineno, val);
+         tftp_log(TFTP_LOG_ERR, __func__, "Sequence line %zu: invalid param value '%s'", lineno, val);
          return -1;
       }
       *param = (uint32_t)v;
@@ -97,7 +97,7 @@ static int parse_token( const char *token,
       unsigned long v = strtoul(val, &end, 0);
       if ( end == val || *end != '\0' || v == 0 )
       {
-         tftp_log(TFTP_LOG_ERR, "Sequence line %zu: invalid count '%s' (must be >= 1)", lineno, val);
+         tftp_log(TFTP_LOG_ERR, __func__, "Sequence line %zu: invalid count '%s' (must be >= 1)", lineno, val);
          return -1;
       }
       *count = v;
@@ -105,7 +105,7 @@ static int parse_token( const char *token,
    }
    else
    {
-      tftp_log(TFTP_LOG_ERR, "Sequence line %zu: unknown key in '%s'", lineno, token);
+      tftp_log(TFTP_LOG_ERR, __func__, "Sequence line %zu: unknown key in '%s'", lineno, token);
       return -1;
    }
 
@@ -117,7 +117,7 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
    FILE *fp = fopen(path, "r");
    if ( fp == NULL )
    {
-      tftp_log(TFTP_LOG_ERR,
+      tftp_log(TFTP_LOG_ERR, __func__,
                "Cannot open sequence file '%s': %s (%d) : %s",
                path, strerrorname_np(errno), errno, strerror(errno));
       return -1;
@@ -127,7 +127,7 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
    int n = count_entries(fp);
    if ( n <= 0 )
    {
-      tftp_log(TFTP_LOG_ERR, "Sequence file '%s': no entries found", path);
+      tftp_log(TFTP_LOG_ERR, __func__, "Sequence file '%s': no entries found", path);
       fclose(fp);
       return -1;
    }
@@ -136,7 +136,7 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
    struct TFTPTest_SeqEntry *entries = calloc((size_t)n, sizeof *entries);
    if ( entries == NULL )
    {
-      tftp_log(TFTP_LOG_ERR, "Sequence file: allocation failed");
+      tftp_log(TFTP_LOG_ERR, __func__, "Sequence file: allocation failed");
       fclose(fp);
       return -1;
    }
@@ -202,7 +202,7 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
 
       if ( !mode_set )
       {
-         tftp_log(TFTP_LOG_ERR, "Sequence line %zu: missing required 'mode=' field", lineno);
+         tftp_log(TFTP_LOG_ERR, __func__, "Sequence line %zu: missing required 'mode=' field", lineno);
          errors++;
          continue;
       }
@@ -221,7 +221,7 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
 
    if ( errors > 0 )
    {
-      tftp_log(TFTP_LOG_ERR, "Sequence file '%s': %d error(s), aborting", path, errors);
+      tftp_log(TFTP_LOG_ERR, __func__, "Sequence file '%s': %d error(s), aborting", path, errors);
       free(entries);
       return -1;
    }
@@ -231,7 +231,7 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
    seq->current          = 0;
    seq->sessions_in_step = 0;
 
-   tftp_log(TFTP_LOG_INFO, "Loaded test sequence: %zu entries, %zu total sessions", idx, total_sessions);
+   tftp_log(TFTP_LOG_INFO, NULL, "Loaded test sequence: %zu entries, %zu total sessions", idx, total_sessions);
 
    return 0;
 }
@@ -252,7 +252,7 @@ bool tftptest_seq_advance(struct TFTPTest_Seq *seq, struct TFTPTest_FaultState *
       fault->mode  = seq->entries[seq->current].mode;
       fault->param = seq->entries[seq->current].param;
 
-      tftp_log(TFTP_LOG_INFO, "Sequence step %zu/%zu: %s param=%u, %zu sessions",
+      tftp_log(TFTP_LOG_INFO, NULL, "Sequence step %zu/%zu: %s param=%u, %zu sessions",
                seq->current + 1, seq->n_entries,
                tftptest_fault_mode_names[fault->mode],
                fault->param, seq->entries[seq->current].count);

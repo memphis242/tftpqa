@@ -31,33 +31,17 @@ enum TFTP_LogLevel
 void tftp_log_init(bool use_syslog, enum TFTP_LogLevel min_level);
 
 /**
- * @brief Emit a log message (underlying implementation — call via the
- *        tftp_log() macro below, not directly).
+ * @brief Emit a log message.
  * @param[in] level  Severity of this message.
- * @param[in] func   Caller function name to prepend, or NULL to omit.
+ * @param[in] func   Caller function name to prepend before the message body,
+ *                   or NULL to omit. Pass __func__ for TRACE/DEBUG/WARN/ERR/FATAL;
+ *                   pass NULL for INFO.
  * @param[in] fmt    printf-style format string.
  */
 __attribute__(( format(printf, 3, 4) ))
-void tftp_log_impl( enum TFTP_LogLevel level,
-                    const char *func,
-                    const char *fmt, ... );
-
-/**
- * @brief Emit a log message.
- *
- * Automatically prepends "<funcname>(): " to the message for all levels
- * except INFO (TRACE, DEBUG get it for diagnostics; WARN/ERR/FATAL get it
- * to pinpoint the error site). This is so that when debugging, or seeing
- * warnings/errors, the function traceability is more readily available; but
- * under normal operation (INFO lvl), we don't need the extra fcn info.
- *
- * @param[in] lvl  Severity (TFTP_LOG_TRACE … TFTP_LOG_FATAL).
- * @param[in] fmt  printf-style format string, followed by optional args.
- */
-#define tftp_log(lvl, fmt, ...) \
-   tftp_log_impl( (lvl), \
-                  ((lvl) != TFTP_LOG_INFO ? __func__ : NULL), \
-                  (fmt), ##__VA_ARGS__ )
+void tftp_log( enum TFTP_LogLevel level,
+               const char *func,
+               const char *fmt, ... );
 
 /**
  * @brief Shut down the logging subsystem (closes syslog if open).
