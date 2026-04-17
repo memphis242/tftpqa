@@ -345,65 +345,133 @@ void test_util_create_udp_socket_in_range_all_busy(void)
 }
 
 /*---------------------------------------------------------------------------
- * suspicious text byte detection
+ * text byte check (suspicious / UTF-8 / clean)
  *---------------------------------------------------------------------------*/
 
 void test_util_suspicious_text_clean_ascii(void)
 {
    const uint8_t data[] = "Hello, world!\r\n";
-   TEST_ASSERT_FALSE( tftp_util_has_suspicious_text_bytes(data, sizeof(data) - 1) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_CLEAN, tftp_util_check_text_bytes(data, sizeof(data) - 1) );
 }
 
 void test_util_suspicious_text_allowed_controls(void)
 {
    // HT, LF, VT, FF, CR, ESC — all allowed
    const uint8_t data[] = { 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x1B };
-   TEST_ASSERT_FALSE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_CLEAN, tftp_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_cr_nul_allowed(void)
 {
    // CR+NUL is legitimate netascii for bare CR
    const uint8_t data[] = { 'A', '\r', '\0', 'B' };
-   TEST_ASSERT_FALSE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_CLEAN, tftp_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_standalone_nul(void)
 {
    // NUL not preceded by CR is suspicious
    const uint8_t data[] = { 'A', '\0', 'B' };
-   TEST_ASSERT_TRUE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_leading_nul(void)
 {
    // NUL at start of buffer — no preceding CR
    const uint8_t data[] = { '\0', 'A' };
-   TEST_ASSERT_TRUE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_bell_char(void)
 {
    // BEL (0x07) — not in the allowed set
    const uint8_t data[] = { 'A', 0x07, 'B' };
-   TEST_ASSERT_TRUE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_del_char(void)
 {
    // DEL (0x7F) — suspicious
    const uint8_t data[] = { 'A', 0x7F };
-   TEST_ASSERT_TRUE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_high_byte(void)
 {
-   // Non-ASCII (0x80+) — suspicious
+   // 0xC0 is an invalid UTF-8 lead byte (overlong) — suspicious
    const uint8_t data[] = { 'H', 'i', 0xC0 };
-   TEST_ASSERT_TRUE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_empty_buffer(void)
 {
-   TEST_ASSERT_FALSE( tftp_util_has_suspicious_text_bytes(NULL, 0) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_CLEAN, tftp_util_check_text_bytes(NULL, 0) );
+}
+
+/*---------------------------------------------------------------------------
+ * UTF-8 awareness tests
+ *---------------------------------------------------------------------------*/
+
+void test_util_text_check_valid_utf8_2byte(void)
+{
+   // "café" — 0xC3 0xA9 is é (U+00E9)
+   const uint8_t data[] = { 'c', 'a', 'f', 0xC3, 0xA9 };
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_HAS_UTF8, tftp_util_check_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_text_check_valid_utf8_3byte(void)
+{
+   // € (U+20AC) = 0xE2 0x82 0xAC
+   const uint8_t data[] = { 0xE2, 0x82, 0xAC };
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_HAS_UTF8, tftp_util_check_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_text_check_valid_utf8_4byte(void)
+{
+   // 🎉 (U+1F389) = 0xF0 0x9F 0x8E 0x89
+   const uint8_t data[] = { 0xF0, 0x9F, 0x8E, 0x89 };
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_HAS_UTF8, tftp_util_check_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_text_check_utf8_mixed_with_ascii(void)
+{
+   // "Hello café\n" — mixed ASCII + UTF-8
+   const uint8_t data[] = { 'H', 'e', 'l', 'l', 'o', ' ',
+                             'c', 'a', 'f', 0xC3, 0xA9, '\n' };
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_HAS_UTF8, tftp_util_check_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_text_check_lone_continuation_byte(void)
+{
+   // 0x80 alone — continuation byte without lead
+   const uint8_t data[] = { 0x80 };
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_text_check_overlong_2byte(void)
+{
+   // 0xC0 0x80 — overlong encoding of U+0000
+   const uint8_t data[] = { 0xC0, 0x80 };
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_text_check_truncated_sequence(void)
+{
+   // 0xC3 at end of buffer — truncated 2-byte sequence
+   const uint8_t data[] = { 0xC3 };
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_text_check_overlong_3byte(void)
+{
+   // 0xE0 0x80 0x80 — overlong encoding (second byte < 0xA0)
+   const uint8_t data[] = { 0xE0, 0x80, 0x80 };
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_text_check_above_max_codepoint(void)
+{
+   // 0xF4 0x90 0x80 0x80 — above U+10FFFF
+   const uint8_t data[] = { 0xF4, 0x90, 0x80, 0x80 };
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
 }

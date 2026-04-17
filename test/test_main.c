@@ -153,6 +153,15 @@ extern void test_util_suspicious_text_bell_char(void);
 extern void test_util_suspicious_text_del_char(void);
 extern void test_util_suspicious_text_high_byte(void);
 extern void test_util_suspicious_text_empty_buffer(void);
+extern void test_util_text_check_valid_utf8_2byte(void);
+extern void test_util_text_check_valid_utf8_3byte(void);
+extern void test_util_text_check_valid_utf8_4byte(void);
+extern void test_util_text_check_utf8_mixed_with_ascii(void);
+extern void test_util_text_check_lone_continuation_byte(void);
+extern void test_util_text_check_overlong_2byte(void);
+extern void test_util_text_check_truncated_sequence(void);
+extern void test_util_text_check_overlong_3byte(void);
+extern void test_util_text_check_above_max_codepoint(void);
 
 // tftptest_ctrl
 extern void test_ctrl_set_fault_and_get(void);
@@ -410,6 +419,17 @@ int main(void)
    RUN_TEST( test_util_suspicious_text_del_char );
    RUN_TEST( test_util_suspicious_text_high_byte );
    RUN_TEST( test_util_suspicious_text_empty_buffer );
+
+   // UTF-8 awareness
+   RUN_TEST( test_util_text_check_valid_utf8_2byte );
+   RUN_TEST( test_util_text_check_valid_utf8_3byte );
+   RUN_TEST( test_util_text_check_valid_utf8_4byte );
+   RUN_TEST( test_util_text_check_utf8_mixed_with_ascii );
+   RUN_TEST( test_util_text_check_lone_continuation_byte );
+   RUN_TEST( test_util_text_check_overlong_2byte );
+   RUN_TEST( test_util_text_check_truncated_sequence );
+   RUN_TEST( test_util_text_check_overlong_3byte );
+   RUN_TEST( test_util_text_check_above_max_codepoint );
 
    // chroot_and_drop
    RUN_TEST( test_chroot_and_drop_non_root_succeeds );

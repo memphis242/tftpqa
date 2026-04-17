@@ -83,6 +83,7 @@ static struct TFTP_FSM_Session_S
    enum TFTP_TransferMode  transfer_mode;
    bool                    netascii_pending_cr;
    bool                    netascii_warned;
+   bool                    netascii_utf8_noted;
    uint8_t                 sendbuf[TFTP_DATA_MAX_SZ];
    size_t                  sendbuf_len;
    // WRQ DoS protection state
@@ -161,7 +162,8 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
    else
       TFTP_FSM_Session.transfer_mode = TFTP_MODE_OCTET;
    TFTP_FSM_Session.netascii_pending_cr = false;
-   TFTP_FSM_Session.netascii_warned    = false;
+   TFTP_FSM_Session.netascii_warned      = false;
+   TFTP_FSM_Session.netascii_utf8_noted  = false;
 
    // --- Fault simulation: complete session-level faults ---
 
@@ -441,13 +443,25 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                   break;
                }
 
-               if ( !TFTP_FSM_Session.netascii_warned &&
-                    tftp_util_has_suspicious_text_bytes(raw, nread) )
                {
-                  tftp_log( TFTP_LOG_WARN, __func__,
-                            "FSM: Potential incorrect mode for this transfer "
-                            "— non-printable bytes found in source file" );
-                  TFTP_FSM_Session.netascii_warned = true;
+                  enum TFTPUtil_TextCheck text_result = tftp_util_check_text_bytes(raw, nread);
+
+                  if ( text_result == TFTP_TEXT_SUSPICIOUS && !TFTP_FSM_Session.netascii_warned )
+                  {
+                     tftp_log( TFTP_LOG_WARN, __func__,
+                               "FSM: Potential incorrect mode for this transfer "
+                               "— non-printable bytes found in source file" );
+
+                     TFTP_FSM_Session.netascii_warned = true;
+                  }
+                  else if ( text_result == TFTP_TEXT_HAS_UTF8 && !TFTP_FSM_Session.netascii_utf8_noted )
+                  {
+                     tftp_log( TFTP_LOG_INFO, NULL,
+                               "FSM: Transfer contains UTF-8 multi-byte characters "
+                               "(not strictly RFC 764 compliant)" );
+
+                     TFTP_FSM_Session.netascii_utf8_noted = true;
+                  }
                }
 
                size_t translated = tftp_util_octet_to_netascii(
@@ -908,13 +922,25 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          {
             if ( TFTP_FSM_Session.transfer_mode == TFTP_MODE_NETASCII )
             {
-               if ( !TFTP_FSM_Session.netascii_warned &&
-                    tftp_util_has_suspicious_text_bytes(data_ptr, data_len) )
                {
-                  tftp_log( TFTP_LOG_WARN, __func__,
-                            "FSM: Unexpected non-printable or unconventional "
-                            "control bytes found in received data" );
-                  TFTP_FSM_Session.netascii_warned = true;
+                  enum TFTPUtil_TextCheck text_result = tftp_util_check_text_bytes(data_ptr, data_len);
+
+                  if ( text_result == TFTP_TEXT_SUSPICIOUS && !TFTP_FSM_Session.netascii_warned )
+                  {
+                     tftp_log( TFTP_LOG_WARN, __func__,
+                               "FSM: Unexpected non-printable or unconventional "
+                               "control bytes found in received data" );
+
+                     TFTP_FSM_Session.netascii_warned = true;
+                  }
+                  else if ( text_result == TFTP_TEXT_HAS_UTF8 && !TFTP_FSM_Session.netascii_utf8_noted )
+                  {
+                     tftp_log( TFTP_LOG_INFO, NULL,
+                               "FSM: Transfer contains UTF-8 multi-byte characters "
+                               "(not strictly RFC 764 compliant)" );
+
+                     TFTP_FSM_Session.netascii_utf8_noted = true;
+                  }
                }
 
                // Reverse netascii translation before writing

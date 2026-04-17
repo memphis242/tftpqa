@@ -49,8 +49,18 @@ int tftp_util_set_recv_timeout(int sfd, unsigned int timeout_sec);
 bool tftp_util_is_valid_filename_char(char c);
 
 /**
- * @brief Check whether a byte buffer contains bytes suspicious for a text
- *        (netascii) transfer.
+ * @brief Result of scanning a buffer for text-mode compatibility.
+ */
+enum TFTPUtil_TextCheck
+{
+   TFTP_TEXT_CLEAN,       /**< Pure 7-bit ASCII text, nothing to report. */
+   TFTP_TEXT_HAS_UTF8,    /**< Valid UTF-8 multi-byte characters found (INFO-worthy). */
+   TFTP_TEXT_SUSPICIOUS,  /**< Invalid/non-text bytes found (WARN-worthy). */
+};
+
+/**
+ * @brief Check whether a byte buffer is compatible with a text (netascii)
+ *        transfer, with UTF-8 awareness.
  *
  * Scans for non-printable, non-standard-whitespace bytes that would not
  * normally appear in a text file.  Allowed bytes:
@@ -58,12 +68,20 @@ bool tftp_util_is_valid_filename_char(char c);
  *   - HT (0x09), LF (0x0A), VT (0x0B), FF (0x0C), CR (0x0D), ESC (0x1B)
  *   - NUL (0x00) only when immediately preceded by CR (CR+NUL = bare CR
  *     in the netascii encoding)
+ *   - Valid UTF-8 multi-byte sequences (0xC2–0xF4 lead bytes with proper
+ *     continuation bytes) — allowed but noted as not strictly RFC 764
  *
- * @param[in] data  Buffer to scan. \nonnull
+ * Malformed UTF-8 (overlong encodings, truncated sequences, lone continuation
+ * bytes, codepoints above U+10FFFF) is treated as suspicious.
+ *
+ * @param[in] data  Buffer to scan. May be NULL only if @p len is 0.
  * @param[in] len   Number of bytes to scan.
- * @return true if at least one suspicious byte was found; false otherwise.
+ * @return TFTP_TEXT_CLEAN if all bytes are 7-bit ASCII text,
+ *         TFTP_TEXT_HAS_UTF8 if valid UTF-8 multi-byte characters were found,
+ *         TFTP_TEXT_SUSPICIOUS if any invalid/non-text bytes were found.
+ *         SUSPICIOUS takes priority over HAS_UTF8.
  */
-bool tftp_util_has_suspicious_text_bytes(const uint8_t *data, size_t len);
+enum TFTPUtil_TextCheck tftp_util_check_text_bytes(const uint8_t *data, size_t len);
 
 /**
  * @brief Convert octet (raw) data to netascii for sending.

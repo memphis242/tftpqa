@@ -127,11 +127,12 @@ bool tftp_util_is_valid_filename_char(char c)
    return true;
 }
 
-bool tftp_util_has_suspicious_text_bytes(const uint8_t *data, size_t len)
+enum TFTPUtil_TextCheck tftp_util_check_text_bytes(const uint8_t *data, size_t len)
 {
-   assert(data != NULL);
+   assert(data != NULL || len == 0);
 
-   bool prev_cr = false;
+   bool prev_cr  = false;
+   bool saw_utf8 = false;
 
    for ( size_t i = 0; i < len; i++ )
    {
@@ -145,7 +146,7 @@ bool tftp_util_has_suspicious_text_bytes(const uint8_t *data, size_t len)
             prev_cr = false;
             continue;
          }
-         return true; // standalone NUL
+         return TFTP_TEXT_SUSPICIOUS; // standalone NUL
       }
 
       prev_cr = (byte == '\r');
@@ -168,12 +169,45 @@ bool tftp_util_has_suspicious_text_bytes(const uint8_t *data, size_t len)
             break;
       }
 
+      // Check for valid UTF-8 multi-byte sequences
+      if ( byte >= 0x80 )
+      {
+         int expected;
+         if      ( byte >= 0xC2 && byte <= 0xDF ) expected = 1;
+         else if ( byte >= 0xE0 && byte <= 0xEF ) expected = 2;
+         else if ( byte >= 0xF0 && byte <= 0xF4 ) expected = 3;
+         else return TFTP_TEXT_SUSPICIOUS;  // 0x80-0xBF, 0xC0-0xC1, 0xF5+
+
+         // Check for truncated sequence
+         if ( i + (size_t)expected >= len )
+            return TFTP_TEXT_SUSPICIOUS;
+
+         // Reject overlong / out-of-range encodings
+         if ( byte == 0xE0 && data[i + 1] < 0xA0 )
+            return TFTP_TEXT_SUSPICIOUS;
+         if ( byte == 0xF0 && data[i + 1] < 0x90 )
+            return TFTP_TEXT_SUSPICIOUS;
+         if ( byte == 0xF4 && data[i + 1] > 0x8F )
+            return TFTP_TEXT_SUSPICIOUS;
+
+         // Verify all continuation bytes are 0x80-0xBF
+         for ( int j = 1; j <= expected; j++ )
+         {
+            if ( (data[i + (size_t)j] & 0xC0) != 0x80 )
+               return TFTP_TEXT_SUSPICIOUS;
+         }
+
+         i += (size_t)expected;
+         saw_utf8 = true;
+         continue;
+      }
+
       // Everything else is suspicious: other C0 controls (0x01-0x08,
-      // 0x0E-0x1A, 0x1C-0x1F), DEL (0x7F), and high bytes (0x80-0xFF)
-      return true;
+      // 0x0E-0x1A, 0x1C-0x1F), DEL (0x7F)
+      return TFTP_TEXT_SUSPICIOUS;
    }
 
-   return false;
+   return saw_utf8 ? TFTP_TEXT_HAS_UTF8 : TFTP_TEXT_CLEAN;
 }
 
 size_t tftp_util_octet_to_netascii(const uint8_t *in, size_t in_len,
