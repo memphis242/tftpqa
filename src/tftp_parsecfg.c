@@ -75,8 +75,8 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
    FILE *fp = fopen( path, "r" );
    if ( fp == NULL )
    {
-      tftp_log( TFTP_LOG_ERR, __func__, "Failed to open config file '%s': %s",
-                path, strerror( errno ) );
+      tftp_log( TFTP_LOG_ERR, __func__, "Failed to open config file '%s': %s (%d) : %s",
+                path, strerrorname_np(errno), errno, strerror(errno) );
       return -1;
    }
 

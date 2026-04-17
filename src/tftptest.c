@@ -310,8 +310,8 @@ int main(int argc, char * argv[])
       ctrl_sfd = tftptest_ctrl_init(cfg.ctrl_port);
       if ( ctrl_sfd < 0 )
       {
-         tftp_log( TFTP_LOG_WARN, __func__, "Failed to create control channel on port %u: %s",
-                   (unsigned)cfg.ctrl_port, strerror(errno) );
+         tftp_log( TFTP_LOG_WARN, __func__, "Failed to create control channel on port %u: %s (%d) : %s",
+                   (unsigned)cfg.ctrl_port, strerrorname_np(errno), errno, strerror(errno) );
          // Non-fatal: continue without control channel
       }
    }
@@ -358,7 +358,8 @@ int main(int argc, char * argv[])
       }
       else if ( nbytes < 0 )
       {
-         tftp_log( TFTP_LOG_ERR, __func__, "recvfrom() failed: %s (%d)", strerror(errno), errno );
+         tftp_log( TFTP_LOG_ERR, __func__, "recvfrom() failed: %s (%d) : %s",
+                   strerrorname_np(errno), errno, strerror(errno) );
          continue;
       }
       else if ( addrlen > sizeof peer_addr )
