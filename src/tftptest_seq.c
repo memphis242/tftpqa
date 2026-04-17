@@ -49,7 +49,7 @@ static int parse_token(const char *token, size_t lineno,
    if ( strncasecmp(token, "mode=", 5) == 0 )
    {
       const char *val = token + 5;
-      int idx = tftptest_fault_lookup_mode(val);
+      int idx = tftptest_fault_name_lookup_mode(val);
       if ( idx < 0 )
       {
          tftp_log(TFTP_LOG_ERR, "Sequence line %zu: unknown fault mode '%s'", lineno, val);

@@ -37,3 +37,13 @@
  * TFTP ERROR packet: 2-byte opcode + 2-byte error code + string + 1-byte NUL
  */
 #define TFTP_ERR_HDR_SZ 4
+
+/*
+ * Compile-time assert trick that is compatible /w C99 (which doesn't have static_assert :(...)
+ */
+#define CompileTimeAssert(cond, msg) typedef char msg[ cond ? 1 : -1 ]
+
+/*
+ * Compile-time array length
+ */
+#define ARRAY_SZ(arr) (sizeof(arr) / sizeof(arr[0]))

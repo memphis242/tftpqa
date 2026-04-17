@@ -159,6 +159,8 @@ extern void test_fault_lookup_mode_full_name_match(void);
 extern void test_fault_lookup_mode_short_name_match(void);
 extern void test_fault_lookup_mode_case_insensitive(void);
 extern void test_fault_lookup_mode_nonexistent_returns_negative_one(void);
+extern void test_fault_lookup_mode_too_short(void);
+extern void test_fault_lookup_mode_too_long(void);
 extern void test_fault_lookup_mode_fault_none(void);
 extern void test_fault_lookup_mode_fault_none_short(void);
 extern void test_fault_lookup_mode_last_mode(void);
@@ -399,6 +401,8 @@ int main(void)
    RUN_TEST( test_fault_lookup_mode_short_name_match );
    RUN_TEST( test_fault_lookup_mode_case_insensitive );
    RUN_TEST( test_fault_lookup_mode_nonexistent_returns_negative_one );
+   RUN_TEST( test_fault_lookup_mode_too_short );
+   RUN_TEST( test_fault_lookup_mode_too_long );
    RUN_TEST( test_fault_lookup_mode_fault_none );
    RUN_TEST( test_fault_lookup_mode_fault_none_short );
    RUN_TEST( test_fault_lookup_mode_last_mode );

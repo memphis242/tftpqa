@@ -80,6 +80,14 @@ struct TFTPTest_FaultState
 
 // Name table and lookup (shared by ctrl and seq modules)
 extern const char *const tftptest_fault_mode_names[FAULT_MODE_COUNT];
-int tftptest_fault_lookup_mode(const char *name);
+
+/**
+ * @brief Return the fault mode enum value (as an int: FIXME: should be enum)
+ * @param[in] name  the string the lookup in the fault mode map
+ * @return On success, returns the fault mode enum value
+ *         On invalid input, returns -1
+ *         On failure to find fault mode, returns -2
+ */
+int tftptest_fault_name_lookup_mode(const char *name);
 
 #endif // TFTPTEST_FAULTMODE_H

@@ -101,7 +101,7 @@ void tftptest_ctrl_poll(int ctrl_sfd, struct TFTPTest_FaultState *fault,
          return;
       }
 
-      int mode_idx = tftptest_fault_lookup_mode(mode_name);
+      int mode_idx = tftptest_fault_name_lookup_mode(mode_name);
       if ( mode_idx < 0 )
       {
          reply_len = snprintf(reply, sizeof reply, "ERR unknown mode '%s'\n", mode_name);
