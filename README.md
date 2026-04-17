@@ -183,3 +183,16 @@ All 33 modes are supported in the test sequence file. Modes marked with `param` 
 | `FAULT_TRUNCATED_PKT` | Send a packet shorter than the minimum valid size |
 | **Protocol violation faults** | |
 | `FAULT_BURST_DATA` | Send N DATA packets in a row without waiting for ACK (`param` = burst count) |
+
+## Diagnostics
+
+### Netascii Mode Content Warnings
+
+When a file is transferred in **netascii mode**, the server performs a diagnostic check to detect potential mode mismatches. If the file contains non-printable or unconventional control bytes that would not normally appear in plain text, a warning is logged:
+
+- **RRQ (server reading)**: `FSM: Potential incorrect mode for this transfer — non-printable bytes found in source file`
+- **WRQ (server writing)**: `FSM: Unexpected non-printable or unconventional control bytes found in received data`
+
+This single-per-transfer warning helps identify cases where a file claimed to be text (netascii) is actually binary, which can cause corruption or unexpected behavior.
+
+For details on what bytes are allowed, why certain control characters are rejected, and how to handle legacy files, see **[docs/NETASCII-DIAGNOSTICS.md](docs/NETASCII-DIAGNOSTICS.md)**.

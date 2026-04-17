@@ -82,6 +82,7 @@ static struct TFTP_FSM_Session_S
    unsigned int            timeout_sec;
    enum TFTP_TransferMode  transfer_mode;
    bool                    netascii_pending_cr;
+   bool                    netascii_warned;
    uint8_t                 sendbuf[TFTP_DATA_MAX_SZ];
    size_t                  sendbuf_len;
    // WRQ DoS protection state
@@ -160,6 +161,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
    else
       TFTP_FSM_Session.transfer_mode = TFTP_MODE_OCTET;
    TFTP_FSM_Session.netascii_pending_cr = false;
+   TFTP_FSM_Session.netascii_warned    = false;
 
    // --- Fault simulation: complete session-level faults ---
 
@@ -437,6 +439,15 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                   // EOF reached
                   is_last = true;
                   break;
+               }
+
+               if ( !TFTP_FSM_Session.netascii_warned &&
+                    tftp_util_has_suspicious_text_bytes(raw, nread) )
+               {
+                  tftp_log( TFTP_LOG_WARN, __func__,
+                            "FSM: Potential incorrect mode for this transfer "
+                            "— non-printable bytes found in source file" );
+                  TFTP_FSM_Session.netascii_warned = true;
                }
 
                size_t translated = tftp_util_octet_to_netascii(
@@ -897,6 +908,15 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          {
             if ( TFTP_FSM_Session.transfer_mode == TFTP_MODE_NETASCII )
             {
+               if ( !TFTP_FSM_Session.netascii_warned &&
+                    tftp_util_has_suspicious_text_bytes(data_ptr, data_len) )
+               {
+                  tftp_log( TFTP_LOG_WARN, __func__,
+                            "FSM: Unexpected non-printable or unconventional "
+                            "control bytes found in received data" );
+                  TFTP_FSM_Session.netascii_warned = true;
+               }
+
                // Reverse netascii translation before writing
                uint8_t raw[TFTP_BLOCK_DATA_SZ];
                size_t raw_len = tftp_util_netascii_to_octet(

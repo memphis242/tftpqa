@@ -127,6 +127,55 @@ bool tftp_util_is_valid_filename_char(char c)
    return true;
 }
 
+bool tftp_util_has_suspicious_text_bytes(const uint8_t *data, size_t len)
+{
+   assert(data != NULL);
+
+   bool prev_cr = false;
+
+   for ( size_t i = 0; i < len; i++ )
+   {
+      uint8_t byte = data[i];
+
+      // CR+NUL is legitimate in netascii (encodes bare CR)
+      if ( byte == 0x00 )
+      {
+         if ( prev_cr )
+         {
+            prev_cr = false;
+            continue;
+         }
+         return true; // standalone NUL
+      }
+
+      prev_cr = (byte == '\r');
+
+      // Printable ASCII
+      if ( byte >= 0x20 && byte <= 0x7E )
+         continue;
+
+      // Standard text control characters
+      switch ( byte )
+      {
+         case 0x09: // HT  (horizontal tab)
+         case 0x0A: // LF  (line feed)
+         case 0x0B: // VT  (vertical tab)
+         case 0x0C: // FF  (form feed)
+         case 0x0D: // CR  (carriage return)
+         case 0x1B: // ESC (ANSI escape sequences)
+            continue;
+         default:
+            break;
+      }
+
+      // Everything else is suspicious: other C0 controls (0x01-0x08,
+      // 0x0E-0x1A, 0x1C-0x1F), DEL (0x7F), and high bytes (0x80-0xFF)
+      return true;
+   }
+
+   return false;
+}
+
 size_t tftp_util_octet_to_netascii(const uint8_t *in, size_t in_len,
                                     uint8_t *out, size_t out_cap,
                                     bool *pending_cr)

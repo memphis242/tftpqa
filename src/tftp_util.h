@@ -49,6 +49,23 @@ int tftp_util_set_recv_timeout(int sfd, unsigned int timeout_sec);
 bool tftp_util_is_valid_filename_char(char c);
 
 /**
+ * @brief Check whether a byte buffer contains bytes suspicious for a text
+ *        (netascii) transfer.
+ *
+ * Scans for non-printable, non-standard-whitespace bytes that would not
+ * normally appear in a text file.  Allowed bytes:
+ *   - Printable ASCII (0x20–0x7E)
+ *   - HT (0x09), LF (0x0A), VT (0x0B), FF (0x0C), CR (0x0D), ESC (0x1B)
+ *   - NUL (0x00) only when immediately preceded by CR (CR+NUL = bare CR
+ *     in the netascii encoding)
+ *
+ * @param[in] data  Buffer to scan. \nonnull
+ * @param[in] len   Number of bytes to scan.
+ * @return true if at least one suspicious byte was found; false otherwise.
+ */
+bool tftp_util_has_suspicious_text_bytes(const uint8_t *data, size_t len);
+
+/**
  * @brief Convert octet (raw) data to netascii for sending.
  *
  * Applies RFC 764 NVT translation:

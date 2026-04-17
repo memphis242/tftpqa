@@ -144,6 +144,15 @@ extern void test_chroot_and_drop_bad_dir_fails(void);
 extern void test_util_create_udp_socket_in_range_succeeds(void);
 extern void test_util_create_udp_socket_in_range_single_port(void);
 extern void test_util_create_udp_socket_in_range_all_busy(void);
+extern void test_util_suspicious_text_clean_ascii(void);
+extern void test_util_suspicious_text_allowed_controls(void);
+extern void test_util_suspicious_text_cr_nul_allowed(void);
+extern void test_util_suspicious_text_standalone_nul(void);
+extern void test_util_suspicious_text_leading_nul(void);
+extern void test_util_suspicious_text_bell_char(void);
+extern void test_util_suspicious_text_del_char(void);
+extern void test_util_suspicious_text_high_byte(void);
+extern void test_util_suspicious_text_empty_buffer(void);
 
 // tftptest_ctrl
 extern void test_ctrl_set_fault_and_get(void);
@@ -390,6 +399,17 @@ int main(void)
    RUN_TEST( test_util_create_udp_socket_in_range_succeeds );
    RUN_TEST( test_util_create_udp_socket_in_range_single_port );
    RUN_TEST( test_util_create_udp_socket_in_range_all_busy );
+
+   // suspicious text byte detection
+   RUN_TEST( test_util_suspicious_text_clean_ascii );
+   RUN_TEST( test_util_suspicious_text_allowed_controls );
+   RUN_TEST( test_util_suspicious_text_cr_nul_allowed );
+   RUN_TEST( test_util_suspicious_text_standalone_nul );
+   RUN_TEST( test_util_suspicious_text_leading_nul );
+   RUN_TEST( test_util_suspicious_text_bell_char );
+   RUN_TEST( test_util_suspicious_text_del_char );
+   RUN_TEST( test_util_suspicious_text_high_byte );
+   RUN_TEST( test_util_suspicious_text_empty_buffer );
 
    // chroot_and_drop
    RUN_TEST( test_chroot_and_drop_non_root_succeeds );

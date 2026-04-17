@@ -343,3 +343,67 @@ void test_util_create_udp_socket_in_range_all_busy(void)
    for ( int i = 0; i < 3; i++ )
       close(blockers[i]);
 }
+
+/*---------------------------------------------------------------------------
+ * suspicious text byte detection
+ *---------------------------------------------------------------------------*/
+
+void test_util_suspicious_text_clean_ascii(void)
+{
+   const uint8_t data[] = "Hello, world!\r\n";
+   TEST_ASSERT_FALSE( tftp_util_has_suspicious_text_bytes(data, sizeof(data) - 1) );
+}
+
+void test_util_suspicious_text_allowed_controls(void)
+{
+   // HT, LF, VT, FF, CR, ESC — all allowed
+   const uint8_t data[] = { 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x1B };
+   TEST_ASSERT_FALSE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_suspicious_text_cr_nul_allowed(void)
+{
+   // CR+NUL is legitimate netascii for bare CR
+   const uint8_t data[] = { 'A', '\r', '\0', 'B' };
+   TEST_ASSERT_FALSE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_suspicious_text_standalone_nul(void)
+{
+   // NUL not preceded by CR is suspicious
+   const uint8_t data[] = { 'A', '\0', 'B' };
+   TEST_ASSERT_TRUE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_suspicious_text_leading_nul(void)
+{
+   // NUL at start of buffer — no preceding CR
+   const uint8_t data[] = { '\0', 'A' };
+   TEST_ASSERT_TRUE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_suspicious_text_bell_char(void)
+{
+   // BEL (0x07) — not in the allowed set
+   const uint8_t data[] = { 'A', 0x07, 'B' };
+   TEST_ASSERT_TRUE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_suspicious_text_del_char(void)
+{
+   // DEL (0x7F) — suspicious
+   const uint8_t data[] = { 'A', 0x7F };
+   TEST_ASSERT_TRUE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_suspicious_text_high_byte(void)
+{
+   // Non-ASCII (0x80+) — suspicious
+   const uint8_t data[] = { 'H', 'i', 0xC0 };
+   TEST_ASSERT_TRUE( tftp_util_has_suspicious_text_bytes(data, sizeof(data)) );
+}
+
+void test_util_suspicious_text_empty_buffer(void)
+{
+   TEST_ASSERT_FALSE( tftp_util_has_suspicious_text_bytes(NULL, 0) );
+}
