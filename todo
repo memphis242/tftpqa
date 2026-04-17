@@ -1,4 +1,7 @@
+- tftptest_fault_mode_lookup() should return the fault mode enum, not an int
 - review every file exhaustively
+- fix analyzer warnings
+- fix lint warnings
 - review high-level architecture
 - review inter-module linkages/dependencies
 - review coding constructs
