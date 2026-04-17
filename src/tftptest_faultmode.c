@@ -11,8 +11,8 @@
 #include "tftptest_faultmode.h"
 #include "tftptest_common.h"
 
-static const char SHORTEST_FAULT_MODE_NAME[] = "NONE";
-static const char LONGEST_FAULT_MODE_NAME[]  = "FAULT_MID_TIMEOUT_NO_FINAL_DATA";
+#define SHORTEST_FAULT_MODE_NAME "NONE"
+#define LONGEST_FAULT_MODE_NAME  "FAULT_MID_TIMEOUT_NO_FINAL_DATA"
 
 const char *const tftptest_fault_mode_names[FAULT_MODE_COUNT] = {
    [FAULT_NONE]                      = "FAULT_NONE",

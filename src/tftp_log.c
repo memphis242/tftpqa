@@ -105,16 +105,15 @@ void tftp_log( enum TFTP_LogLevel level,
    // syslog (if enabled)
    if ( g_syslog_open )
    {
-      char syslog_fmt[1024];
-      const char *use_fmt = fmt;
-      if ( func_name != NULL )
-      {
-         snprintf( syslog_fmt, sizeof(syslog_fmt), "%s(): %s", func_name, fmt );
-         use_fmt = syslog_fmt;
-      }
+      char msg[1024];
       va_start( ap, fmt );
-      vsyslog( s_syslog_priority[level], use_fmt, ap );
+      vsnprintf( msg, sizeof(msg), fmt, ap );
       va_end( ap );
+
+      if ( func_name != NULL )
+         syslog( s_syslog_priority[level], "%s(): %s", func_name, msg );
+      else
+         syslog( s_syslog_priority[level], "%s", msg );
    }
 }
 
