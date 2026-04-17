@@ -43,7 +43,7 @@ make help           # Show Makefile targets
 
 **Compiler features:**
 - GCC + Clang (release and debug builds trigger Clang diagnostic pass)
-- C23 standard (`-std=c23`)
+- C99 standard (`-std=c99`)
 - Comprehensive warning set shared by both compilers, plus compiler-specific extra warnings
 - UBSan + ASan in test builds
 - Coverage instrumentation in test builds
@@ -183,7 +183,7 @@ Performance optimization is deferred until functionality and QA are complete.
 
 ## Code Style & Conventions
 
-- **C Standard**: C23 (`-std=c23`)
+- **C Standard**: C99 (`-std=c99`)
 - **Feature Test Macros**: `_POSIX_C_SOURCE=200809L`, `_GNU_SOURCE`
 - **Assertions**: Per `SOFTWARE-QA-MANIFESTO.md`, assert **only** on code-controlled conditions:
   - ✅ Internal function results, system calls we control, enum bounds
