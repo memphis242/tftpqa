@@ -303,12 +303,16 @@ clang_debug_check: | $(ANALYSIS_DIR)
 
 # ─── Test ─────────────────────────────────────────────────────────────────────
 
+TEST_RESULTS := $(TEST_BUILD_DIR)/results.txt
+COLORIZE     := python3 $(SCRIPTS_DIR)/colorize_unity.py
+
 test: $(TEST_BIN)
 	@echo
 	@echo "----------------------------------------"
 	@echo -e "\033[35mExecuting unit test\033[0m $<..."
 	@echo
-	./$(TEST_BIN)
+	./$(TEST_BIN) 2>&1 | tee $(TEST_RESULTS) | $(COLORIZE); \
+	exit $${PIPESTATUS[0]}
 
 $(TEST_BIN): $(TEST_APP_OBJS) $(TEST_OBJS) $(UNITY_OBJS) | $(TEST_BUILD_DIR)
 	$(CC) $(TEST_LDFLAGS) -o $@ $^ $(LDLIBS)
