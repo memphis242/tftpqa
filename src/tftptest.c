@@ -148,7 +148,7 @@ int main(int argc, char * argv[])
          unsigned long p = strtoul(optarg, NULL, 10);
          if ( p == 0 || p > 65535 )
          {
-            fprintf(stderr, "Invalid port: %s\n", optarg);
+            (void)fprintf(stderr, "%s(): Invalid port: %s\n", __func__, optarg);
             return 1;
          }
          port_override = (uint16_t)p;
@@ -167,7 +167,7 @@ int main(int argc, char * argv[])
          char *colon = strchr(optarg, ':');
          if ( colon == NULL )
          {
-            fprintf(stderr, "Invalid --tid-range: expected MIN:MAX, got '%s'\n", optarg);
+            (void)fprintf(stderr, "%s(): Invalid --tid-range: expected MIN:MAX, got '%s'\n", __func__, optarg);
             return 1;
          }
          *colon = '\0';
@@ -175,7 +175,7 @@ int main(int argc, char * argv[])
          unsigned long tmax = strtoul(colon + 1, NULL, 10);
          if ( tmin == 0 || tmin > 65535 || tmax == 0 || tmax > 65535 || tmin > tmax )
          {
-            fprintf(stderr, "Invalid --tid-range: ports must be 1-65535 with min <= max\n");
+            (void)fprintf(stderr, "%s(): Invalid --tid-range: ports must be 1-65535 with min <= max\n", __func__);
             return 1;
          }
          tid_min_override = (uint16_t)tmin;

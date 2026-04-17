@@ -1,4 +1,5 @@
-- error printouts should include "__func__(): "
+- consider reporting odd ascii ctrl characters in ascii transfers
+- tftp_log : error checking clock_gettime and localtime_r
 - review every file exhaustively
 - fix analyzer warnings
 - fix lint warnings

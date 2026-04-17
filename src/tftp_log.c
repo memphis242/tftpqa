@@ -9,8 +9,11 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#include <assert.h>
 #include <time.h>
+
+#include <assert.h>
+#include <errno.h>
+
 #include <syslog.h>
 
 #include "tftp_log.h"
@@ -44,11 +47,11 @@ static const char *s_level_names[] =
 /**
  * @brief Return the human-readable name for a log level.
  */
-static const char *tftp_log_level_str(enum TFTP_LogLevel level);
+static const char *tftp_log_level_str( enum TFTP_LogLevel level );
 
 /********************** Public Function Implementations ***********************/
 
-void tftp_log_init(bool use_syslog, enum TFTP_LogLevel min_level)
+void tftp_log_init( bool use_syslog, enum TFTP_LogLevel min_level )
 {
    assert( min_level >= 0 && min_level < TFTP_LOG_LEVEL_COUNT );
 
@@ -61,7 +64,9 @@ void tftp_log_init(bool use_syslog, enum TFTP_LogLevel min_level)
    }
 }
 
-void tftp_log(enum TFTP_LogLevel level, const char *fmt, ...)
+void tftp_log_impl( enum TFTP_LogLevel level,
+                    const char *func_name,
+                    const char *fmt, ... )
 {
    assert( fmt != NULL );
    assert( level >= 0 && level < TFTP_LOG_LEVEL_COUNT );
@@ -87,6 +92,9 @@ void tftp_log(enum TFTP_LogLevel level, const char *fmt, ...)
                tm_buf.tm_hour, tm_buf.tm_min, tm_buf.tm_sec,
                ts.tv_nsec / 1000000L );
 
+      if ( func_name != NULL )
+         (void)fprintf( flog, "%s(): ", func_name );
+
       va_start( ap, fmt );
       (void)vfprintf( flog, fmt, ap );
       va_end( ap );
@@ -97,13 +105,20 @@ void tftp_log(enum TFTP_LogLevel level, const char *fmt, ...)
    // syslog (if enabled)
    if ( g_syslog_open )
    {
+      char syslog_fmt[1024];
+      const char *use_fmt = fmt;
+      if ( func_name != NULL )
+      {
+         snprintf( syslog_fmt, sizeof(syslog_fmt), "%s(): %s", func_name, fmt );
+         use_fmt = syslog_fmt;
+      }
       va_start( ap, fmt );
-      vsyslog( s_syslog_priority[level], fmt, ap );
+      vsyslog( s_syslog_priority[level], use_fmt, ap );
       va_end( ap );
    }
 }
 
-void tftp_log_shutdown(void)
+void tftp_log_shutdown( void )
 {
    if ( g_syslog_open )
    {
@@ -112,7 +127,7 @@ void tftp_log_shutdown(void)
    }
 }
 
-static const char *tftp_log_level_str(enum TFTP_LogLevel level)
+static const char *tftp_log_level_str( enum TFTP_LogLevel level )
 {
    assert( level >= 0 && level < TFTP_LOG_LEVEL_COUNT );
    return s_level_names[level];
