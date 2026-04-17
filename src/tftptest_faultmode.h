@@ -15,6 +15,11 @@
 // The parameter is carried separately in TFTPTest_FaultState.
 enum TFTPTest_FaultMode
 {
+   // Error return codes from tftptest_fault_name_lookup_mode()
+   TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND = -3,
+   TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT = -2,
+   TFTPTEST_FAULT_LOOKUP_NAME_TOO_LONG  = -1,
+
    FAULT_NONE = 0,
 
    // Timeout faults -- server stops responding
@@ -88,6 +93,6 @@ extern const char *const tftptest_fault_mode_names[FAULT_MODE_COUNT];
  *         On invalid input, returns -1
  *         On failure to find fault mode, returns -2
  */
-int tftptest_fault_name_lookup_mode(const char *name);
+enum TFTPTest_FaultMode tftptest_fault_name_lookup_mode(const char *name);
 
 #endif // TFTPTEST_FAULTMODE_H

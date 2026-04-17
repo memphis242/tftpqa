@@ -57,7 +57,7 @@ CompileTimeAssert( ARRAY_SZ(tftptest_fault_mode_names) == FAULT_MODE_COUNT,
  * Function Implementations
  * -------------------------------------------------------------------------- */ 
 
-int tftptest_fault_name_lookup_mode(const char *name)
+enum TFTPTest_FaultMode tftptest_fault_name_lookup_mode(const char *name)
 {
    // Since we can internally control what calls this fcn, definitely shouldn't
    // pass in NULL...
@@ -65,10 +65,11 @@ int tftptest_fault_name_lookup_mode(const char *name)
 
    // Quick invalid input checks...
    size_t len = strnlen( name, sizeof LONGEST_FAULT_MODE_NAME );
+
    if ( len >= sizeof(LONGEST_FAULT_MODE_NAME) )
-      return -1;
+      return TFTPTEST_FAULT_LOOKUP_NAME_TOO_LONG;
    else if ( len < (sizeof(SHORTEST_FAULT_MODE_NAME) - 1) )
-      return -2;
+      return TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT;
 
    // Just linear search through - no fancy hashing
    for ( int i = 0; i < FAULT_MODE_COUNT; ++i )
@@ -83,5 +84,5 @@ int tftptest_fault_name_lookup_mode(const char *name)
          return i;
    }
 
-   return -3;
+   return TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND;
 }

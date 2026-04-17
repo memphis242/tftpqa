@@ -107,38 +107,38 @@ void test_fault_lookup_mode_case_insensitive(void)
 
 void test_fault_lookup_mode_nonexistent_returns_negative_one(void)
 {
-   // Nonexistent modes should return -3
+   // Nonexistent modes should return TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND
    int idx = tftptest_fault_name_lookup_mode("NONEXISTENT");
-   TEST_ASSERT_EQUAL_INT( -3, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND, idx );
 
    idx = tftptest_fault_name_lookup_mode("FAULT_INVALID");
-   TEST_ASSERT_EQUAL_INT( -3, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND, idx );
 }
 
 void test_fault_lookup_mode_too_short(void)
 {
-   // Names shorter than the shortest known short-name ("NONE", 4 chars) return -2
+   // Names shorter than the shortest known short-name ("NONE", 4 chars) return TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT
    int idx = tftptest_fault_name_lookup_mode("");
-   TEST_ASSERT_EQUAL_INT( -2, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT, idx );
 
    idx = tftptest_fault_name_lookup_mode("N");
-   TEST_ASSERT_EQUAL_INT( -2, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT, idx );
 
    idx = tftptest_fault_name_lookup_mode("NO");
-   TEST_ASSERT_EQUAL_INT( -2, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT, idx );
 
    idx = tftptest_fault_name_lookup_mode("NON");
-   TEST_ASSERT_EQUAL_INT( -2, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT, idx );
 }
 
 void test_fault_lookup_mode_too_long(void)
 {
-   // Names longer than the longest known fault name return -1
+   // Names longer than the longest known fault name return TFTPTEST_FAULT_LOOKUP_NAME_TOO_LONG
    char long_name[ sizeof(LONGEST_FAULT_MODE_NAME) + 1 ] = {0};
    memset( long_name, 'a', sizeof(long_name) - 1 );
 
    int idx = tftptest_fault_name_lookup_mode(long_name);
-   TEST_ASSERT_EQUAL_INT( -1, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_TOO_LONG, idx );
 }
 
 void test_fault_lookup_mode_fault_none(void)
@@ -175,17 +175,17 @@ void test_fault_lookup_mode_last_mode_short(void)
 
 void test_fault_lookup_mode_partial_match_fails(void)
 {
-   // Partial matches with valid length but no match return -3
+   // Partial matches with valid length but no match return TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND
    int idx = tftptest_fault_name_lookup_mode("FAULT_RRQ");
-   TEST_ASSERT_EQUAL_INT( -3, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND, idx );
 
-   // "RRQ" is 3 chars — too short (< 4), returns -2
+   // "RRQ" is 3 chars — too short (< 4), returns TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT
    idx = tftptest_fault_name_lookup_mode("RRQ");
-   TEST_ASSERT_EQUAL_INT( -2, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT, idx );
 
-   // "TIMEOUT" is 7 chars — valid length, no match → -3
+   // "TIMEOUT" is 7 chars — valid length, no match → TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND
    idx = tftptest_fault_name_lookup_mode("TIMEOUT");
-   TEST_ASSERT_EQUAL_INT( -3, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND, idx );
 }
 
 void test_fault_lookup_mode_middle_modes_full_names(void)
@@ -231,32 +231,32 @@ void test_fault_lookup_mode_alphabetically_before_modes(void)
 {
    // Test with names alphabetically before all fault modes to exercise
    // strcasecmp returning negative values
-   // "AAAA" and "FAULT_" are valid length but no match → -3
+   // "AAAA" and "FAULT_" are valid length but no match → TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND
    int idx = tftptest_fault_name_lookup_mode("AAAA");
-   TEST_ASSERT_EQUAL_INT( -3, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND, idx );
 
    idx = tftptest_fault_name_lookup_mode("FAULT_");
-   TEST_ASSERT_EQUAL_INT( -3, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND, idx );
 
-   // "A" is 1 char — too short → -2
+   // "A" is 1 char — too short → TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT
    idx = tftptest_fault_name_lookup_mode("A");
-   TEST_ASSERT_EQUAL_INT( -2, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT, idx );
 }
 
 void test_fault_lookup_mode_alphabetically_after_modes(void)
 {
    // Test with names alphabetically after all fault modes to exercise
    // strcasecmp returning positive values
-   // "ZZZZ" and "fault_z" are valid length but no match → -3
+   // "ZZZZ" and "fault_z" are valid length but no match → TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND
    int idx = tftptest_fault_name_lookup_mode("ZZZZ");
-   TEST_ASSERT_EQUAL_INT( -3, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND, idx );
 
-   // "zzz" is 3 chars — too short → -2
+   // "zzz" is 3 chars — too short → TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT
    idx = tftptest_fault_name_lookup_mode("zzz");
-   TEST_ASSERT_EQUAL_INT( -2, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT, idx );
 
    idx = tftptest_fault_name_lookup_mode("fault_z");
-   TEST_ASSERT_EQUAL_INT( -3, idx );
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND, idx );
 }
 
 void test_fault_lookup_mode_multiple_sequential_searches(void)

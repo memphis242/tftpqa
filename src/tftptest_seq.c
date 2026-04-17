@@ -10,6 +10,8 @@
 #include <string.h>
 #include <strings.h>
 #include <ctype.h>
+
+#include <assert.h>
 #include <errno.h>
 
 #include "tftptest_seq.h"
@@ -41,21 +43,38 @@ static int count_entries(FILE *fp)
 }
 
 /// Parse a single key=value token. Returns 0 on success.
-static int parse_token(const char *token, size_t lineno,
-                       enum TFTPTest_FaultMode *mode, bool *mode_set,
-                       uint32_t *param, bool *param_set,
-                       size_t *count, bool *count_set)
+static int parse_token( const char *token,
+                        size_t lineno,
+                        enum TFTPTest_FaultMode *mode,
+                        bool *mode_set,
+                        uint32_t *param,
+                        bool *param_set,
+                        size_t *count,
+                        bool *count_set )
 {
+   assert(token != NULL);
+   assert(mode != NULL);
+   assert(mode_set != NULL);
+   assert(param != NULL);
+   assert(param_set != NULL);
+   assert(count != NULL);
+   assert(count_set != NULL);
+
    if ( strncasecmp(token, "mode=", 5) == 0 )
    {
       const char *val = token + 5;
-      int idx = tftptest_fault_name_lookup_mode(val);
-      if ( idx < 0 )
+      enum TFTPTest_FaultMode mode_idx = tftptest_fault_name_lookup_mode(val);
+
+      if ( (int)mode_idx < 0 )
       {
-         tftp_log(TFTP_LOG_ERR, "Sequence line %zu: unknown fault mode '%s'", lineno, val);
+         tftp_log( TFTP_LOG_ERR,
+            "Sequence line %zu: unknown fault mode '%s' :: tftptest_fault_name_lookup_mode(): %d",
+            lineno, val, (int)mode_idx );
+
          return -1;
       }
-      *mode = (enum TFTPTest_FaultMode)idx;
+
+      *mode = mode_idx;
       *mode_set = true;
    }
    else if ( strncasecmp(token, "param=", 6) == 0 )

@@ -11,13 +11,15 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
+
+#include <assert.h>
 #include <errno.h>
+
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#include <assert.h>
 
 #include "tftptest_ctrl.h"
 #include "tftp_log.h"
@@ -101,24 +103,26 @@ void tftptest_ctrl_poll(int ctrl_sfd, struct TFTPTest_FaultState *fault,
          return;
       }
 
-      int mode_idx = tftptest_fault_name_lookup_mode(mode_name);
-      if ( mode_idx < 0 )
+      enum TFTPTest_FaultMode mode_idx = tftptest_fault_name_lookup_mode(mode_name);
+      if ( (int)mode_idx < 0 )
       {
-         reply_len = snprintf(reply, sizeof reply, "ERR unknown mode '%s'\n", mode_name);
+         reply_len = snprintf( reply, sizeof reply,
+                        "ERR unknown mode '%s' : tftptest_fault_name_lookup_mode() returned %d\n",
+                        mode_name, (int)mode_idx );
          send_reply(ctrl_sfd, &sender, reply, (size_t)reply_len);
          return;
       }
 
       // Check whitelist (if non-zero, bit must be set)
-      if ( whitelist != 0 && mode_idx > 0 &&
-           !(whitelist & ((uint64_t)1 << (unsigned)(mode_idx - 1))) )
+      if ( whitelist != 0 && (int)mode_idx > FAULT_NONE &&
+           !(whitelist & ((uint64_t)1 << (unsigned)((int)mode_idx - 1))) )
       {
          reply_len = snprintf(reply, sizeof reply, "ERR mode '%s' not allowed\n", mode_name);
          send_reply(ctrl_sfd, &sender, reply, (size_t)reply_len);
          return;
       }
 
-      fault->mode = (enum TFTPTest_FaultMode)mode_idx;
+      fault->mode = mode_idx;
       fault->param = param;
 
       tftp_log(TFTP_LOG_INFO, "Control: fault mode set to %s (param=%u)",
