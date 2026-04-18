@@ -438,7 +438,7 @@ int main(int argc, char * argv[])
       uint16_t opcode = (uint16_t)(((uint16_t)buf[0] << 8) | buf[1]);
       bool is_wrq = (opcode == TFTP_OP_WRQ);
 
-      // WRQ pre-KickOff rejection checks
+      // WRQ pre-kickoff rejection checks
       if ( is_wrq )
       {
          // Blocked attacker IP?
@@ -504,7 +504,7 @@ int main(int argc, char * argv[])
                                                     is_wrq ? budget : 0,
                                                     is_wrq ? &bytes_written : NULL);
 
-      // WRQ post-KickOff accounting
+      // WRQ post-kickoff accounting
       if ( is_wrq )
       {
          session_wrq_bytes      += bytes_written;
