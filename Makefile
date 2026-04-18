@@ -143,10 +143,13 @@ DBG_BIN      := $(DBG_DIR)/$(PROJECT)
 
 # --- Test ---
 TEST_BUILD_DIR  := $(BUILD_DIR)/test
-# Sanitizers appropriate for a network server: UBSan, ASan, LSan (bundled w/ ASan on Linux)
-# Also add -fstack-protector-strong for extra runtime hardening.
-# FIXME: Should you or should you not -fno-sanitize-recover=all
-TEST_SANITIZERS := -fsanitize=undefined,address -fno-sanitize-recover=all
+#	 This flag allows the executable to continue after the sanitizer has discovered
+#	 an error, and the executable (likely the unit test executable) may even
+#	 return a zero exit status afterwards. This just means that if we want to
+#	 properly detect this in a pipeline, we'd want to separately scan the results
+#	 of the sanitizers and produce an independent exit status based on that,
+#	 for the job overall.
+TEST_SANITIZERS := -fsanitize=undefined,address,leak -fstack-protector-strong -fsanitize-recover=all
 TEST_CFLAGS     := $(C_STD) -Og -g3 $(COMMON_DEFS) $(COMMON_WARNS) $(GCC_EXTRA_WARNS) $(COMMON_INC) \
                    -I$(UNITY_SRC) \
                    $(TEST_SANITIZERS) \
@@ -316,6 +319,9 @@ clang_debug_check: | $(ANALYSIS_DIR)
 TEST_RESULTS := $(TEST_BUILD_DIR)/results.txt
 COLORIZE     := python3 $(SCRIPTS_DIR)/colorize_unity.py
 
+# Note: ${PIPESTATUS[0]} returns the exit status code of the test binary, so that
+#	this target's overall exit status is that of the test, not tee or the
+#	colorize script.
 test: $(TEST_BIN)
 	@echo
 	@echo "----------------------------------------"
