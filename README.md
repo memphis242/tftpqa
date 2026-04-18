@@ -196,3 +196,8 @@ When a file is transferred in **netascii mode**, the server performs a diagnosti
 This single-per-transfer warning helps identify cases where a file claimed to be text (netascii) is actually binary, which can cause corruption or unexpected behavior.
 
 For details on what bytes are allowed, why certain control characters are rejected, and how to handle legacy files, see **[docs/NETASCII-DIAGNOSTICS.md](docs/NETASCII-DIAGNOSTICS.md)**.
+
+## Future Plans
+
+- Release `1.0.0` will be a feature-complete, single-threaded, single-client TFTP test server that may behave nominally or in a fault mode as the user desires.
+- Release `1.1.0` will be a multi-client upgrade to this test server.
