@@ -87,11 +87,12 @@ struct TFTPTest_FaultState
 extern const char *const tftptest_fault_mode_names[FAULT_MODE_COUNT];
 
 /**
- * @brief Return the fault mode enum value (as an int: FIXME: should be enum)
+ * @brief Return the fault mode enum value
  * @param[in] name  the string the lookup in the fault mode map
  * @return On success, returns the fault mode enum value
- *         On invalid input, returns -1
- *         On failure to find fault mode, returns -2
+ *         On invalid name (too short), TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT
+ *         On invalid name (too long), TFTPTEST_FAULT_LOOKUP_NAME_TOO_LONG
+ *         On failure to find match for name, TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND
  */
 enum TFTPTest_FaultMode tftptest_fault_name_lookup_mode(const char *name);
 
