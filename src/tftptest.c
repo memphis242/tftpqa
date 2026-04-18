@@ -379,6 +379,14 @@ int main(int argc, char * argv[])
       }
       else if ( nbytes < 0 )
       {
+         if ( errno == EINTR || bUserEndedSession )
+         {
+            tftp_log( TFTP_LOG_INFO, __func__,
+                      "recvfrom() interrupted (user / parent process SIGINT'd): %s (%d) : %s",
+                      strerrorname_np(errno), errno, strerror(errno) );
+            break;
+         }
+
          tftp_log( TFTP_LOG_ERR, __func__, "recvfrom() failed: %s (%d) : %s",
                    strerrorname_np(errno), errno, strerror(errno) );
          continue;
