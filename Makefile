@@ -221,7 +221,7 @@ CPPCHECK_FLAGS := \
 #                                 TARGETS
 ################################################################################
 
-.PHONY: all release debug test coverage analyze spell clean help fuzz
+.PHONY: all release debug test buildtest coverage analyze spell clean help fuzz
 
 # Default target
 all: debug
@@ -313,6 +313,12 @@ test: $(TEST_BIN)
 	@echo
 	./$(TEST_BIN) 2>&1 | tee $(TEST_RESULTS) | $(COLORIZE); \
 	exit $${PIPESTATUS[0]}
+
+buildtest: $(TEST_BIN)
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "Test Executable \033[35m$< \033[32;1mbuilt\033[0m!"
+	@echo "----------------------------------------"
 
 $(TEST_BIN): $(TEST_APP_OBJS) $(TEST_OBJS) $(UNITY_OBJS) | $(TEST_BUILD_DIR)
 	$(CC) $(TEST_LDFLAGS) -o $@ $^ $(LDLIBS)
@@ -433,6 +439,7 @@ help:
 	@echo "  make debug        Build with -Og -g3, no -Werror"
 	@echo "  make release      Build with -O2, -Werror"
 	@echo "  make test         Build & run Unity unit tests"
+	@echo "  make buildtest    Build unit test executable (do not run)"
 	@echo "  make coverage     Run tests + generate HTML coverage report"
 	@echo "  make analyze      Run GCC -fanalyzer, Clang --analyze, clang-tidy & cppcheck"
 	@echo "  make spell        Spell-check source, docs, and scripts (advisory)"
