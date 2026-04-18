@@ -234,7 +234,7 @@ CPPCHECK_FLAGS := \
 #                                 TARGETS
 ################################################################################
 
-.PHONY: all release debug test buildtest testintegration testnominal profilemem coverage analyze spell clean help fuzz
+.PHONY: all release debug test buildtest testintegration testnominal profilemem binstats coverage analyze spell clean help fuzz
 
 # Default target
 all: debug
@@ -432,6 +432,65 @@ profilemem: $(DBG_BIN) | $(MEMCHECK_DIR)
 	@echo "  $(MEMCHECK_DIR)/massif.txt    (heap profile, human-readable)"
 	@echo "  $(MEMCHECK_DIR)/massif.out    (raw massif data)"
 
+# ─── Binary Stats ─────────────────────────────────────────────────────────────
+
+binstats: $(REL_BIN)
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[35mbinstats:\033[0m $(REL_BIN)"
+	@echo
+	@echo "--- File size & sections ---"
+	@ls -lh $(REL_BIN) | awk '{print "  Total on disk:  " $$5 "  (" $$9 ")"}'
+	@size $(REL_BIN)
+	@echo
+	@echo "--- Security hardening ---"
+	@if nm $(REL_BIN) 2>/dev/null | grep -q "__stack_chk_fail"; then \
+		echo "  Stack canary:     ENABLED  (-fstack-protector-strong)"; \
+	else \
+		echo "  Stack canary:     disabled"; \
+	fi
+	@readelf -l $(REL_BIN) | awk '/GNU_STACK/ { \
+		if (index($$0,"RWE")) print "  NX (no-exec):     DISABLED"; \
+		else print "  NX (no-exec):     ENABLED"; \
+	}'
+	@if readelf -l $(REL_BIN) | grep -q GNU_RELRO; then \
+		if readelf -d $(REL_BIN) | grep -q BIND_NOW; then \
+			echo "  RELRO:            FULL"; \
+		else \
+			echo "  RELRO:            PARTIAL"; \
+		fi; \
+	else \
+		echo "  RELRO:            none"; \
+	fi
+	@readelf -h $(REL_BIN) | awk '/^  Type:/ { \
+		if ($$2 == "DYN") print "  PIE:              ENABLED"; \
+		else print "  PIE:              disabled (ET_EXEC — no -fPIE)"; \
+	}'
+	@if nm $(REL_BIN) 2>/dev/null | grep -qE " [TW] .*_chk$$"; then \
+		echo "  FORTIFY_SOURCE:   some functions fortified"; \
+	else \
+		echo "  FORTIFY_SOURCE:   not detected"; \
+	fi
+	@echo
+	@echo "--- Build ID ---"
+	@readelf -n $(REL_BIN) 2>/dev/null | awk '/Build ID:/ {print "  " $$0}' || echo "  (none)"
+	@echo
+	@echo "--- Dynamic library dependencies ---"
+	@ldd $(REL_BIN) | sed 's/^/  /'
+	@echo
+	@echo "--- Static library linkage ---"
+	@sym_list=$$(nm --defined-only -g $(REL_BIN) 2>/dev/null \
+		| awk '$$2 == "T" {print $$3}' \
+		| grep -Ev '^(main|tftp_|tftptest_|_)' | sort); \
+	if [ -z "$$sym_list" ]; then \
+		echo "  none detected"; \
+	else \
+		echo "$$sym_list" | sed 's/^/  /'; \
+	fi
+	@echo
+	@echo "----------------------------------------"
+	@echo "binstats complete."
+
 # ─── Coverage ─────────────────────────────────────────────────────────────────
 
 coverage: test | $(COV_DIR)
@@ -542,6 +601,7 @@ help:
 	@echo "  make profilemem       Run Valgrind memcheck + massif on nominal integration tests"
 	@echo "                          SKIP_LARGE=1    skip 33-64 MB transfers (much faster)"
 	@echo "                          VALGRIND_TIMEOUT=N  socket timeout per call (default 120s)"
+	@echo "  make binstats         Show release binary stats: size, sections, security, deps"
 	@echo "  make coverage         Run tests + generate HTML coverage report"
 	@echo "  make analyze          Run GCC -fanalyzer, Clang --analyze, clang-tidy & cppcheck"
 	@echo "  make spell            Spell-check source, docs, and scripts (advisory)"
