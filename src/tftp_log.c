@@ -22,8 +22,9 @@
 
 /***************************** Local Declarations *****************************/
 
-static bool               g_syslog_open = false;
-static enum TFTP_LogLevel g_min_level   = TFTP_LOG_INFO;
+// NOTE: Not thread-safe but there should only be one tftp_log_init() and tftp_log_shutdown() call
+static bool               s_syslog_open = false;
+static enum TFTP_LogLevel s_min_level   = TFTP_LOG_INFO;
 
 // Map our log levels to syslog priorities
 static const int s_syslog_priority[] =
@@ -35,6 +36,8 @@ static const int s_syslog_priority[] =
    [TFTP_LOG_ERR]   = LOG_ERR,
    [TFTP_LOG_FATAL] = LOG_CRIT,
 };
+CompileTimeAssert( ARRAY_LEN(s_syslog_priority) >= TFTP_LOG_LEVEL_COUNT,
+                   s_syslog_priority_too_small );
 
 static const char *s_level_names[] =
 {
@@ -45,6 +48,8 @@ static const char *s_level_names[] =
    [TFTP_LOG_ERR]   = "ERROR",
    [TFTP_LOG_FATAL] = "FATAL",
 };
+CompileTimeAssert( ARRAY_LEN(s_level_names) >= TFTP_LOG_LEVEL_COUNT,
+                   s_level_names_too_small );
 
 /**
  * @brief Return the human-readable name for a log level.
@@ -57,29 +62,31 @@ void tftp_log_init( bool use_syslog, enum TFTP_LogLevel min_level )
 {
    assert( min_level >= 0 && min_level < TFTP_LOG_LEVEL_COUNT );
 
-   g_min_level = min_level;
+   s_min_level = min_level;
 
    if ( use_syslog )
    {
       openlog( "tftptest", LOG_PID | LOG_NDELAY, LOG_DAEMON );
-      g_syslog_open = true;
+      s_syslog_open = true;
    }
 }
 
 void tftp_log( enum TFTP_LogLevel level,
-               const char *func_name,
-               const char *fmt, ... )
+               const char * const func_name,
+               const char * const fmt, ... )
 {
    assert( fmt != NULL );
    assert( level >= 0 && level < TFTP_LOG_LEVEL_COUNT );
 
-   if ( level < g_min_level )
+   if ( level < s_min_level )
       return;
 
    va_list ap;
 
    // Print out to console: prefix with timestamp and level
    {
+      bool time_is_valid = true;
+
       struct timespec ts;
       int sysrc = clock_gettime( CLOCK_REALTIME, &ts );
       if ( sysrc != 0 )
@@ -87,10 +94,10 @@ void tftp_log( enum TFTP_LogLevel level,
          assert( errno != EFAULT ); // &tp should be a valid address
          assert( errno != EINVAL ); // we should have called a valid clock
          (void)fprintf( stderr,
-                  "%s() :: Unable to properly log :: clock_gettime() returned %d :: errno: %s (%d) : %s\n\n",
+                  "%s() :: Unable to properly log to console :: clock_gettime() returned %d :: errno: %s (%d) : %s\n\n",
                   __func__, sysrc, strerrorname_np(errno), errno, strerror(errno) );
 
-         return;
+         time_is_valid = false;
       }
 
       struct tm tm_buf;
@@ -98,20 +105,27 @@ void tftp_log( enum TFTP_LogLevel level,
       if ( ptr_trc == NULL )
       {
          (void)fprintf( stderr,
-                  "%s() :: Unable to properly log :: localtime_r() returned %d :: errno: %s (%d) : %s\n\n",
-                  __func__, sysrc, strerrorname_np(errno), errno, strerror(errno) );
+                  "%s() :: Unable to properly log to console :: localtime_r() returned %p :: errno: %s (%d) : %s\n\n",
+                  __func__, (void *)ptr_trc, strerrorname_np(errno), errno, strerror(errno) );
 
-         return;
+         time_is_valid = false;
       }
 
-      FILE *flog = level > TFTP_LOG_WARN ? stderr : stdout;
+      FILE *flog = level >= TFTP_LOG_WARN ? stderr : stdout;
 
-      (void)fprintf( flog,
-               "[%-5s] %04d-%02d-%02d %02d:%02d:%02d.%03ld ",
-               tftp_log_level_str(level),
-               tm_buf.tm_year + 1900, tm_buf.tm_mon + 1, tm_buf.tm_mday,
-               tm_buf.tm_hour, tm_buf.tm_min, tm_buf.tm_sec,
-               ts.tv_nsec / 1000000L );
+      if ( time_is_valid )
+      {
+         (void)fprintf( flog,
+                  "[%-5s] %04d-%02d-%02d %02d:%02d:%02d.%03ld ",
+                  tftp_log_level_str(level),
+                  tm_buf.tm_year + 1900, tm_buf.tm_mon + 1, tm_buf.tm_mday,
+                  tm_buf.tm_hour, tm_buf.tm_min, tm_buf.tm_sec,
+                  ts.tv_nsec / 1000000L );
+      }
+      else
+      {
+         (void)fprintf( flog, "[%-5s] (TIME UNAVAILABLE) ", tftp_log_level_str(level) );
+      }
 
       if ( func_name != NULL )
          (void)fprintf( flog, "%s(): ", func_name );
@@ -120,13 +134,13 @@ void tftp_log( enum TFTP_LogLevel level,
       (void)vfprintf( flog, fmt, ap );
       va_end( ap );
 
-      fputc( '\n', flog );
+      (void)fputc( '\n', flog );
    }
 
    // syslog (if enabled)
-   if ( g_syslog_open )
+   if ( s_syslog_open )
    {
-      char msg[1024];
+      char msg[2048]; // 2K is broadly speaking a reasonable upper limit on msg sz
       va_start( ap, fmt );
       (void)vsnprintf( msg, sizeof(msg), fmt, ap );
       va_end( ap );
@@ -140,10 +154,10 @@ void tftp_log( enum TFTP_LogLevel level,
 
 void tftp_log_shutdown( void )
 {
-   if ( g_syslog_open )
+   if ( s_syslog_open )
    {
       closelog();
-      g_syslog_open = false;
+      s_syslog_open = false;
    }
 }
 
