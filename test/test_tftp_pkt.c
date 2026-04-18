@@ -317,7 +317,7 @@ void test_pkt_parse_data_rejects_wrong_opcode(void)
 
 void test_pkt_build_error_returns_zero_when_buffer_too_small(void)
 {
-   // BuildError returns 0 when message doesnt fit in buffer
+   // BuildError returns 0 when message doesn't fit in buffer
    uint8_t pkt[8]; // too small for header + message + NUL
    size_t n = tftp_pkt_build_error(pkt, sizeof pkt, 0, "This message is way too long to fit");
    TEST_ASSERT_EQUAL( 0, n );

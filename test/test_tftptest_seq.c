@@ -340,7 +340,7 @@ void test_seq_advance_increments_sessions_in_step(void)
    };
    struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
 
-   // First session: increments but doesnt transition
+   // First session: increments but doesn't transition
    bool keep_going = tftptest_seq_advance(&seq, &fault);
    TEST_ASSERT_TRUE( keep_going );
    TEST_ASSERT_EQUAL_INT( 1, seq.sessions_in_step );

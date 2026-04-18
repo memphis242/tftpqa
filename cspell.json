@@ -119,7 +119,12 @@
     "homoglyphs",
     "WASC",
     "ctrlport",
-    "unparseable"
+    "unparseable",
+    "emsg",
+    "badfmt",
+    "_doesnt_",
+    "dummyfd",
+    "ifdef"
   ],
   "ignorePaths": [
     "test/Unity/**",

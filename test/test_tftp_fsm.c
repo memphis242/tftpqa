@@ -316,7 +316,7 @@ void test_fsm_kickoff_wrq_disk_check_fails_returns_disk_check(void)
 void test_fsm_kickoff_wrq_file_creation_fails_returns_file_err(void)
 {
    uint8_t buf[512];
-   // Use a filename in a directory that (hopefully) doesnt exist or we can't write to
+   // Use a filename in a directory that (hopefully) doesn't exist or we can't write to
    size_t rqsz = build_wrq_octet(buf, sizeof buf, "/dev/null/cannot_create_file_here");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
    struct TFTPTest_Config cfg = make_test_config();
