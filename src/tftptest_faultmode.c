@@ -50,7 +50,7 @@ const char *const tftptest_fault_mode_names[FAULT_MODE_COUNT] = {
    [FAULT_TRUNCATED_PKT]             = "FAULT_TRUNCATED_PKT",
    [FAULT_BURST_DATA]                = "FAULT_BURST_DATA",
 };
-CompileTimeAssert( ARRAY_SZ(tftptest_fault_mode_names) == FAULT_MODE_COUNT,
+CompileTimeAssert( ARRAY_LEN(tftptest_fault_mode_names) == FAULT_MODE_COUNT,
                    tftptest_fault_mode_names_size_check );
 
 /* -----------------------------------------------------------------------------

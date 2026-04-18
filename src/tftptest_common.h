@@ -46,4 +46,4 @@
 /*
  * Compile-time array length
  */
-#define ARRAY_SZ(arr) (sizeof(arr) / sizeof(arr[0]))
+#define ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))

@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
 #include <time.h>
 
 #include <assert.h>
@@ -16,6 +17,7 @@
 
 #include <syslog.h>
 
+#include "tftptest_common.h"
 #include "tftp_log.h"
 
 /***************************** Local Declarations *****************************/
@@ -79,9 +81,28 @@ void tftp_log( enum TFTP_LogLevel level,
    // Print out to console: prefix with timestamp and level
    {
       struct timespec ts;
-      (void)clock_gettime( CLOCK_REALTIME, &ts );
+      int sysrc = clock_gettime( CLOCK_REALTIME, &ts );
+      if ( sysrc != 0 )
+      {
+         assert( errno != EFAULT ); // &tp should be a valid address
+         assert( errno != EINVAL ); // we should have called a valid clock
+         (void)fprintf( stderr,
+                  "%s() :: Unable to properly log :: clock_gettime() returned %d :: errno: %s (%d) : %s\n\n",
+                  __func__, sysrc, strerrorname_np(errno), errno, strerror(errno) );
+
+         return;
+      }
+
       struct tm tm_buf;
-      (void)localtime_r( &ts.tv_sec, &tm_buf );
+      struct tm * ptr_trc = localtime_r( &ts.tv_sec, &tm_buf );
+      if ( ptr_trc == NULL )
+      {
+         (void)fprintf( stderr,
+                  "%s() :: Unable to properly log :: localtime_r() returned %d :: errno: %s (%d) : %s\n\n",
+                  __func__, sysrc, strerrorname_np(errno), errno, strerror(errno) );
+
+         return;
+      }
 
       FILE *flog = level > TFTP_LOG_WARN ? stderr : stdout;
 
@@ -107,7 +128,7 @@ void tftp_log( enum TFTP_LogLevel level,
    {
       char msg[1024];
       va_start( ap, fmt );
-      vsnprintf( msg, sizeof(msg), fmt, ap );
+      (void)vsnprintf( msg, sizeof(msg), fmt, ap );
       va_end( ap );
 
       if ( func_name != NULL )
@@ -129,5 +150,6 @@ void tftp_log_shutdown( void )
 static const char *tftp_log_level_str( enum TFTP_LogLevel level )
 {
    assert( level >= 0 && level < TFTP_LOG_LEVEL_COUNT );
+   assert( ARRAY_LEN(s_level_names) >= TFTP_LOG_LEVEL_COUNT );
    return s_level_names[level];
 }
