@@ -34,6 +34,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import shlex
 import signal
 import socket
 import struct
@@ -284,16 +285,24 @@ def _check_new_file_mode(path: Path) -> None:
 class TFTPTestServer:
     """Manages the tftptest server process lifecycle."""
 
-    def __init__(self, binary: str, port: int, root_dir: str, verbosity: int = 0):
+    def __init__(self, binary: str, port: int, root_dir: str,
+                 verbosity: int = 0,
+                 prefix_args: list[str] | None = None,
+                 stop_timeout: int = 3):
         self.binary = binary
         self.port = port
         self.root_dir = root_dir
         self.verbosity = verbosity
+        self.prefix_args = prefix_args or []
+        self.stop_timeout = stop_timeout
         self.proc: subprocess.Popen | None = None
 
     def start(self) -> None:
-        cmd = [
-            self.binary,
+        # Resolve to absolute so the path survives cwd=tmpdir (e.g. when prefix_args
+        # contains a profiler that inherits cwd before exec-ing the binary).
+        binary = os.path.abspath(self.binary)
+        cmd = self.prefix_args + [
+            binary,
             "-p", str(self.port),
             *(["-v"] * self.verbosity),
         ]
@@ -318,11 +327,11 @@ class TFTPTestServer:
             return ("", "")
         self.proc.send_signal(signal.SIGINT)
         try:
-            stdout, stderr = self.proc.communicate(timeout=3)
+            stdout, stderr = self.proc.communicate(timeout=self.stop_timeout)
         except subprocess.TimeoutExpired:
             self.proc.kill()
             try:
-                stdout, stderr = self.proc.communicate(timeout=3)
+                stdout, stderr = self.proc.communicate(timeout=self.stop_timeout)
             except subprocess.TimeoutExpired:
                 return ("", "(server did not exit)")
         return (stdout.decode(errors="replace"), stderr.decode(errors="replace"))
@@ -552,16 +561,29 @@ def main():
     parser.add_argument("--server-bin", type=str, default=None, help="Path to tftptest binary")
     parser.add_argument("--skip-large", action="store_true",
                         help="Skip the large/extralarge tests (they create ~64 MB files)")
+    parser.add_argument("--server-prefix", type=str, default="",
+                        help="Whitespace-separated tokens to prepend to the server command "
+                             "(e.g. 'valgrind --tool=memcheck ...')")
+    parser.add_argument("--timeout", type=int, default=10,
+                        help="TFTP client socket timeout in seconds (default 10)")
+    parser.add_argument("--stop-timeout", type=int, default=3,
+                        help="Server shutdown grace period in seconds before SIGKILL (default 3)")
     args = parser.parse_args()
+
+    global TIMEOUT_SEC
+    TIMEOUT_SEC = args.timeout
 
     binary = args.server_bin or find_server_binary()
     host = "127.0.0.1"
     port = args.port
+    prefix_args = shlex.split(args.server_prefix) if args.server_prefix else []
 
     print(f"Server binary: {binary}")
     print(f"TFTP port:     {port}")
     print(f"Effective new_file_mode: 0o{EFFECTIVE_NEW_FILE_MODE:04o} "
           f"(0o{SERVER_NEW_FILE_MODE:04o} & ~umask 0o{_SAVED_UMASK:04o})")
+    if prefix_args:
+        print(f"Server prefix: {prefix_args}")
     print()
 
     with tempfile.TemporaryDirectory(prefix="tftptest_") as tmpdir:
@@ -569,7 +591,9 @@ def main():
         print(f"Test root dir: {root}")
         print()
 
-        with TFTPTestServer(binary, port, tmpdir) as server:
+        with TFTPTestServer(binary, port, tmpdir,
+                            prefix_args=prefix_args,
+                            stop_timeout=args.stop_timeout) as server:
             results = []
 
             print("=== RRQ (Read) Tests ===")

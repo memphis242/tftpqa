@@ -25,6 +25,13 @@ TEST_DIR         := test
 INTEGRATION_DIR  := test/integration
 SCRIPTS_DIR      := scripts
 BUILD_DIR        := build
+MEMCHECK_DIR     := build/memcheck
+
+# Valgrind / profilemem knobs (overridable on the command line)
+SKIP_LARGE       ?= 0
+VALGRIND_TIMEOUT ?= 120
+# Expands to --skip-large when SKIP_LARGE=1, empty otherwise
+_PROFMEM_SKIP_FLAG = $(if $(filter 1,$(SKIP_LARGE)),--skip-large,)
 
 # Unity (cloned as a git submodule under test/)
 UNITY_DIR    := $(TEST_DIR)/Unity
@@ -224,7 +231,7 @@ CPPCHECK_FLAGS := \
 #                                 TARGETS
 ################################################################################
 
-.PHONY: all release debug test buildtest testintegration testnominal coverage analyze spell clean help fuzz
+.PHONY: all release debug test buildtest testintegration testnominal profilemem coverage analyze spell clean help fuzz
 
 # Default target
 all: debug
@@ -369,6 +376,56 @@ testintegration: $(DBG_BIN)
 		echo "--- All integration tests passed ---"; \
 	fi
 
+# ─── Memory Profile ───────────────────────────────────────────────────────────
+
+$(MEMCHECK_DIR):
+	@mkdir -p $@
+
+profilemem: $(DBG_BIN) | $(MEMCHECK_DIR)
+	@if ! command -v valgrind >/dev/null 2>&1; then \
+		echo "ERROR: valgrind not found. Install with: sudo dnf install valgrind"; \
+		exit 1; \
+	fi
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[35mprofilemem: Valgrind memcheck\033[0m..."
+	@echo
+	python3 $(INTEGRATION_DIR)/test_nominal.py \
+		--server-bin $(DBG_BIN) \
+		--server-prefix "valgrind --tool=memcheck --leak-check=full \
+			--show-leak-kinds=all --track-origins=yes \
+			--log-file=$(abspath $(MEMCHECK_DIR))/memcheck.txt" \
+		--timeout $(VALGRIND_TIMEOUT) \
+		--stop-timeout 30 \
+		$(_PROFMEM_SKIP_FLAG)
+	@echo
+	@if grep -qE "ERROR SUMMARY: [1-9]" "$(MEMCHECK_DIR)/memcheck.txt"; then \
+		echo "ERROR: Valgrind memcheck found memory errors:"; \
+		grep "ERROR SUMMARY" "$(MEMCHECK_DIR)/memcheck.txt"; \
+		exit 1; \
+	else \
+		grep "ERROR SUMMARY" "$(MEMCHECK_DIR)/memcheck.txt" || true; \
+		echo "--- Valgrind memcheck: clean ---"; \
+	fi
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[35mprofilemem: Valgrind massif\033[0m..."
+	@echo
+	python3 $(INTEGRATION_DIR)/test_nominal.py \
+		--server-bin $(DBG_BIN) \
+		--server-prefix "valgrind --tool=massif \
+			--massif-out-file=$(abspath $(MEMCHECK_DIR))/massif.out" \
+		--timeout $(VALGRIND_TIMEOUT) \
+		--stop-timeout 30 \
+		$(_PROFMEM_SKIP_FLAG)
+	ms_print "$(MEMCHECK_DIR)/massif.out" > "$(MEMCHECK_DIR)/massif.txt"
+	@echo
+	@echo "----------------------------------------"
+	@echo "profilemem complete. Reports:"
+	@echo "  $(MEMCHECK_DIR)/memcheck.txt  (Valgrind memcheck)"
+	@echo "  $(MEMCHECK_DIR)/massif.txt    (heap profile, human-readable)"
+	@echo "  $(MEMCHECK_DIR)/massif.out    (raw massif data)"
+
 # ─── Coverage ─────────────────────────────────────────────────────────────────
 
 coverage: test | $(COV_DIR)
@@ -476,6 +533,9 @@ help:
 	@echo "  make buildtest        Build unit test executable (do not run)"
 	@echo "  make testnominal      Run nominal integration test (test/integration/test_nominal.py)"
 	@echo "  make testintegration  Run all integration tests (test/integration/*.py)"
+	@echo "  make profilemem       Run Valgrind memcheck + massif on nominal integration tests"
+	@echo "                          SKIP_LARGE=1    skip 33-64 MB transfers (much faster)"
+	@echo "                          VALGRIND_TIMEOUT=N  socket timeout per call (default 120s)"
 	@echo "  make coverage         Run tests + generate HTML coverage report"
 	@echo "  make analyze          Run GCC -fanalyzer, Clang --analyze, clang-tidy & cppcheck"
 	@echo "  make spell            Spell-check source, docs, and scripts (advisory)"
