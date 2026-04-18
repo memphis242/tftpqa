@@ -30,6 +30,18 @@ void test_seq_load_invalid_count_non_numeric_returns_error(void);
 void test_seq_load_missing_required_mode_field_returns_error(void);
 void test_seq_load_unknown_key_returns_error(void);
 void test_seq_load_partial_file_on_first_error(void);
+void test_seq_load_inline_comment_makes_empty_line(void);
+void test_seq_load_field_with_inline_comment(void);
+void test_seq_load_various_param_values(void);
+void test_seq_load_various_count_values(void);
+void test_seq_advance_single_session_entry(void);
+void test_seq_advance_large_count_entry(void);
+void test_seq_load_only_comments_and_blanks(void);
+void test_seq_load_trailing_spaces_before_comment(void);
+void test_seq_load_all_whitespace_line_mixed(void);
+void test_seq_advance_exact_boundary(void);
+void test_seq_load_count_boundary_values(void);
+void test_seq_advance_multiple_transitions(void);
 void test_seq_advance_increments_sessions_in_step(void);
 void test_seq_advance_transitions_to_next_entry(void);
 void test_seq_advance_returns_false_when_exhausted(void);
@@ -38,6 +50,8 @@ void test_seq_advance_multi_session_entries(void);
 void test_seq_free_zeros_struct(void);
 void test_seq_integration_real_file_good(void);
 void test_seq_integration_real_file_bad_mode(void);
+void test_seq_load_comment_only_line_with_tabs(void);
+void test_seq_load_spaces_then_comment_then_spaces(void);
 
 /*---------------------------------------------------------------------------
  * tftptest_seq: sequence file loading and advancement

@@ -57,6 +57,24 @@ void test_util_open_for_read_rejects_symlink(void);
 void test_util_open_for_write_creates_with_mode(void);
 void test_util_open_for_write_overwrites_existing(void);
 void test_util_open_for_write_create_mode_stripped_by_umask(void);
+void test_util_suspicious_text_clean_ascii(void);
+void test_util_suspicious_text_allowed_controls(void);
+void test_util_suspicious_text_cr_nul_allowed(void);
+void test_util_suspicious_text_standalone_nul(void);
+void test_util_suspicious_text_leading_nul(void);
+void test_util_suspicious_text_bell_char(void);
+void test_util_suspicious_text_del_char(void);
+void test_util_suspicious_text_high_byte(void);
+void test_util_suspicious_text_empty_buffer(void);
+void test_util_text_check_valid_utf8_2byte(void);
+void test_util_text_check_valid_utf8_3byte(void);
+void test_util_text_check_valid_utf8_4byte(void);
+void test_util_text_check_overlong_2byte(void);
+void test_util_text_check_overlong_3byte(void);
+void test_util_text_check_truncated_sequence(void);
+void test_util_text_check_lone_continuation_byte(void);
+void test_util_text_check_above_max_codepoint(void);
+void test_util_text_check_utf8_mixed_with_ascii(void);
 
 /*---------------------------------------------------------------------------
  * tftp_util tests
