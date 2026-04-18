@@ -131,7 +131,7 @@ LDLIBS       :=
 
 # --- Release ---
 REL_DIR      := $(BUILD_DIR)/release
-REL_CFLAGS   := $(C_STD) -O2 -DNDEBUG $(COMMON_DEFS) $(COMMON_WARNS) $(GCC_EXTRA_WARNS) $(COMMON_INC) -Werror
+REL_CFLAGS   := $(C_STD) -O2 -DNDEBUG $(COMMON_DEFS) $(COMMON_WARNS) $(GCC_EXTRA_WARNS) $(COMMON_INC) -Werror -fstack-protector-strong
 REL_OBJS     := $(patsubst $(SRC_DIR)/%.c,$(REL_DIR)/%.o,$(SRCS))
 REL_BIN      := $(REL_DIR)/$(PROJECT)
 
