@@ -89,6 +89,11 @@ extern void test_parsecfg_tid_port_range_invalid_format(void);
 extern void test_parsecfg_tid_port_range_min_greater_than_max(void);
 extern void test_parsecfg_tid_port_range_zero_rejected(void);
 extern void test_parsecfg_tid_port_range_over_65535_rejected(void);
+extern void test_parsecfg_new_file_mode_default_is_0666(void);
+extern void test_parsecfg_new_file_mode_octal(void);
+extern void test_parsecfg_new_file_mode_rejects_setuid(void);
+extern void test_parsecfg_new_file_mode_rejects_sticky(void);
+extern void test_parsecfg_new_file_mode_rejects_trailing_garbage(void);
 
 // tftp_pkt (validation, parsing, round-trip, rejection, edge cases)
 extern void test_pkt_valid_rrq_octet(void);
@@ -162,6 +167,16 @@ extern void test_util_text_check_overlong_2byte(void);
 extern void test_util_text_check_truncated_sequence(void);
 extern void test_util_text_check_overlong_3byte(void);
 extern void test_util_text_check_above_max_codepoint(void);
+extern void test_util_check_read_perms_world_readable(void);
+extern void test_util_check_read_perms_not_world_readable(void);
+extern void test_util_check_read_perms_setuid_rejected(void);
+extern void test_util_check_read_perms_directory_rejected(void);
+extern void test_util_check_write_perms_world_writable(void);
+extern void test_util_check_write_perms_not_world_writable(void);
+extern void test_util_open_for_read_rejects_symlink(void);
+extern void test_util_open_for_write_creates_with_mode(void);
+extern void test_util_open_for_write_overwrites_existing(void);
+extern void test_util_open_for_write_create_mode_stripped_by_umask(void);
 
 // tftptest_ctrl
 extern void test_ctrl_set_fault_and_get(void);
@@ -395,6 +410,11 @@ int main(void)
    RUN_TEST( test_parsecfg_tid_port_range_min_greater_than_max );
    RUN_TEST( test_parsecfg_tid_port_range_zero_rejected );
    RUN_TEST( test_parsecfg_tid_port_range_over_65535_rejected );
+   RUN_TEST( test_parsecfg_new_file_mode_default_is_0666 );
+   RUN_TEST( test_parsecfg_new_file_mode_octal );
+   RUN_TEST( test_parsecfg_new_file_mode_rejects_setuid );
+   RUN_TEST( test_parsecfg_new_file_mode_rejects_sticky );
+   RUN_TEST( test_parsecfg_new_file_mode_rejects_trailing_garbage );
 
    // packet edge cases
    RUN_TEST( test_pkt_reject_filename_too_long );
@@ -430,6 +450,18 @@ int main(void)
    RUN_TEST( test_util_text_check_truncated_sequence );
    RUN_TEST( test_util_text_check_overlong_3byte );
    RUN_TEST( test_util_text_check_above_max_codepoint );
+
+   // file-permission helpers
+   RUN_TEST( test_util_check_read_perms_world_readable );
+   RUN_TEST( test_util_check_read_perms_not_world_readable );
+   RUN_TEST( test_util_check_read_perms_setuid_rejected );
+   RUN_TEST( test_util_check_read_perms_directory_rejected );
+   RUN_TEST( test_util_check_write_perms_world_writable );
+   RUN_TEST( test_util_check_write_perms_not_world_writable );
+   RUN_TEST( test_util_open_for_read_rejects_symlink );
+   RUN_TEST( test_util_open_for_write_creates_with_mode );
+   RUN_TEST( test_util_open_for_write_overwrites_existing );
+   RUN_TEST( test_util_open_for_write_create_mode_stripped_by_umask );
 
    // chroot_and_drop
    RUN_TEST( test_chroot_and_drop_non_root_succeeds );

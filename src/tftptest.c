@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <time.h>
+#include <sys/stat.h>
 
 // Sockets
 #include <sys/socket.h>
@@ -280,6 +281,26 @@ int main(int argc, char * argv[])
 
    // Seed RNG for TID port selection
    srand((unsigned int)time(NULL));
+
+   // Umask diagnostic: warn (don't override) if the inherited umask strips
+   // bits from the configured new_file_mode. User/admin controls this via
+   // systemd UMask= or the invoking shell.
+   {
+      mode_t saved_umask = umask(0);
+      (void)umask(saved_umask);  // restore; we only wanted to read
+
+      mode_t effective = cfg.new_file_mode & ~saved_umask;
+      if ( effective != cfg.new_file_mode )
+      {
+         tftp_log( TFTP_LOG_WARN, NULL,
+                   "Process umask 0%03jo strips bits from configured new_file_mode "
+                   "0%04jo; newly created files will have mode 0%04jo. To preserve "
+                   "the configured mode, set init system umask accordingly (or unset "
+                   "it from the invoking shell).",
+                   (uintmax_t)saved_umask,
+                   (uintmax_t)cfg.new_file_mode, (uintmax_t)effective );
+      }
+   }
 
    // Fault state
    struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };

@@ -41,7 +41,7 @@
 /*
  * Compile-time assert trick that is compatible /w C99 (which doesn't have static_assert :(...)
  */
-#define CompileTimeAssert(cond, msg) typedef char msg[ cond ? 1 : -1 ]
+#define CompileTimeAssert(cond, msg) typedef char msg[ (cond) ? 1 : -1 ]
 
 /*
  * Compile-time array length

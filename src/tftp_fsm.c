@@ -18,11 +18,13 @@
 #include <assert.h>
 #include <errno.h>
 #include <strings.h>
+#include <stdatomic.h> // FIXME: Is this needed anymore?
 
 // General System Headers
-#include <stdatomic.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/stat.h>
 #include <sys/statvfs.h>
 
 // Sockets
@@ -183,12 +185,21 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
       int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
       if ( sfd >= 0 )
       {
-         uint8_t errbuf[128];
-         size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
-                                              TFTP_ERRC_FILE_NOT_FOUND, "File not found");
-         if ( errsz > 0 )
-            (void)sendto(sfd, errbuf, errsz, 0,
-                         (const struct sockaddr *)peer_addr, sizeof *peer_addr);
+         uint8_t ebuf[128];
+         const char emsg[32] = "File not found";
+
+         assert( sizeof ebuf > (TFTP_ERR_HDR_SZ + strlen(emsg)) );
+         size_t esz = tftp_pkt_build_error( ebuf, sizeof ebuf,
+                                          TFTP_ERRC_FILE_NOT_FOUND, emsg );
+
+         if ( esz > 0 )
+         {
+            (void)sendto( sfd,
+                          ebuf, esz,
+                          0,
+                          (const struct sockaddr *)peer_addr, sizeof *peer_addr );
+         }
+
          (void)close(sfd);
       }
       return TFTP_FSM_RC_FINE;
@@ -202,39 +213,204 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
       int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
       if ( sfd >= 0 )
       {
-         uint8_t errbuf[128];
-         size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
-                                              TFTP_ERRC_ACCESS_VIOLATION, "Access denied");
-         if ( errsz > 0 )
-            (void)sendto(sfd, errbuf, errsz, 0,
-                         (const struct sockaddr *)peer_addr, sizeof *peer_addr);
+         uint8_t ebuf[128];
+         const char emsg[32] = "Access denied";
+
+         assert( sizeof ebuf > (TFTP_ERR_HDR_SZ + strlen(emsg)) );
+         size_t esz = tftp_pkt_build_error( ebuf, sizeof ebuf,
+                                            TFTP_ERRC_ACCESS_VIOLATION, emsg );
+
+         if ( esz > 0 )
+         {
+            (void)sendto( sfd,
+                          ebuf, esz,
+                          0,
+                          (const struct sockaddr *)peer_addr, sizeof *peer_addr );
+         }
+
          (void)close(sfd);
       }
+
       return TFTP_FSM_RC_FINE;
    }
 
    // Open the file
    if ( opcode == TFTP_OP_RRQ )
    {
-      TFTP_FSM_Session.fp = fopen(filename, "rb");
+      int fd = tftp_util_open_for_read(filename);
+
+      if ( fd < 0 )
+      {
+         uint16_t ecode;
+         const char *emsg;
+
+         switch ( errno )
+         {
+            case ENOENT:
+               ecode = TFTP_ERRC_FILE_NOT_FOUND;
+               emsg = "File not found";
+               break;
+
+            case EACCES:
+               ecode = TFTP_ERRC_ACCESS_VIOLATION;
+               emsg = "Access denied";
+               break;
+
+            case ELOOP:
+               tftp_log( TFTP_LOG_WARN, __func__,
+                         "FSM: Refusing to follow symlink for RRQ: '%s'",
+                         filename );
+
+               ecode = TFTP_ERRC_ACCESS_VIOLATION;
+               emsg = "Symlink refused";
+               break;
+
+            default:
+               ecode = TFTP_ERRC_NOT_DEFINED;
+               emsg = "Cannot open file";
+               break;
+         }
+
+         tftp_log( TFTP_LOG_WARN, __func__,
+                   "FSM: Cannot open '%s': %s (%d) : %s",
+                   filename,
+                   strerrorname_np(errno), errno, strerror(errno) );
+
+         struct sockaddr_in bound = {0};
+         int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
+
+         if ( sfd >= 0 )
+         {
+            uint8_t ebuf[128];
+
+            assert( sizeof ebuf > (TFTP_ERR_HDR_SZ + strlen(emsg)) );
+            size_t esz = tftp_pkt_build_error(ebuf, sizeof ebuf, ecode, emsg);
+
+            if ( esz > 0 )
+            {
+               (void)sendto( sfd,
+                             ebuf, esz,
+                             0,
+                             (const struct sockaddr *)peer_addr, sizeof *peer_addr );
+            }
+
+            (void)close(sfd);
+         }
+
+         return TFTP_FSM_RC_FILE_ERR;
+      }
+
+      // Race-free permission check on the already-opened fd.
+      mode_t observed = 0;
+      enum TFTPUtil_PermCheck pc = tftp_util_check_read_perms(fd, &observed);
+
+      if ( pc != TFTP_PERM_OK )
+      {
+         uint16_t ecode = TFTP_ERRC_ACCESS_VIOLATION;
+         const char *emsg = "Access denied";
+
+         switch ( pc )
+         {
+            case TFTP_PERM_NOT_REGULAR:
+               tftp_log( TFTP_LOG_WARN, __func__,
+                         "FSM: Refusing RRQ for non-regular file '%s' (mode=0%06o)",
+                         filename, observed );
+
+               emsg = "Non-regular file refused";
+               break;
+
+            case TFTP_PERM_SETUID_SETGID:
+               tftp_log( TFTP_LOG_WARN, __func__,
+                         "FSM: Refusing RRQ for setuid/setgid file '%s' (mode=0%06o)",
+                         filename, observed );
+
+               emsg = "Setuid/setgid refused";
+               break;
+
+            case TFTP_PERM_NOT_WORLD_READABLE:
+               tftp_log( TFTP_LOG_INFO, NULL,
+                         "FSM: RRQ refused; '%s' is not world-readable (mode=0%04o)",
+                         filename, observed & 0777 );
+
+               emsg = "Not world-readable";
+               break;
+
+            case TFTP_PERM_FSTAT_FAILED:
+               tftp_log( TFTP_LOG_ERR, __func__,
+                         "FSM: fstat on '%s' failed: %s (%d) : %s", filename,
+                         strerrorname_np(errno), errno, strerror(errno) );
+
+               ecode = TFTP_ERRC_NOT_DEFINED;
+               emsg = "fstat failed";
+               break;
+
+            case TFTP_PERM_OK:
+            case TFTP_PERM_NOT_WORLD_WRITABLE:
+               // Unreachable: OK handled by the outer if; WRITABLE is a WRQ-only result.
+               break;
+
+            default:
+               break;
+         }
+
+         (void)close(fd);
+
+         struct sockaddr_in bound = {0};
+         int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
+
+         if ( sfd >= 0 )
+         {
+            uint8_t ebuf[128];
+
+            assert( sizeof ebuf > (TFTP_ERR_HDR_SZ + strlen(emsg)) );
+            size_t esz = tftp_pkt_build_error(ebuf, sizeof ebuf, ecode, emsg);
+
+            if ( esz > 0 )
+            {
+               (void)sendto( sfd,
+                             ebuf, esz,
+                             0,
+                             (const struct sockaddr *)peer_addr, sizeof *peer_addr );
+            }
+
+            (void)close(sfd);
+         }
+
+         return TFTP_FSM_RC_FILE_ERR;
+      }
+
+      TFTP_FSM_Session.fp = fdopen(fd, "rb");
       if ( TFTP_FSM_Session.fp == NULL )
       {
-         tftp_log( TFTP_LOG_WARN, __func__, "FSM: Cannot open '%s': %s (%d) : %s", filename,
+         tftp_log( TFTP_LOG_ERR, __func__,
+                   "FSM: fdopen('%s', \"rb\") failed: %s (%d) : %s",
+                   filename,
                    strerrorname_np(errno), errno, strerror(errno) );
-         // Send file-not-found error via temp socket
+
+         (void)close(fd);
+
          struct sockaddr_in bound = {0};
          int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
          if ( sfd >= 0 )
          {
-            uint8_t errbuf[128];
-            size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
-                                                 TFTP_ERRC_FILE_NOT_FOUND,
-                                                 "File not found");
-            if ( errsz > 0 )
-               (void)sendto(sfd, errbuf, errsz, 0,
-                            (const struct sockaddr *)peer_addr, sizeof *peer_addr);
+            uint8_t ebuf[128];
+            char emsg[32] = "Cannot open file";
+
+            assert( sizeof ebuf > (TFTP_ERR_HDR_SZ + strlen(emsg)) );
+            size_t esz = tftp_pkt_build_error( ebuf, sizeof ebuf,
+                                               TFTP_ERRC_NOT_DEFINED, emsg );
+
+            if ( esz > 0 )
+            {
+               (void)sendto( sfd,
+                             ebuf, esz,
+                             0,
+                             (const struct sockaddr *)peer_addr, sizeof *peer_addr );
+            }
+
             (void)close(sfd);
          }
+
          return TFTP_FSM_RC_FILE_ERR;
       }
    }
@@ -291,26 +467,210 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          }
       }
 
-      // WRQ: open file for writing (overwrites existing per RFC 1350)
-      TFTP_FSM_Session.fp = fopen(filename, "wb");
-      if ( TFTP_FSM_Session.fp == NULL )
+      // WRQ: open the file for writing (either overwrite /w truncation or create)
+      bool created = false;
+      int fd = tftp_util_open_for_write(filename, cfg->new_file_mode, &created);
+      if ( fd < 0 )
       {
-         tftp_log( TFTP_LOG_WARN, __func__, "FSM: Cannot create '%s': %s (%d) : %s", filename,
+         uint16_t ecode;
+         const char *emsg;
+
+         switch ( errno )
+         {
+            case ENOSPC:
+               ecode = TFTP_ERRC_DISK_FULL;
+               emsg = "Disk full";
+               break;
+
+            case EACCES:
+               ecode = TFTP_ERRC_ACCESS_VIOLATION;
+               emsg = "Access denied";
+               break;
+
+            case ELOOP:
+               tftp_log( TFTP_LOG_WARN, __func__,
+                         "FSM: Refusing to follow symlink for WRQ: '%s'", filename );
+
+               ecode = TFTP_ERRC_ACCESS_VIOLATION;
+               emsg = "Symlink refused";
+               break;
+
+            default:
+               ecode = TFTP_ERRC_NOT_DEFINED;
+               emsg = "Cannot create file";
+               break;
+         }
+
+         tftp_log( TFTP_LOG_WARN, __func__,
+                   "FSM: Cannot open '%s' for write: %s (%d) : %s",
+                   filename,
                    strerrorname_np(errno), errno, strerror(errno) );
+
          struct sockaddr_in bound = {0};
          int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
          if ( sfd >= 0 )
          {
-            uint16_t ecode = (errno == EACCES) ? TFTP_ERRC_ACCESS_VIOLATION
-                                               : TFTP_ERRC_NOT_DEFINED;
-            uint8_t errbuf[128];
-            size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
-                                                 ecode, "Cannot create file");
-            if ( errsz > 0 )
-               (void)sendto(sfd, errbuf, errsz, 0,
-                            (const struct sockaddr *)peer_addr, sizeof *peer_addr);
+            uint8_t ebuf[128];
+
+            assert( sizeof ebuf > (TFTP_ERR_HDR_SZ + strlen(emsg)) );
+            size_t esz = tftp_pkt_build_error(ebuf, sizeof ebuf, ecode, emsg);
+
+            if ( esz > 0 )
+            {
+               (void)sendto( sfd,
+                             ebuf, esz,
+                             0,
+                             (const struct sockaddr *)peer_addr, sizeof *peer_addr );
+            }
+
             (void)close(sfd);
          }
+
+         return TFTP_FSM_RC_FILE_ERR;
+      }
+
+      if ( !created )
+      {
+         // Overwriting an existing file: require S_IWOTH and non-setuid.
+         mode_t observed = 0;
+         enum TFTPUtil_PermCheck pc = tftp_util_check_write_perms(fd, &observed);
+
+         if ( pc != TFTP_PERM_OK )
+         {
+            uint16_t ecode = TFTP_ERRC_ACCESS_VIOLATION;
+            const char *emsg = "Access denied";
+
+            switch ( pc )
+            {
+               case TFTP_PERM_NOT_REGULAR:
+                  tftp_log( TFTP_LOG_WARN, __func__,
+                            "FSM: Refusing WRQ over non-regular file '%s' (mode=0%06o)",
+                            filename, observed );
+
+                  emsg = "Non-regular file refused";
+                  break;
+
+               case TFTP_PERM_SETUID_SETGID:
+                  tftp_log( TFTP_LOG_WARN, __func__,
+                            "FSM: Refusing WRQ over setuid/setgid file '%s' (mode=0%06o)",
+                            filename, observed );
+
+                  emsg = "Setuid/setgid refused";
+                  break;
+
+               case TFTP_PERM_NOT_WORLD_WRITABLE:
+                  tftp_log( TFTP_LOG_INFO, NULL,
+                            "FSM: WRQ refused; '%s' is not world-writable (mode=0%04o)",
+                            filename, observed & 0777 );
+
+                  emsg = "Not world-writable";
+                  break;
+
+               case TFTP_PERM_FSTAT_FAILED:
+                  tftp_log( TFTP_LOG_ERR, __func__,
+                            "FSM: fstat on '%s' failed: %s (%d) : %s", filename,
+                            strerrorname_np(errno), errno, strerror(errno) );
+
+                  ecode = TFTP_ERRC_NOT_DEFINED;
+                  emsg = "fstat failed";
+                  break;
+
+               // Unreachable: OK handled by outer if; READABLE is RRQ-only result.
+               case TFTP_PERM_OK:
+               case TFTP_PERM_NOT_WORLD_READABLE:
+                  // Intentional fallthrough
+               default:
+                  break;
+            }
+
+            (void)close(fd);
+
+            struct sockaddr_in bound = {0};
+            int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
+
+            if ( sfd >= 0 )
+            {
+               uint8_t ebuf[128];
+
+               assert( sizeof ebuf > (TFTP_ERR_HDR_SZ + strlen(emsg)) );
+               size_t esz = tftp_pkt_build_error(ebuf, sizeof ebuf, ecode, emsg);
+
+               if ( esz > 0 )
+               {
+                  (void)sendto( sfd,
+                                ebuf, esz,
+                                0,
+                                (const struct sockaddr *)peer_addr, sizeof *peer_addr );
+               }
+
+               (void)close(sfd);
+            }
+
+            return TFTP_FSM_RC_FILE_ERR;
+         }
+      }
+      else
+      {
+         // Newly created: verify the filesystem honored our requested mode.
+         // umask, mount/filesystem cfg, or SELinux can silently strip bits.
+         struct stat st;
+         int sysrc = fstat(fd, &st);
+         if ( sysrc != 0 )
+         {
+            // we should not have failed because the fd was not open...
+            assert( errno != EBADF );
+
+            // Log, but not a critical failure. FIXME: Maybe it should be?
+            tftp_log( TFTP_LOG_WARN, __func__,
+                      "FSM: Unable to check create file's permission bits. "
+                      "fstat() returned: %d :: %s (%d) : %s",
+                      sysrc, strerrorname_np(errno), errno, strerror(errno) );
+         }
+         else
+         {
+            mode_t requested = cfg->new_file_mode;
+            mode_t actual    = st.st_mode & 0777;
+            if ( actual != (requested & 0777) )
+            {
+               tftp_log( TFTP_LOG_WARN, __func__,
+                         "FSM: Attempted to create '%s' with mode 0%04o but resulted in 0%04o "
+                         "(umask, filesystem policy, or SELinux stripped bits)",
+                         filename, requested, actual );
+            }
+         }
+      }
+
+      TFTP_FSM_Session.fp = fdopen(fd, "wb");
+
+      if ( TFTP_FSM_Session.fp == NULL )
+      {
+         tftp_log( TFTP_LOG_ERR, __func__,
+                   "FSM: fdopen('%s', wb) failed: %s (%d) : %s", filename,
+                   strerrorname_np(errno), errno, strerror(errno) );
+
+         (void)close(fd);
+
+         struct sockaddr_in bound = {0};
+         int sfd = tftp_util_create_ephemeral_udp_socket(&bound);
+         if ( sfd >= 0 )
+         {
+            uint8_t ebuf[128];
+            const char emsg[32] = "Cannot create file";
+
+            assert( sizeof ebuf > (TFTP_ERR_HDR_SZ + strlen(emsg)) );
+            size_t esz = tftp_pkt_build_error( ebuf, sizeof ebuf,
+                                               TFTP_ERRC_NOT_DEFINED, emsg );
+            if ( esz > 0 )
+            {
+               (void)sendto( sfd,
+                             ebuf, esz,
+                             0,
+                             (const struct sockaddr *)peer_addr, sizeof *peer_addr );
+            }
+
+            (void)close(sfd);
+         }
+
          return TFTP_FSM_RC_FILE_ERR;
       }
 

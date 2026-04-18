@@ -6,18 +6,24 @@
  */
 
 /*************************** File Header Inclusions ***************************/
-
-#include <assert.h>
-#include <errno.h>
+// Standard C Headers
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <assert.h>
+#include <errno.h>
+
+// System Headers
+#include <fcntl.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <grp.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <arpa/inet.h>
 
+// App-Specific Headers
 #include "tftp_util.h"
 #include "tftp_log.h"
 
@@ -409,4 +415,110 @@ int tftp_util_chroot_and_drop(const char *dir, const char *user)
              dir, user, (uintmax_t)pw->pw_uid, (uintmax_t)pw->pw_gid );
 
    return 0;
+}
+
+int tftp_util_open_for_read(const char *filename)
+{
+   assert( filename != NULL );
+   return open( filename, O_RDONLY | O_NOFOLLOW | O_CLOEXEC );
+}
+
+int tftp_util_open_for_write( const char * const filename,
+                              mode_t create_mode,
+                              bool * const out_created )
+{
+   assert( filename != NULL );
+   assert( out_created != NULL );
+   // By this point, the program should have vetted for unsupported mode creation sets
+   assert( create_mode <= 0777 ); // no setuid, setgid, or sticky bits
+
+   *out_created = false;
+
+   // Try to open an existing file
+   int fd = open( filename, O_WRONLY | O_TRUNC | O_NOFOLLOW | O_CLOEXEC );
+
+   if ( fd >= 0 )
+      return fd;
+
+   if ( errno != ENOENT )
+      return -1;
+
+   // No existing file -- atomically create it
+   fd = open( filename,
+              O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,
+              create_mode );
+
+   if ( fd >= 0 )
+   {
+      *out_created = true;
+      return fd;
+   }
+
+   if ( errno != EEXIST )
+      return -1;
+
+   // Try to one more time in case the file was created in between the first two
+   // opens and and is now writable.
+   // TODO: Consider a realistic scenario where this happens...
+   // FIXME: If we are doing this, we should consider a file lock...
+   fd = open( filename, O_WRONLY | O_TRUNC | O_NOFOLLOW | O_CLOEXEC );
+
+   return fd;
+}
+
+enum TFTPUtil_PermCheck tftp_util_check_read_perms(int fd, mode_t *out_mode)
+{
+   assert( fd >= 0 );
+
+   struct stat st;
+   if ( fstat( fd, &st ) != 0 )
+   {
+      if ( out_mode != NULL )
+         *out_mode = 0;
+
+      return TFTP_PERM_FSTAT_FAILED;
+   }
+
+   if ( out_mode != NULL )
+      *out_mode = st.st_mode & 07777;
+
+   if ( !S_ISREG( st.st_mode ) )
+      return TFTP_PERM_NOT_REGULAR;
+
+   if ( st.st_mode & (S_ISUID | S_ISGID) )
+      return TFTP_PERM_SETUID_SETGID;
+
+   if ( !(st.st_mode & S_IROTH) )
+      return TFTP_PERM_NOT_WORLD_READABLE;
+
+   return TFTP_PERM_OK;
+}
+
+enum TFTPUtil_PermCheck tftp_util_check_write_perms(int fd, mode_t *out_mode)
+{
+   assert( fd >= 0 );
+
+   struct stat st;
+
+   if ( fstat( fd, &st ) != 0 )
+   {
+      if ( out_mode != NULL )
+         *out_mode = 0;
+
+      return TFTP_PERM_FSTAT_FAILED;
+   }
+
+   if ( out_mode != NULL )
+      *out_mode = st.st_mode & 07777;
+
+   if ( !S_ISREG( st.st_mode ) )
+      return TFTP_PERM_NOT_REGULAR;
+
+   if ( st.st_mode & (S_ISUID | S_ISGID) )
+      return TFTP_PERM_SETUID_SETGID;
+
+   if ( !(st.st_mode & S_IWOTH) )
+      return TFTP_PERM_NOT_WORLD_WRITABLE;
+
+   return TFTP_PERM_OK;
 }

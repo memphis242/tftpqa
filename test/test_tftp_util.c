@@ -9,9 +9,13 @@
 #include "tftp_util.h"
 #include "tftp_pkt.h"
 #include "tftptest_common.h"
+#include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -43,6 +47,16 @@ void test_pkt_ack_block_zero(void);
 void test_util_create_udp_socket_in_range_succeeds(void);
 void test_util_create_udp_socket_in_range_single_port(void);
 void test_util_create_udp_socket_in_range_all_busy(void);
+void test_util_check_read_perms_world_readable(void);
+void test_util_check_read_perms_not_world_readable(void);
+void test_util_check_read_perms_setuid_rejected(void);
+void test_util_check_read_perms_directory_rejected(void);
+void test_util_check_write_perms_world_writable(void);
+void test_util_check_write_perms_not_world_writable(void);
+void test_util_open_for_read_rejects_symlink(void);
+void test_util_open_for_write_creates_with_mode(void);
+void test_util_open_for_write_overwrites_existing(void);
+void test_util_open_for_write_create_mode_stripped_by_umask(void);
 
 /*---------------------------------------------------------------------------
  * tftp_util tests
@@ -474,4 +488,218 @@ void test_util_text_check_above_max_codepoint(void)
    // 0xF4 0x90 0x80 0x80 — above U+10FFFF
    const uint8_t data[] = { 0xF4, 0x90, 0x80, 0x80 };
    TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+}
+
+/*---------------------------------------------------------------------------
+ * File-Permission Helper Tests
+ *---------------------------------------------------------------------------*/
+
+// Small helper: create a tempfile with given contents and mode, return path.
+// The returned pointer is the same buffer passed in. chmod() is explicit so
+// test outcomes do not depend on the host umask.
+static int perm_test_make_tmpfile(char *template_buf, mode_t mode)
+{
+   int fd = mkstemp(template_buf);
+   if ( fd < 0 )
+      return -1;
+   if ( fchmod(fd, mode) != 0 )
+   {
+      (void)close(fd);
+      (void)unlink(template_buf);
+      return -1;
+   }
+   return fd;
+}
+
+void test_util_check_read_perms_world_readable(void)
+{
+   char path[] = "/tmp/tftptest_perm_rd_XXXXXX";
+   int fd = perm_test_make_tmpfile(path, 0644);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
+
+   mode_t observed = 0;
+   enum TFTPUtil_PermCheck rc = tftp_util_check_read_perms(fd, &observed);
+   TEST_ASSERT_EQUAL_INT( TFTP_PERM_OK, rc );
+   TEST_ASSERT_EQUAL_UINT( 0644, observed & 0777 );
+
+   (void)close(fd);
+   (void)unlink(path);
+}
+
+void test_util_check_read_perms_not_world_readable(void)
+{
+   char path[] = "/tmp/tftptest_perm_nr_XXXXXX";
+   int fd = perm_test_make_tmpfile(path, 0640);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
+
+   mode_t observed = 0;
+   enum TFTPUtil_PermCheck rc = tftp_util_check_read_perms(fd, &observed);
+   TEST_ASSERT_EQUAL_INT( TFTP_PERM_NOT_WORLD_READABLE, rc );
+   TEST_ASSERT_EQUAL_UINT( 0640, observed & 0777 );
+
+   (void)close(fd);
+   (void)unlink(path);
+}
+
+void test_util_check_read_perms_setuid_rejected(void)
+{
+   char path[] = "/tmp/tftptest_perm_su_XXXXXX";
+   // 04644 = setuid + world-readable. Setuid check must win over world-read.
+   int fd = perm_test_make_tmpfile(path, 04644);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
+
+   // Some systems silently strip S_ISUID on non-root chmod. Only run the
+   // assertion if the bit actually stuck.
+   struct stat st;
+   TEST_ASSERT_EQUAL_INT( 0, fstat(fd, &st) );
+   if ( st.st_mode & S_ISUID )
+   {
+      mode_t observed = 0;
+      enum TFTPUtil_PermCheck rc = tftp_util_check_read_perms(fd, &observed);
+      TEST_ASSERT_EQUAL_INT( TFTP_PERM_SETUID_SETGID, rc );
+   }
+
+   (void)close(fd);
+   (void)unlink(path);
+}
+
+void test_util_check_read_perms_directory_rejected(void)
+{
+   // /tmp itself is a directory that the test user can open O_RDONLY.
+   int fd = open("/tmp", O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
+
+   mode_t observed = 0;
+   enum TFTPUtil_PermCheck rc = tftp_util_check_read_perms(fd, &observed);
+   TEST_ASSERT_EQUAL_INT( TFTP_PERM_NOT_REGULAR, rc );
+
+   (void)close(fd);
+}
+
+void test_util_check_write_perms_world_writable(void)
+{
+   char path[] = "/tmp/tftptest_perm_ww_XXXXXX";
+   int fd = perm_test_make_tmpfile(path, 0666);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
+
+   mode_t observed = 0;
+   enum TFTPUtil_PermCheck rc = tftp_util_check_write_perms(fd, &observed);
+   TEST_ASSERT_EQUAL_INT( TFTP_PERM_OK, rc );
+   TEST_ASSERT_EQUAL_UINT( 0666, observed & 0777 );
+
+   (void)close(fd);
+   (void)unlink(path);
+}
+
+void test_util_check_write_perms_not_world_writable(void)
+{
+   char path[] = "/tmp/tftptest_perm_nw_XXXXXX";
+   int fd = perm_test_make_tmpfile(path, 0664);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
+
+   mode_t observed = 0;
+   enum TFTPUtil_PermCheck rc = tftp_util_check_write_perms(fd, &observed);
+   TEST_ASSERT_EQUAL_INT( TFTP_PERM_NOT_WORLD_WRITABLE, rc );
+   TEST_ASSERT_EQUAL_UINT( 0664, observed & 0777 );
+
+   (void)close(fd);
+   (void)unlink(path);
+}
+
+void test_util_open_for_read_rejects_symlink(void)
+{
+   // Create a target file, then a symlink to it. open_for_read must refuse
+   // the symlink (final path component) with ELOOP.
+   char target[] = "/tmp/tftptest_sym_tgt_XXXXXX";
+   int tfd = perm_test_make_tmpfile(target, 0644);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, tfd );
+   (void)close(tfd);
+
+   char linkpath[] = "/tmp/tftptest_sym_lnk_XXXXXX";
+   int dummyfd = mkstemp(linkpath);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, dummyfd );
+   (void)close(dummyfd);
+   TEST_ASSERT_EQUAL_INT( 0, unlink(linkpath) );  // make room for symlink
+   TEST_ASSERT_EQUAL_INT( 0, symlink(target, linkpath) );
+
+   errno = 0;
+   int fd = tftp_util_open_for_read(linkpath);
+   int saved_errno = errno;
+   TEST_ASSERT_EQUAL_INT( -1, fd );
+   TEST_ASSERT_EQUAL_INT( ELOOP, saved_errno );
+
+   (void)unlink(linkpath);
+   (void)unlink(target);
+}
+
+void test_util_open_for_write_creates_with_mode(void)
+{
+   char path[] = "/tmp/tftptest_open_cr_XXXXXX";
+   int dummy = mkstemp(path);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, dummy );
+   (void)close(dummy);
+   TEST_ASSERT_EQUAL_INT( 0, unlink(path) );
+
+   mode_t saved = umask(0);
+
+   bool created = false;
+   int fd = tftp_util_open_for_write(path, 0666, &created);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
+   TEST_ASSERT_TRUE( created );
+
+   struct stat st;
+   TEST_ASSERT_EQUAL_INT( 0, fstat(fd, &st) );
+   TEST_ASSERT_EQUAL_UINT( 0666, st.st_mode & 0777 );
+
+   (void)umask(saved);
+   (void)close(fd);
+   (void)unlink(path);
+}
+
+void test_util_open_for_write_overwrites_existing(void)
+{
+   char path[] = "/tmp/tftptest_open_ov_XXXXXX";
+   int fd = perm_test_make_tmpfile(path, 0666);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
+   // Write some data so we can verify truncation
+   const char *junk = "stale contents";
+   TEST_ASSERT_EQUAL_INT( (int)strlen(junk), (int)write(fd, junk, strlen(junk)) );
+   (void)close(fd);
+
+   bool created = true;  // should be flipped to false
+   int wfd = tftp_util_open_for_write(path, 0666, &created);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, wfd );
+   TEST_ASSERT_FALSE( created );
+
+   struct stat st;
+   TEST_ASSERT_EQUAL_INT( 0, fstat(wfd, &st) );
+   TEST_ASSERT_EQUAL_INT( 0, (int)st.st_size );  // O_TRUNC
+
+   (void)close(wfd);
+   (void)unlink(path);
+}
+
+void test_util_open_for_write_create_mode_stripped_by_umask(void)
+{
+   char path[] = "/tmp/tftptest_open_um_XXXXXX";
+   int dummy = mkstemp(path);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, dummy );
+   (void)close(dummy);
+   TEST_ASSERT_EQUAL_INT( 0, unlink(path) );
+
+   mode_t saved = umask(0022);
+
+   bool created = false;
+   int fd = tftp_util_open_for_write(path, 0666, &created);
+   TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
+   TEST_ASSERT_TRUE( created );
+
+   struct stat st;
+   TEST_ASSERT_EQUAL_INT( 0, fstat(fd, &st) );
+   // Umask 0022 strips group/other write bits -> 0644
+   TEST_ASSERT_EQUAL_UINT( 0644, st.st_mode & 0777 );
+
+   (void)umask(saved);
+   (void)close(fd);
+   (void)unlink(path);
 }

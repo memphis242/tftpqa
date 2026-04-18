@@ -17,16 +17,21 @@
 
 #include <arpa/inet.h>
 
+#include "tftptest_common.h"
 #include "tftp_parsecfg.h"
 #include "tftp_log.h"
 
 /***************************** Local Declarations *****************************/
 
-#define DEFAULT_TFTP_PORT       23069
-#define DEFAULT_TIMEOUT_SEC 1
-#define DEFAULT_MAX_RETX    5
-#define DEFAULT_MAX_REQUESTS      10000
-#define MAX_LINE_LEN              512
+#define DEFAULT_TFTP_PORT          23069
+#define DEFAULT_TIMEOUT_SEC        1
+#define DEFAULT_MAX_RETX           5
+#define DEFAULT_MAX_REQUESTS       10000
+#define MAX_LINE_LEN               512
+
+#define DEFAULT_FILE_CREATION_MODE (mode_t)0666 // rw-rw-rw-
+CompileTimeAssert( DEFAULT_FILE_CREATION_MODE < 0777,
+                   invalid_default_file_creation_mode );
 
 // Local Function Declarations
 static char *trim_whitespace(char *str);
@@ -57,6 +62,7 @@ void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg)
    cfg->max_abandoned_sessions = 0;  // 0 = unlimited
    cfg->tid_port_min = 0;            // 0 = OS-assigned ephemeral
    cfg->tid_port_max = 0;
+   cfg->new_file_mode = DEFAULT_FILE_CREATION_MODE;
 
    // Default root dir: current working directory
    (void)strncpy( cfg->root_dir, ".", sizeof cfg->root_dir - 1 );
@@ -348,6 +354,51 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
                cfg->tid_port_max = (uint16_t)vmax;
             }
          }
+      }
+      else if ( strcmp( key, "new_file_mode" ) == 0 )
+      {
+         // Parsed strictly as octal so "0666" == 0666.
+         // Reject trailing junk, values above 0777 (i.e., setuid/setgid/sticky (07000) bits)
+         errno = 0;
+         char *endp = NULL;
+         unsigned long v = strtoul( value, &endp, 8 );
+
+         if ( errno != 0 || endp == value )
+         {
+            tftp_log( TFTP_LOG_WARN, __func__,
+                      "Config line %d: invalid new_file_mode '%s' (expected octal)",
+                      line_num, value );
+
+            errors++;
+            continue;
+         }
+
+         // Skip trailing whitespace; anything else is junk
+         while ( *endp != '\0' && isspace( (unsigned char)*endp ) )
+            endp++;
+
+         if ( *endp != '\0' )
+         {
+            tftp_log( TFTP_LOG_WARN, __func__,
+                      "Config line %d: invalid new_file_mode '%s' (trailing garbage)",
+                      line_num, value );
+
+            errors++;
+            continue;
+         }
+         else if ( v > 0777 )
+         {
+            tftp_log( TFTP_LOG_ERR, __func__,
+                      "Config line %d: new_file_mode 0%lo exceeds 0777 "
+                      "(setuid/setgid/sticky not allowed) - defaulting to %o",
+                      line_num, v,
+                      DEFAULT_FILE_CREATION_MODE );
+
+            errors++;
+            continue;
+         }
+
+         cfg->new_file_mode = (mode_t)v;
       }
       else
       {

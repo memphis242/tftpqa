@@ -66,6 +66,11 @@ void test_parsecfg_tid_port_range_invalid_format(void);
 void test_parsecfg_tid_port_range_min_greater_than_max(void);
 void test_parsecfg_tid_port_range_zero_rejected(void);
 void test_parsecfg_tid_port_range_over_65535_rejected(void);
+void test_parsecfg_new_file_mode_default_is_0666(void);
+void test_parsecfg_new_file_mode_octal(void);
+void test_parsecfg_new_file_mode_rejects_setuid(void);
+void test_parsecfg_new_file_mode_rejects_sticky(void);
+void test_parsecfg_new_file_mode_rejects_trailing_garbage(void);
 
 /*---------------------------------------------------------------------------
  * tftp_parsecfg tests
@@ -964,6 +969,82 @@ void test_parsecfg_tid_port_range_over_65535_rejected(void)
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_min );
    TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_max );
+   (void)remove(path);
+}
+
+/*---------------------------------------------------------------------------
+ * new_file_mode tests
+ *---------------------------------------------------------------------------*/
+
+void test_parsecfg_new_file_mode_default_is_0666(void)
+{
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   TEST_ASSERT_EQUAL_UINT( 0666, cfg.new_file_mode );
+}
+
+void test_parsecfg_new_file_mode_octal(void)
+{
+   const char *path = "/tmp/tftptest_test_nfm_octal.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "new_file_mode = 0640\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT( 0640, cfg.new_file_mode );
+   (void)remove(path);
+}
+
+void test_parsecfg_new_file_mode_rejects_setuid(void)
+{
+   const char *path = "/tmp/tftptest_test_nfm_setuid.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "new_file_mode = 04666\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   // Load still returns 0 (non-fatal), but the field stays at default (0666).
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT( 0666, cfg.new_file_mode );
+   (void)remove(path);
+}
+
+void test_parsecfg_new_file_mode_rejects_sticky(void)
+{
+   const char *path = "/tmp/tftptest_test_nfm_sticky.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "new_file_mode = 01777\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT( 0666, cfg.new_file_mode ); // unchanged
+   (void)remove(path);
+}
+
+void test_parsecfg_new_file_mode_rejects_trailing_garbage(void)
+{
+   const char *path = "/tmp/tftptest_test_nfm_junk.ini";
+   FILE *f = fopen(path, "w");
+   TEST_ASSERT_NOT_NULL( f );
+   fprintf(f, "new_file_mode = 0666abc\n");
+   fclose(f);
+
+   struct TFTPTest_Config cfg;
+   tftp_parsecfg_defaults(&cfg);
+   int rc = tftp_parsecfg_load(path, &cfg);
+   TEST_ASSERT_EQUAL_INT( 0, rc );
+   TEST_ASSERT_EQUAL_UINT( 0666, cfg.new_file_mode ); // unchanged
    (void)remove(path);
 }
 

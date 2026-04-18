@@ -13,6 +13,8 @@
 #include <stddef.h>
 #include <limits.h>
 
+#include <sys/types.h>
+
 #include "tftp_log.h"
 
 // Server configuration
@@ -40,6 +42,9 @@ struct TFTPTest_Config
    // TID port range (0/0 = OS-assigned ephemeral, current default)
    uint16_t           tid_port_min;
    uint16_t           tid_port_max;
+   // File-permission policy for newly created WRQ files (default 0666).
+   // Parsed as octal in the config file. Setuid/setgid/sticky bits (07000) are rejected.
+   mode_t             new_file_mode;
 };
 
 /**
