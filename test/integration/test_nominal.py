@@ -1,12 +1,26 @@
 #!/usr/bin/env python3
 """
-Integration tests for nominal TFTP transfers (RRQ in octet mode).
+Integration tests for nominal TFTP transfers (RRQ and WRQ, octet mode).
 
 Test cases:
-  - Small file   (~100 bytes, fits in one DATA packet)
-  - Medium file  (~50 KB, spans many blocks)
-  - Large file   (65535 x 512 = 33,553,920 bytes -- block number edge case)
-  - Extra-large  (65536 x 512 + 100 bytes -- block number wraps past 0)
+  RRQ:
+    - Small file   (~100 bytes, fits in one DATA packet)
+    - Medium file  (~50 KB, spans many blocks)
+    - Large file   (65535 x 512 = 33,553,920 bytes -- block number edge case)
+    - Extra-large  (65536 x 512 + 100 bytes -- block number wraps past 0)
+    - No read permission (S_IROTH not set) -- expect ACCESS_VIOLATION
+    - Non-existent file -- expect FILE_NOT_FOUND
+
+  WRQ:
+    - Small file   (~100 bytes)
+    - Medium file  (~50 KB)
+    - Large file   (65535 x 512 bytes -- block number edge case)
+    - Extra-large  (65536 x 512 + 100 bytes -- block number wraps past 0)
+    - Existing file without world-write permission -- expect ACCESS_VIOLATION
+    - Existing world-writable file -- expect successful overwrite
+
+  All WRQs that create a new file verify that the resulting file's permission bits
+  match the server's effective new_file_mode (default 0o666 & ~umask).
 
 Requires: the tftptest server binary at build/debug/tftptest (run `make debug`
           first from the repo root).
@@ -46,8 +60,15 @@ TIMEOUT_SEC = 10
 MAX_RETRIES = 5
 SOCK_RCVBUF = 1 << 20  # 1 MB receive buffer for large transfers
 
+# Server default new_file_mode and the effective mode after this process's umask.
+# The tftptest server inherits the same umask as this test process.
+_SAVED_UMASK = os.umask(0)
+os.umask(_SAVED_UMASK)
+SERVER_NEW_FILE_MODE = 0o666           # tftptest default (tftp_parsecfg_defaults)
+EFFECTIVE_NEW_FILE_MODE = SERVER_NEW_FILE_MODE & ~_SAVED_UMASK
+
 # ---------------------------------------------------------------------------
-# Minimal TFTP client (octet mode, RRQ only for now)
+# Minimal TFTP client (octet mode)
 # ---------------------------------------------------------------------------
 
 class TFTPError(Exception):
@@ -211,7 +232,7 @@ def tftp_put(host: str, port: int, filename: str, content: bytes) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Test file generation
+# Test file generation and helpers
 # ---------------------------------------------------------------------------
 
 def generate_test_file(path: Path, size: int) -> str:
@@ -236,8 +257,24 @@ def generate_test_file(path: Path, size: int) -> str:
     return md5.hexdigest()
 
 
+def _make_content(size: int) -> bytes:
+    """Generate deterministic in-memory content of the given size."""
+    pattern = bytes(range(256))
+    full_reps, tail = divmod(size, 256)
+    return pattern * full_reps + pattern[:tail]
+
+
 def md5_bytes(data: bytes) -> str:
     return hashlib.md5(data).hexdigest()
+
+
+def _check_new_file_mode(path: Path) -> None:
+    """Assert that a newly created file has the server's effective permission bits."""
+    actual = path.stat().st_mode & 0o777
+    assert actual == EFFECTIVE_NEW_FILE_MODE, (
+        f"File mode 0o{actual:04o} != expected 0o{EFFECTIVE_NEW_FILE_MODE:04o} "
+        f"(new_file_mode=0o{SERVER_NEW_FILE_MODE:04o}, umask=0o{_SAVED_UMASK:04o})"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -370,8 +407,34 @@ def test_rrq_extralarge(host: str, port: int, root: Path):
     assert md5_bytes(data) == expected_md5, "MD5 mismatch"
 
 
+def test_rrq_no_read_permission(host: str, port: int, root: Path):
+    """RRQ a file without world-read permission (S_IROTH not set).
+
+    The server enforces a world-readable policy regardless of owner.
+    Expect ACCESS_VIOLATION (error code 2).
+    """
+    fname = "no_read.bin"
+    (root / fname).write_bytes(b"secret content")
+    os.chmod(root / fname, 0o600)
+
+    try:
+        tftp_get(host, port, fname)
+        raise AssertionError("Expected TFTPError but get succeeded")
+    except TFTPError as e:
+        assert e.code == 2, f"Expected error code 2 (ACCESS_VIOLATION), got {e.code}"
+
+
+def test_rrq_nonexistent(host: str, port: int, root: Path):
+    """RRQ of a file that does not exist -- expect FILE_NOT_FOUND (error code 1)."""
+    try:
+        tftp_get(host, port, "does_not_exist.bin")
+        raise AssertionError("Expected TFTPError but get succeeded")
+    except TFTPError as e:
+        assert e.code == 1, f"Expected error code 1 (FILE_NOT_FOUND), got {e.code}"
+
+
 def test_wrq_small(host: str, port: int, root: Path):
-    """WRQ a small file (~100 bytes)."""
+    """WRQ a small file (~100 bytes); verify content and permission bits."""
     fname = "upload_small.bin"
     content = bytes(range(100))
 
@@ -380,10 +443,11 @@ def test_wrq_small(host: str, port: int, root: Path):
     written = (root / fname).read_bytes()
     assert len(written) == 100, f"Expected 100 bytes on disk, got {len(written)}"
     assert written == content, "Content mismatch"
+    _check_new_file_mode(root / fname)
 
 
 def test_wrq_medium(host: str, port: int, root: Path):
-    """WRQ a medium file (~50 KB)."""
+    """WRQ a medium file (~50 KB); verify content and permission bits."""
     fname = "upload_medium.bin"
     size = 50 * 1024
     pattern = bytes(range(256))
@@ -394,6 +458,73 @@ def test_wrq_medium(host: str, port: int, root: Path):
     written = (root / fname).read_bytes()
     assert len(written) == size, f"Expected {size} bytes on disk, got {len(written)}"
     assert written == content, "Content mismatch"
+    _check_new_file_mode(root / fname)
+
+
+def test_wrq_large(host: str, port: int, root: Path):
+    """WRQ a large file (65535 x 512 bytes -- block number edge case).
+
+    Verifies content integrity and that created file has correct permission bits.
+    """
+    fname = "upload_large.bin"
+    size = 65535 * TFTP_BLOCK_SIZE
+    content = _make_content(size)
+
+    tftp_put(host, port, fname, content)
+
+    written = (root / fname).read_bytes()
+    assert len(written) == size, f"Expected {size} bytes on disk, got {len(written)}"
+    assert written == content, "Content mismatch"
+    _check_new_file_mode(root / fname)
+
+
+def test_wrq_extralarge(host: str, port: int, root: Path):
+    """WRQ a file larger than 65535 x 512 (block number wraps past 0).
+
+    Size: 65536 x 512 + 100 = 33,554,532 bytes.
+    Verifies content integrity and that created file has correct permission bits.
+    """
+    fname = "upload_extralarge.bin"
+    size = 65536 * TFTP_BLOCK_SIZE + 100
+    content = _make_content(size)
+
+    tftp_put(host, port, fname, content)
+
+    written = (root / fname).read_bytes()
+    assert len(written) == size, f"Expected {size} bytes on disk, got {len(written)}"
+    assert written == content, "Content mismatch"
+    _check_new_file_mode(root / fname)
+
+
+def test_wrq_existing_no_write_permission(host: str, port: int, root: Path):
+    """WRQ to an existing file that lacks world-write permission (S_IWOTH not set).
+
+    The server refuses to overwrite files that aren't world-writable.
+    Expect ACCESS_VIOLATION (error code 2).
+    """
+    fname = "no_write.bin"
+    (root / fname).write_bytes(b"original content")
+    os.chmod(root / fname, 0o644)  # world-readable but not world-writable
+
+    try:
+        tftp_put(host, port, fname, b"new content")
+        raise AssertionError("Expected TFTPError but put succeeded")
+    except TFTPError as e:
+        assert e.code == 2, f"Expected error code 2 (ACCESS_VIOLATION), got {e.code}"
+
+
+def test_wrq_existing_world_writable(host: str, port: int, root: Path):
+    """WRQ to an existing world-writable file -- expect successful overwrite."""
+    fname = "world_writable.bin"
+    original = b"original content"
+    new_content = b"replaced by WRQ"
+    (root / fname).write_bytes(original)
+    os.chmod(root / fname, 0o666)
+
+    tftp_put(host, port, fname, new_content)
+
+    written = (root / fname).read_bytes()
+    assert written == new_content, f"File was not overwritten correctly: {written!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -429,6 +560,8 @@ def main():
 
     print(f"Server binary: {binary}")
     print(f"TFTP port:     {port}")
+    print(f"Effective new_file_mode: 0o{EFFECTIVE_NEW_FILE_MODE:04o} "
+          f"(0o{SERVER_NEW_FILE_MODE:04o} & ~umask 0o{_SAVED_UMASK:04o})")
     print()
 
     with tempfile.TemporaryDirectory(prefix="tftptest_") as tmpdir:
@@ -440,20 +573,34 @@ def main():
             results = []
 
             print("=== RRQ (Read) Tests ===")
-            results.append( run_test("RRQ small (100 B)",  test_rrq_small,  host, port, root) )
-            results.append( run_test("RRQ medium (50 KB)", test_rrq_medium, host, port, root) )
+            results.append(run_test("RRQ small (100 B)",  test_rrq_small,  host, port, root))
+            results.append(run_test("RRQ medium (50 KB)", test_rrq_medium, host, port, root))
 
             if not args.skip_large:
-                results.append( run_test("RRQ large (65535x512 B)",          test_rrq_large,      host, port, root) )
-                results.append( run_test("RRQ extralarge (65536x512+100 B)", test_rrq_extralarge, host, port, root) )
+                results.append(run_test("RRQ large (65535x512 B)",          test_rrq_large,      host, port, root))
+                results.append(run_test("RRQ extralarge (65536x512+100 B)", test_rrq_extralarge, host, port, root))
             else:
                 print("  RRQ large ... SKIPPED")
                 print("  RRQ extralarge ... SKIPPED")
 
             print()
             print("=== WRQ (Write) Tests ===")
-            results.append(run_test("WRQ small (100 B)", test_wrq_small, host, port, root))
-            results.append(run_test("WRQ medium (50 KB)", test_wrq_medium, host, port, root))
+            results.append(run_test("WRQ small (100 B)",   test_wrq_small,  host, port, root))
+            results.append(run_test("WRQ medium (50 KB)",  test_wrq_medium, host, port, root))
+
+            if not args.skip_large:
+                results.append(run_test("WRQ large (65535x512 B)",          test_wrq_large,      host, port, root))
+                results.append(run_test("WRQ extralarge (65536x512+100 B)", test_wrq_extralarge, host, port, root))
+            else:
+                print("  WRQ large ... SKIPPED")
+                print("  WRQ extralarge ... SKIPPED")
+
+            print()
+            print("=== Permission Tests ===")
+            results.append(run_test("RRQ no read permission",       test_rrq_no_read_permission,          host, port, root))
+            results.append(run_test("RRQ nonexistent file",         test_rrq_nonexistent,                 host, port, root))
+            results.append(run_test("WRQ existing no write perm",   test_wrq_existing_no_write_permission, host, port, root))
+            results.append(run_test("WRQ existing world-writable",  test_wrq_existing_world_writable,     host, port, root))
 
             print()
             _, stderr = server.stop()
