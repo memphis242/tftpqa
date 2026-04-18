@@ -225,15 +225,15 @@ void test_log_message_with_syslog_enabled(void)
    ssize_t stdout_n = stdout_capture_end( stdout_pipefd, stdout_saved, stdout_buf, sizeof stdout_buf );
    ssize_t stderr_n = stderr_capture_end( stderr_pipefd, stderr_saved, stderr_buf, sizeof stderr_buf );
 
-   // Low-level messages (TRACE/DEBUG/INFO/WARN) go to stdout (level <= TFTP_LOG_WARN)
+   // Low-level messages (TRACE/DEBUG/INFO) go to stdout (level < TFTP_LOG_WARN)
    TEST_ASSERT_GREATER_THAN( 0, (int)stdout_n );
    TEST_ASSERT_NOT_NULL( strstr( stdout_buf, "TRACE" ) );
    TEST_ASSERT_NOT_NULL( strstr( stdout_buf, "DEBUG" ) );
    TEST_ASSERT_NOT_NULL( strstr( stdout_buf, "INFO" ) );
-   TEST_ASSERT_NOT_NULL( strstr( stdout_buf, "WARN" ) );
 
-   // High-level messages (ERR/FATAL) go to stderr (level > TFTP_LOG_WARN)
+   // High-level messages (WARN/ERR/FATAL) go to stderr (level >= TFTP_LOG_WARN)
    TEST_ASSERT_GREATER_THAN( 0, (int)stderr_n );
+   TEST_ASSERT_NOT_NULL( strstr( stderr_buf, "WARN" ) );
    TEST_ASSERT_NOT_NULL( strstr( stderr_buf, "ERROR" ) );
    TEST_ASSERT_NOT_NULL( strstr( stderr_buf, "FATAL" ) );
 
