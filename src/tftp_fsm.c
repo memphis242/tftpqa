@@ -1457,6 +1457,26 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             }
          }
 
+         // Flush the stdio buffer to the kernel before sending the final ACK so
+         // that there's a clear sequence between final write completed and _then_
+         // ACK saying write is complete. Otherwise, it's possible that the last
+         // fwrite() is still buffered and not sent to the kernel, but the ACK
+         // send processes, producing a weird situation where the server has ACK'd
+         // the last packet but it still hasn't been written to the session's file.
+         if ( wrq_is_last && fflush(TFTP_FSM_Session.fp) != 0 )
+         {
+            tftp_log( TFTP_LOG_ERR, __func__,
+                      "FSM: fflush failed on final WRQ block: %s (%d) : %s",
+                      strerrorname_np(errno), errno, strerror(errno) );
+
+            send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
+                          TFTP_ERRC_DISK_FULL, "Write error");
+
+            rc = TFTP_FSM_RC_FILE_ERR;
+            TFTP_FSM_Session.state = TFTP_FSM_ERR;
+            break;
+         }
+
          // Send ACK
          TFTP_FSM_Session.sendbuf_len = tftp_pkt_build_ack(
             TFTP_FSM_Session.sendbuf, sizeof TFTP_FSM_Session.sendbuf,
