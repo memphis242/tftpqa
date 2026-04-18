@@ -459,13 +459,13 @@ def test_cm6_server_still_responsive(host: str, port: int, root: Path):
 def find_server_binary() -> str:
     script_dir = Path(__file__).resolve().parent
     candidates = [
-        script_dir.parent / "build" / "debug"   / "tftptest",
-        script_dir.parent / "build" / "release" / "tftptest",
+        script_dir.parent.parent / "build" / "debug"   / "tftptest",
+        script_dir.parent.parent / "build" / "release" / "tftptest",
     ]
     for p in candidates:
         if p.is_file() and os.access(p, os.X_OK):
             return str(p)
-    sys.exit("Could not find tftptest binary. Run `make debug` from the c/ directory first.")
+    sys.exit("Could not find tftptest binary. Run `make debug` from the repo root first.")
 
 
 def main():

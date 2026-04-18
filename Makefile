@@ -14,22 +14,17 @@
 #   coverage – Run tests then produce HTML coverage report via gcov + gcovr
 #
 # Usage:
-#   make                  # defaults to debug
-#   make release
-#   make debug
-#   make test             # build & run unit tests
-#   make coverage         # build tests w/ coverage, run, generate HTML report
-#   make analyze         # static analysis only (no binary produced)
-#   make clean
+#   make help  # tells you the available targets
 ################################################################################
 
 # ─── Project Layout ──────────────────────────────────────────────────────────
 
-PROJECT      := tftptest
-SRC_DIR      := src
-TEST_DIR     := test
-SCRIPTS_DIR  := scripts
-BUILD_DIR    := build
+PROJECT          := tftptest
+SRC_DIR          := src
+TEST_DIR         := test
+INTEGRATION_DIR  := test/integration
+SCRIPTS_DIR      := scripts
+BUILD_DIR        := build
 
 # Unity (cloned as a git submodule under test/)
 UNITY_DIR    := $(TEST_DIR)/Unity
@@ -229,7 +224,7 @@ CPPCHECK_FLAGS := \
 #                                 TARGETS
 ################################################################################
 
-.PHONY: all release debug test buildtest coverage analyze spell clean help fuzz
+.PHONY: all release debug test buildtest testintegration testnominal coverage analyze spell clean help fuzz
 
 # Default target
 all: debug
@@ -343,6 +338,37 @@ $(TEST_BUILD_DIR)/unity.o: $(UNITY_SRC)/unity.c | $(TEST_BUILD_DIR)
 $(TEST_BUILD_DIR):
 	@mkdir -p $@
 
+# ─── Integration Tests ────────────────────────────────────────────────────────
+
+INTEGRATION_SCRIPTS := $(wildcard $(INTEGRATION_DIR)/*.py)
+
+testnominal: $(DBG_BIN)
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[35mRunning nominal integration test\033[0m..."
+	@echo
+	python3 $(INTEGRATION_DIR)/test_nominal.py
+	@echo "--- Nominal integration test complete ---"
+
+testintegration: $(DBG_BIN)
+	@echo
+	@echo "----------------------------------------"
+	@echo -e "\033[35mRunning all integration tests\033[0m..."
+	@echo
+	@failed=0; \
+	for script in $(INTEGRATION_SCRIPTS); do \
+		echo; \
+		echo "  [INTEGRATION] $$script"; \
+		python3 $$script || failed=$$((failed + 1)); \
+	done; \
+	echo; \
+	if [ $$failed -ne 0 ]; then \
+		echo -e "--- \033[1;31m$$failed integration test(s) FAILED\033[0m ---"; \
+		exit 1; \
+	else \
+		echo "--- All integration tests passed ---"; \
+	fi
+
 # ─── Coverage ─────────────────────────────────────────────────────────────────
 
 coverage: test | $(COV_DIR)
@@ -443,18 +469,20 @@ help:
 	@echo ""
 	@echo "  tftptest Makefile"
 	@echo "  ─────────────────────────────────────────────────"
-	@echo "  make              Build debug (default)"
-	@echo "  make debug        Build with -Og -g3, no -Werror"
-	@echo "  make release      Build with -O2, -Werror"
-	@echo "  make test         Build & run Unity unit tests"
-	@echo "  make buildtest    Build unit test executable (do not run)"
-	@echo "  make coverage     Run tests + generate HTML coverage report"
-	@echo "  make analyze      Run GCC -fanalyzer, Clang --analyze, clang-tidy & cppcheck"
-	@echo "  make spell        Spell-check source, docs, and scripts (advisory)"
-	@echo "  make clean        Remove all build artifacts"
-	@echo "  make help         Show this help"
-	@echo "  make fuzz         (TODO) Fuzz the server"
-	@echo "  make cve_analysis (TODO) Check for any known CVE patterns"
+	@echo "  make                  Build debug (default)"
+	@echo "  make debug            Build with -Og -g3, no -Werror"
+	@echo "  make release          Build with -O2, -Werror"
+	@echo "  make test             Build & run Unity unit tests"
+	@echo "  make buildtest        Build unit test executable (do not run)"
+	@echo "  make testnominal      Run nominal integration test (test/integration/test_nominal.py)"
+	@echo "  make testintegration  Run all integration tests (test/integration/*.py)"
+	@echo "  make coverage         Run tests + generate HTML coverage report"
+	@echo "  make analyze          Run GCC -fanalyzer, Clang --analyze, clang-tidy & cppcheck"
+	@echo "  make spell            Spell-check source, docs, and scripts (advisory)"
+	@echo "  make clean            Remove all build artifacts"
+	@echo "  make help             Show this help"
+	@echo "  make fuzz             (TODO) Fuzz the server"
+	@echo "  make cve_analysis     (TODO) Check for any known CVE patterns"
 	@echo ""
 	@echo "  Outputs:"
 	@echo "    Debug binary     → $(DBG_BIN)"

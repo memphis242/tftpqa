@@ -1,32 +1,33 @@
 #!/usr/bin/env python3
 """
-Chaos monkey integration test #2: random delays before each ACK/DATA.
+Chaos monkey integration test #8: Sorcerer's Apprentice (SA) bug test.
 
-During RRQ (GET), the client waits a random amount of time before sending each
-ACK, up to just under the server's receive timeout.
+Verifies the server does NOT have the Sorcerer's Apprentice bug:
 
-During WRQ (PUT), the client waits the same random delay before sending each
-DATA packet.
+RRQ variant:
+  After each DATA block arrives, send ACK N twice (duplicate ACK).
+  Track how many times each block number is seen arriving from the server.
+  Assert: every block received exactly once (no duplicate DATA induced).
+  Assert: final content MD5 matches.
 
-The transfer must still complete successfully — the server must be patient
-enough to wait for a slow client without timing out.
+WRQ variant:
+  Send each DATA block twice (duplicate DATA).
+  Assert: file written to disk has the exact expected size and content.
+  (SA bug would cause extra data to be appended.)
 
-Test matrix (matches test_nominal.py):
-  RRQ: small (~100 B), medium (~50 KB), large (65535×512 B), extralarge (65536×512+100 B)
-  WRQ: small (~100 B), medium (~50 KB), large (65535×512 B), extralarge (65536×512+100 B)
+Test matrix: small/medium/large/extralarge × RRQ + WRQ (8 tests).
 
 Usage:
-  python3 scripts/chaos_monkey2.py [--port PORT] [--server-bin PATH]
-                                   [--max-delay-sec N] [--seed N]
+  python3 scripts/chaos_monkey8.py [--port PORT] [--server-bin PATH]
                                    [--skip-large]
 """
 
 from __future__ import annotations
 
 import argparse
+import collections
 import hashlib
 import os
-import random
 import signal
 import socket
 import struct
@@ -49,11 +50,9 @@ TFTP_OP_ERROR = 5
 TFTP_BLOCK_SIZE = 512
 TFTP_MAX_PACKET = 4 + TFTP_BLOCK_SIZE
 
-TIMEOUT_SEC  = 10
-MAX_RETRIES  = 5
-SOCK_RCVBUF  = 1 << 20
-
-DEFAULT_MAX_DELAY_SEC = TIMEOUT_SEC - 0.5  # Stay just under server timeout
+TIMEOUT_SEC = 10
+MAX_RETRIES = 5
+SOCK_RCVBUF = 1 << 20
 
 # ---------------------------------------------------------------------------
 # TFTP packet helpers
@@ -103,16 +102,17 @@ def _parse_ack(pkt: bytes) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Slow TFTP clients
+# SA-test TFTP clients
 # ---------------------------------------------------------------------------
 
-def slow_tftp_get(host: str, port: int, filename: str,
-                  max_delay_sec: float) -> tuple[bytes, float]:
+def sa_tftp_get(host: str, port: int, filename: str) -> tuple[bytes, dict[int, int]]:
     """
-    Download via RRQ, inserting a random delay before each ACK.
-    Returns (file_bytes, total_delay_injected_seconds).
+    Download via RRQ.  After receiving each DATA block, send its ACK *twice*.
+    Returns (file_bytes, block_receive_counts) where the dict maps
+    block_number → how many times that block was received.
+    A correct server should have every value == 1.
     """
-    total_delay = 0.0
+    block_counts: dict[int, int] = collections.defaultdict(int)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(TIMEOUT_SEC)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, SOCK_RCVBUF)
@@ -145,37 +145,49 @@ def slow_tftp_get(host: str, port: int, filename: str,
                 continue
 
             block, payload = _parse_data(pkt)
+            block_counts[block] += 1
 
             if block != (expected_block & 0xFFFF):
+                # Out-of-order or SA-induced duplicate DATA — ACK it and skip
                 sock.sendto(_build_ack(block), tid)
                 continue
 
             data.extend(payload)
 
-            # Inject delay before sending ACK
-            delay = random.uniform(0.0, max_delay_sec)
-            time.sleep(delay)
-            total_delay += delay
+            # Send ACK twice to trigger potential SA bug
+            ack = _build_ack(block)
+            sock.sendto(ack, tid)
+            sock.sendto(ack, tid)
 
-            sock.sendto(_build_ack(block), tid)
             expected_block += 1
 
             if len(payload) < TFTP_BLOCK_SIZE:
+                # Drain any duplicate DATA the server might (incorrectly) send
+                # after the duplicate ACK, with a short window.
+                sock.settimeout(1.0)
+                while True:
+                    try:
+                        extra_pkt, extra_addr = sock.recvfrom(TFTP_MAX_PACKET + 4)
+                        if extra_addr != tid:
+                            continue
+                        extra_block, _ = _parse_data(extra_pkt)
+                        block_counts[extra_block] += 1
+                    except socket.timeout:
+                        break
                 break
 
-        return bytes(data), total_delay
+        return bytes(data), dict(block_counts)
     finally:
         sock.close()
 
 
-def slow_tftp_put(host: str, port: int, filename: str, content: bytes,
-                  max_delay_sec: float) -> float:
+def sa_tftp_put(host: str, port: int, filename: str, content: bytes) -> int:
     """
-    Upload via WRQ, inserting a random delay before each DATA send.
-    Returns total_delay_injected_seconds.
+    Upload via WRQ.  Send each DATA block twice.
+    Returns the number of extra DATA packets sent (== number of blocks).
     """
-    total_delay = 0.0
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    extras = 0
+    sock   = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(TIMEOUT_SEC)
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, SOCK_RCVBUF)
 
@@ -202,13 +214,16 @@ def slow_tftp_put(host: str, port: int, filename: str, content: bytes,
             chunk    = content[offset : offset + TFTP_BLOCK_SIZE]
             data_pkt = struct.pack("!HH", TFTP_OP_DATA, block & 0xFFFF) + chunk
 
-            # Inject delay before sending DATA
-            delay = random.uniform(0.0, max_delay_sec)
-            time.sleep(delay)
-            total_delay += delay
-
             for attempt in range(MAX_RETRIES):
-                sock.sendto(data_pkt, tid)
+                # First attempt: send DATA twice to trigger SA bug if present
+                if attempt == 0:
+                    sock.sendto(data_pkt, tid)
+                    sock.sendto(data_pkt, tid)
+                    extras += 1
+                else:
+                    sock.sendto(data_pkt, tid)
+
+                # Drain ACKs until we get the one for this block
                 try:
                     while True:
                         pkt, addr = sock.recvfrom(TFTP_MAX_PACKET)
@@ -217,6 +232,7 @@ def slow_tftp_put(host: str, port: int, filename: str, content: bytes,
                         ack_block = _parse_ack(pkt)
                         if ack_block == (block & 0xFFFF):
                             break
+                        # Stale ACK — discard
                     break
                 except socket.timeout:
                     if attempt == MAX_RETRIES - 1:
@@ -228,13 +244,13 @@ def slow_tftp_put(host: str, port: int, filename: str, content: bytes,
             if len(chunk) < TFTP_BLOCK_SIZE:
                 break
 
-        return total_delay
+        return extras
     finally:
         sock.close()
 
 
 # ---------------------------------------------------------------------------
-# Test file generation
+# Test file helpers
 # ---------------------------------------------------------------------------
 
 def generate_test_file(path: Path, size: int) -> str:
@@ -336,90 +352,69 @@ def run_test(name: str, func, *args, **kwargs) -> bool:
 # RRQ test cases
 # ---------------------------------------------------------------------------
 
-def test_slow_rrq_small(host, port, root, max_delay):
-    fname = "small.bin"
-    expected_md5 = generate_test_file(root / fname, 100)
-    data, total_delay = slow_tftp_get(host, port, fname, max_delay)
-    assert len(data) == 100,              f"Expected 100 bytes, got {len(data)}"
-    assert md5_bytes(data) == expected_md5, "MD5 mismatch"
-    return f"total delay injected: {total_delay:.1f}s"
-
-
-def test_slow_rrq_medium(host, port, root, max_delay):
-    fname = "medium.bin"
-    size  = 50 * 1024
+def test_sa_rrq(host, port, root, fname, size):
     expected_md5 = generate_test_file(root / fname, size)
-    data, total_delay = slow_tftp_get(host, port, fname, max_delay)
+    data, counts = sa_tftp_get(host, port, fname)
+
+    # Content check
     assert len(data) == size,               f"Expected {size} bytes, got {len(data)}"
     assert md5_bytes(data) == expected_md5, "MD5 mismatch"
-    return f"total delay injected: {total_delay:.1f}s"
+
+    # SA bug check: no block should appear more than once
+    dup_blocks = {b: c for b, c in counts.items() if c > 1}
+    assert not dup_blocks, \
+        f"SA bug detected — duplicate DATA blocks received: {dup_blocks}"
+
+    return f"0 duplicate DATA blocks; {len(counts)} unique blocks received"
 
 
-def test_slow_rrq_large(host, port, root, max_delay):
-    fname = "large.bin"
-    size  = 65535 * TFTP_BLOCK_SIZE
-    expected_md5 = generate_test_file(root / fname, size)
-    data, total_delay = slow_tftp_get(host, port, fname, max_delay)
-    assert len(data) == size,               f"Expected {size} bytes, got {len(data)}"
-    assert md5_bytes(data) == expected_md5, "MD5 mismatch"
-    return f"total delay injected: {total_delay:.1f}s"
+def test_sa_rrq_small(host, port, root):
+    return test_sa_rrq(host, port, root, "small.bin", 100)
 
 
-def test_slow_rrq_extralarge(host, port, root, max_delay):
-    fname = "extralarge.bin"
-    size  = 65536 * TFTP_BLOCK_SIZE + 100
-    expected_md5 = generate_test_file(root / fname, size)
-    data, total_delay = slow_tftp_get(host, port, fname, max_delay)
-    assert len(data) == size,               f"Expected {size} bytes, got {len(data)}"
-    assert md5_bytes(data) == expected_md5, "MD5 mismatch"
-    return f"total delay injected: {total_delay:.1f}s"
+def test_sa_rrq_medium(host, port, root):
+    return test_sa_rrq(host, port, root, "medium.bin", 50 * 1024)
+
+
+def test_sa_rrq_large(host, port, root):
+    return test_sa_rrq(host, port, root, "large.bin", 65535 * TFTP_BLOCK_SIZE)
+
+
+def test_sa_rrq_extralarge(host, port, root):
+    return test_sa_rrq(host, port, root, "extralarge.bin", 65536 * TFTP_BLOCK_SIZE + 100)
 
 
 # ---------------------------------------------------------------------------
 # WRQ test cases
 # ---------------------------------------------------------------------------
 
-def test_slow_wrq_small(host, port, root, max_delay):
-    fname   = "upload_small.bin"
-    content = make_content(100)
-    total_delay = slow_tftp_put(host, port, fname, content, max_delay)
-    written = (root / fname).read_bytes()
-    assert len(written) == 100, f"Expected 100 bytes on disk, got {len(written)}"
-    assert written == content,  "Content mismatch"
-    return f"total delay injected: {total_delay:.1f}s"
-
-
-def test_slow_wrq_medium(host, port, root, max_delay):
-    fname   = "upload_medium.bin"
-    size    = 50 * 1024
+def test_sa_wrq(host, port, root, fname, size):
     content = make_content(size)
-    total_delay = slow_tftp_put(host, port, fname, content, max_delay)
+    extras  = sa_tftp_put(host, port, fname, content)
     written = (root / fname).read_bytes()
-    assert len(written) == size, f"Expected {size} bytes on disk, got {len(written)}"
-    assert written == content,   "Content mismatch"
-    return f"total delay injected: {total_delay:.1f}s"
+
+    assert len(written) == size, \
+        f"SA bug detected — expected {size} bytes on disk, got {len(written)}"
+    assert written == content, \
+        "Content mismatch (file may contain doubled data)"
+
+    return f"{extras} extra DATA packet(s) sent; file size exact match"
 
 
-def test_slow_wrq_large(host, port, root, max_delay):
-    fname   = "upload_large.bin"
-    size    = 65535 * TFTP_BLOCK_SIZE
-    content = make_content(size)
-    total_delay = slow_tftp_put(host, port, fname, content, max_delay)
-    written = (root / fname).read_bytes()
-    assert len(written) == size, f"Expected {size} bytes on disk, got {len(written)}"
-    assert written == content,   "Content mismatch"
-    return f"total delay injected: {total_delay:.1f}s"
+def test_sa_wrq_small(host, port, root):
+    return test_sa_wrq(host, port, root, "upload_small.bin", 100)
 
 
-def test_slow_wrq_extralarge(host, port, root, max_delay):
-    fname   = "upload_extralarge.bin"
-    size    = 65536 * TFTP_BLOCK_SIZE + 100
-    content = make_content(size)
-    total_delay = slow_tftp_put(host, port, fname, content, max_delay)
-    written = (root / fname).read_bytes()
-    assert len(written) == size, f"Expected {size} bytes on disk, got {len(written)}"
-    assert written == content,   "Content mismatch"
-    return f"total delay injected: {total_delay:.1f}s"
+def test_sa_wrq_medium(host, port, root):
+    return test_sa_wrq(host, port, root, "upload_medium.bin", 50 * 1024)
+
+
+def test_sa_wrq_large(host, port, root):
+    return test_sa_wrq(host, port, root, "upload_large.bin", 65535 * TFTP_BLOCK_SIZE)
+
+
+def test_sa_wrq_extralarge(host, port, root):
+    return test_sa_wrq(host, port, root, "upload_extralarge.bin", 65536 * TFTP_BLOCK_SIZE + 100)
 
 
 # ---------------------------------------------------------------------------
@@ -429,68 +424,61 @@ def test_slow_wrq_extralarge(host, port, root, max_delay):
 def find_server_binary() -> str:
     script_dir = Path(__file__).resolve().parent
     candidates = [
-        script_dir.parent / "build" / "debug"   / "tftptest",
-        script_dir.parent / "build" / "release" / "tftptest",
+        script_dir.parent.parent / "build" / "debug"   / "tftptest",
+        script_dir.parent.parent / "build" / "release" / "tftptest",
     ]
     for p in candidates:
         if p.is_file() and os.access(p, os.X_OK):
             return str(p)
-    sys.exit("Could not find tftptest binary. Run `make debug` from the c/ directory first.")
+    sys.exit("Could not find tftptest binary. Run `make debug` from the repo root first.")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Chaos monkey #2: random delays before each ACK (RRQ) and DATA (WRQ)"
+        description=(
+            "Chaos monkey #8: Sorcerer's Apprentice — "
+            "verify server sends no duplicate DATA (RRQ) and writes no extra bytes (WRQ)"
+        )
     )
-    parser.add_argument("--port",          type=int,   default=23069)
-    parser.add_argument("--server-bin",    type=str,   default=None)
-    parser.add_argument("--max-delay-sec", type=float, default=DEFAULT_MAX_DELAY_SEC,
-                        help=f"Max delay in seconds before each ACK/DATA (default {DEFAULT_MAX_DELAY_SEC:.1f})")
-    parser.add_argument("--seed",          type=int,   default=None)
-    parser.add_argument("--skip-large",    action="store_true",
-                        help="Skip large/extralarge tests (very slow with delays)")
+    parser.add_argument("--port",       type=int, default=23069)
+    parser.add_argument("--server-bin", type=str, default=None)
+    parser.add_argument("--skip-large", action="store_true",
+                        help="Skip large/extralarge tests")
     args = parser.parse_args()
 
-    if args.seed is not None:
-        random.seed(args.seed)
+    binary = args.server_bin or find_server_binary()
+    host   = "127.0.0.1"
+    port   = args.port
 
-    binary    = args.server_bin or find_server_binary()
-    host      = "127.0.0.1"
-    port      = args.port
-    max_delay = max(0.0, args.max_delay_sec)
-
-    print(f"Server binary:    {binary}")
-    print(f"TFTP port:        {port}")
-    print(f"Max delay:        {max_delay:.2f}s per ACK/DATA")
-    if args.seed is not None:
-        print(f"Random seed:      {args.seed}")
+    print(f"Server binary:  {binary}")
+    print(f"TFTP port:      {port}")
     print()
 
-    with tempfile.TemporaryDirectory(prefix="tftptest_chaos2_") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="tftptest_chaos8_") as tmpdir:
         root = Path(tmpdir)
-        print(f"Test root dir:    {root}")
+        print(f"Test root dir:  {root}")
         print()
 
         with TFTPTestServer(binary, port, tmpdir) as _server:
             results = []
 
-            print("=== RRQ (Read) Tests — random delay before each ACK ===")
-            results.append(run_test("RRQ small (100 B)",    test_slow_rrq_small,      host, port, root, max_delay))
-            results.append(run_test("RRQ medium (50 KB)",   test_slow_rrq_medium,     host, port, root, max_delay))
+            print("=== RRQ Tests — ACK sent twice; expect 0 duplicate DATA ===")
+            results.append(run_test("RRQ small (100 B)",    test_sa_rrq_small,      host, port, root))
+            results.append(run_test("RRQ medium (50 KB)",   test_sa_rrq_medium,     host, port, root))
             if not args.skip_large:
-                results.append(run_test("RRQ large (65535×512 B)",       test_slow_rrq_large,      host, port, root, max_delay))
-                results.append(run_test("RRQ extralarge (65536×512+100 B)", test_slow_rrq_extralarge, host, port, root, max_delay))
+                results.append(run_test("RRQ large (65535×512 B)",          test_sa_rrq_large,      host, port, root))
+                results.append(run_test("RRQ extralarge (65536×512+100 B)", test_sa_rrq_extralarge, host, port, root))
             else:
                 print("  RRQ large ... SKIPPED")
                 print("  RRQ extralarge ... SKIPPED")
 
             print()
-            print("=== WRQ (Write) Tests — random delay before each DATA ===")
-            results.append(run_test("WRQ small (100 B)",    test_slow_wrq_small,      host, port, root, max_delay))
-            results.append(run_test("WRQ medium (50 KB)",   test_slow_wrq_medium,     host, port, root, max_delay))
+            print("=== WRQ Tests — DATA sent twice; expect exact file size on disk ===")
+            results.append(run_test("WRQ small (100 B)",    test_sa_wrq_small,      host, port, root))
+            results.append(run_test("WRQ medium (50 KB)",   test_sa_wrq_medium,     host, port, root))
             if not args.skip_large:
-                results.append(run_test("WRQ large (65535×512 B)",       test_slow_wrq_large,      host, port, root, max_delay))
-                results.append(run_test("WRQ extralarge (65536×512+100 B)", test_slow_wrq_extralarge, host, port, root, max_delay))
+                results.append(run_test("WRQ large (65535×512 B)",          test_sa_wrq_large,      host, port, root))
+                results.append(run_test("WRQ extralarge (65536×512+100 B)", test_sa_wrq_extralarge, host, port, root))
             else:
                 print("  WRQ large ... SKIPPED")
                 print("  WRQ extralarge ... SKIPPED")

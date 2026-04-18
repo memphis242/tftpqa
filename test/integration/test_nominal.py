@@ -9,10 +9,10 @@ Test cases:
   - Extra-large  (65536 x 512 + 100 bytes -- block number wraps past 0)
 
 Requires: the tftptest server binary at build/debug/tftptest (run `make debug`
-          first from the c/ directory).
+          first from the repo root).
 
 Usage:
-  python3 scripts/test_nominal.py [--port PORT] [--server-bin PATH]
+  python3 test/integration/test_nominal.py [--port PORT] [--server-bin PATH]
 """
 
 from __future__ import annotations
@@ -404,14 +404,14 @@ def find_server_binary() -> str:
     """Locate the tftptest binary relative to this script."""
     script_dir = Path(__file__).resolve().parent
     candidates = [
-        script_dir.parent / "build" / "debug" / "tftptest",
-        script_dir.parent / "build" / "release" / "tftptest",
+        script_dir.parent.parent / "build" / "debug" / "tftptest",
+        script_dir.parent.parent / "build" / "release" / "tftptest",
     ]
     for p in candidates:
         if p.is_file() and os.access(p, os.X_OK):
             return str(p)
     sys.exit(
-        "Could not find tftptest binary. Run `make debug` from the c/ directory first."
+        "Could not find tftptest binary. Run `make debug` from the repo root first."
     )
 
 
