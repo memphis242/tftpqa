@@ -131,7 +131,8 @@ LDLIBS       :=
 
 # --- Release ---
 REL_DIR      := $(BUILD_DIR)/release
-REL_CFLAGS   := $(C_STD) -O2 -DNDEBUG $(COMMON_DEFS) $(COMMON_WARNS) $(GCC_EXTRA_WARNS) $(COMMON_INC) -Werror -fstack-protector-strong
+REL_CFLAGS   := $(C_STD) -O2 -DNDEBUG -D_FORTIFY_SOURCE=2 $(COMMON_DEFS) $(COMMON_WARNS) $(GCC_EXTRA_WARNS) $(COMMON_INC) -Werror -fstack-protector-strong -fPIE
+REL_LDFLAGS  := -pie -Wl,-z,relro,-z,now
 REL_OBJS     := $(patsubst $(SRC_DIR)/%.c,$(REL_DIR)/%.o,$(SRCS))
 REL_BIN      := $(REL_DIR)/$(PROJECT)
 
@@ -251,7 +252,7 @@ release: $(REL_BIN)
 release: CLANG_CHECK = clang_release_check
 
 $(REL_BIN): $(REL_OBJS) | clang_release_check
-	$(CC) $(REL_CFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
+	$(CC) $(REL_CFLAGS) $(REL_LDFLAGS) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 $(REL_DIR)/%.o: $(SRC_DIR)/%.c | $(REL_DIR)
 	$(CC) $(REL_CFLAGS) -c -o $@ $<
@@ -433,7 +434,26 @@ profilemem: $(DBG_BIN) | $(MEMCHECK_DIR)
 	@echo "  $(MEMCHECK_DIR)/massif.out    (raw massif data)"
 
 # ─── Binary Stats ─────────────────────────────────────────────────────────────
-
+# Shows release binary footprint and hardening flags.
+#
+# Brief security terms rundown:
+#   NX (no-execute):    Stack & heap marked non-executable; prevents code injection.
+#                       RW = NX enabled (good), RWE = executable stack (exploitable).
+#
+#   RELRO:              Read-Only Relocations
+#			Relocations read-only after load. PARTIAL = some, FULL = all.
+#			Prevents GOT (Global Offset Table) hijacking.
+#                       Full RELRO requires -Wl,-z,relro,-z,now at link time.
+#
+#   PIE:		Position Independent Executable
+#			Binary can be loaded at random addresses (ASLR). ET_EXEC = no PIE.
+#			Return-oriented exploits become infeasible - fcn addresses change every time.
+#
+#   FORTIFY_SOURCE:     Runtime bounds checking on libc functions (e.g., memcpy → memcpy_chk).
+#                       Requires -D_FORTIFY_SOURCE=2 and optimization (-O1 or higher).
+#
+# Overall, RELRO + ASLR + PIE makes exploitation orders of magnitude harder at minimal
+# performance cost.
 binstats: $(REL_BIN)
 	@echo
 	@echo "----------------------------------------"
