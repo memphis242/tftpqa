@@ -142,13 +142,25 @@ void tftp_log( enum TFTP_LogLevel level,
    {
       char msg[2048]; // 2K is broadly speaking a reasonable upper limit on msg sz
       va_start( ap, fmt );
-      (void)vsnprintf( msg, sizeof(msg), fmt, ap );
+      int nbytes = vsnprintf( msg, sizeof(msg), fmt, ap );
       va_end( ap );
 
       if ( func_name != NULL )
          syslog( s_syslog_priority[level], "%s(): %s", func_name, msg );
       else
          syslog( s_syslog_priority[level], "%s", msg );
+
+      assert( nbytes >= 0 );
+      if ( (size_t)nbytes >= sizeof msg )
+      {
+         (void)fprintf( stderr,
+                  "[WARN ]: syslog msg truncated, surpassed %zu bytes",
+                  sizeof msg );
+
+         syslog( LOG_WARNING,
+                 "syslog msg truncated, surpassed %zu bytes",
+                 sizeof msg );
+      }
    }
 }
 
