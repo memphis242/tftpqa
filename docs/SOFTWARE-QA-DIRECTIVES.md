@@ -1,6 +1,10 @@
 # Software Quality Assurance Principles
 
 ## Code Quality & Robustness
+- code readability, at least at a basic level (before people's stylistic preferences), is very important for maintainability and quality
+  - whatever your style, be consistent
+  - minimize how much readers have to track at any given moment (e.g., minimize necessary indentation, #ifdef madness, etc.)
+  - don't aggressively abbreviate to the point that nobody knows what your abbreviations are
 - `assert()` throughout the code at any point assumption are made, especially
   prior to lines that execute based on those assumptions
   - **only** assert on conditions that are 100% in the control of the code, such
