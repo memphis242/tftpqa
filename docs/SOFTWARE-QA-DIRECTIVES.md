@@ -8,6 +8,7 @@
   - **do not** assert on external input (user CLI, file inputs, network inputs)
     until after it has been checked/sanitized - after which that "input" is
     considered internally controlled
+- respect `const` correctness
 - thorough set of compiler warnings
 - multiple compilers
 - multiple static analyzers
