@@ -16,6 +16,7 @@ struct TFTPTest_SeqEntry
 {
    enum TFTPTest_FaultMode mode;
    uint32_t                param;
+   bool                    param_present;
    size_t                  count;  // number of sessions this entry covers
 };
 

@@ -303,12 +303,12 @@ int main(int argc, char * argv[])
    }
 
    // Fault state
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
 
    // Sequence mode vs. control channel mode
    struct TFTPTest_Seq seq = {0};
    bool use_sequence = false;
-   int ctrl_sfd = -1;
+   struct TFTPTest_CtrlCfg ctrl_cfg = { .sfd = -1, .port = 0, .whitelist = 0 };
 
    if ( sequence_path != NULL )
    {
@@ -319,26 +319,41 @@ int main(int argc, char * argv[])
       }
       use_sequence = true;
       // Set initial fault from first entry
-      fault.mode  = seq.entries[0].mode;
-      fault.param = seq.entries[0].param;
-      tftp_log( TFTP_LOG_INFO, NULL, "Sequence step 1/%zu: %s param=%u, %zu sessions",
-                seq.n_entries, tftptest_fault_mode_names[fault.mode],
-                fault.param, seq.entries[0].count );
+      fault.mode          = seq.entries[0].mode;
+      fault.param         = seq.entries[0].param;
+      fault.param_present = seq.entries[0].param_present;
+      if ( fault.param_present )
+      {
+         tftp_log( TFTP_LOG_INFO, NULL, "Sequence step 1/%zu: %s param=%u, %zu sessions",
+                   seq.n_entries, tftptest_fault_mode_names[fault.mode],
+                   fault.param, seq.entries[0].count );
+      }
+      else
+      {
+         tftp_log( TFTP_LOG_INFO, NULL, "Sequence step 1/%zu: %s (no param), %zu sessions",
+                   seq.n_entries, tftptest_fault_mode_names[fault.mode],
+                   seq.entries[0].count );
+      }
       tftp_log( TFTP_LOG_INFO, NULL, "Sequence mode: control channel disabled" );
    }
    else if ( cfg.ctrl_port != 0 )
    {
-      ctrl_sfd = tftptest_ctrl_init(cfg.ctrl_port);
-      if ( ctrl_sfd < 0 )
+      assert( cfg.ctrl_port != cfg.tftp_port );
+      assert( sequence_path == NULL );
+
+      enum TFTPTest_CtrlResult ctrl_rc =
+         tftptest_ctrl_init(&ctrl_cfg, cfg.ctrl_port, cfg.fault_whitelist);
+      if ( ctrl_rc != TFTPTEST_CTRL_OK )
       {
-         tftp_log( TFTP_LOG_WARN, __func__, "Failed to create control channel on port %u: %s (%d) : %s",
-                   (unsigned)cfg.ctrl_port, strerrorname_np(errno), errno, strerror(errno) );
+         tftp_log( TFTP_LOG_WARN, __func__,
+                   "Failed to create control channel on port %u (ctrl_rc=%d)",
+                   (unsigned)cfg.ctrl_port, (int)ctrl_rc );
          // Non-fatal: continue without control channel
       }
    }
    else
    {
-      tftp_log( TFTP_LOG_INFO, NULL, "Fault simulation disabled (ctrl_port = 0)" );
+      tftp_log( TFTP_LOG_INFO, NULL, "Fault simulation disabled (no sequence file, no ctrl port)" );
    }
 
    size_t nreps = 0;
@@ -560,9 +575,9 @@ int main(int argc, char * argv[])
             break;
          }
       }
-      else if ( ctrl_sfd >= 0 )
+      else if ( ctrl_cfg.sfd >= 0 )
       {
-         tftptest_ctrl_poll(ctrl_sfd, &fault, cfg.fault_whitelist);
+         tftptest_ctrl_poll_and_handle(&ctrl_cfg, &fault);
       }
    }
 
@@ -589,7 +604,7 @@ Main_CleanupTag:
    if ( use_sequence )
       tftptest_seq_free(&seq);
    else
-      tftptest_ctrl_shutdown(ctrl_sfd);
+      tftptest_ctrl_shutdown(&ctrl_cfg);
    (void)close(sfd_newconn);
    tftp_log( TFTP_LOG_INFO, NULL, "Server shutting down (rc=0x%04x)", (unsigned)mainrc );
    tftp_log_shutdown();

@@ -8,7 +8,17 @@
 #ifndef TFTPTEST_FAULTMODE_H
 #define TFTPTEST_FAULTMODE_H
 
+#include <stdbool.h>
 #include <stdint.h>
+
+#define FAULT_NAME_PREFIX             "FAULT_"
+#define FAULT_NAME_PREFIX_LEN         (sizeof(FAULT_NAME_PREFIX) - 1)
+
+#define SHORTEST_FAULT_MODE_NAME      "NONE"
+#define SHORTEST_FAULT_MODE_NAME_LEN  (sizeof(SHORTEST_FAULT_MODE_NAME) - 1)
+
+#define LONGEST_FAULT_MODE_NAME       "FAULT_MID_TIMEOUT_NO_FINAL_DATA"
+#define LONGEST_FAULT_MODE_NAME_LEN   (sizeof(LONGEST_FAULT_MODE_NAME) - 1)
 
 // Fault simulation modes
 // Some modes are parameterized (e.g., block number, error code).
@@ -76,11 +86,15 @@ enum TFTPTest_FaultMode
    FAULT_MODE_COUNT
 };
 
-// Active fault state: mode + optional parameter
+// Active fault state: mode + optional parameter.
+// `param` is only meaningful when `param_present` is true; otherwise the mode's
+// per-mode default applies. This distinguishes "no parameter" from
+// "parameter is 0" (0 is a legitimate value for some modes).
 struct TFTPTest_FaultState
 {
    enum TFTPTest_FaultMode mode;
-   uint32_t param;  // Block number, error code, etc.
+   uint32_t                param;
+   bool                    param_present;
 };
 
 // Name table and lookup (shared by ctrl and seq modules)

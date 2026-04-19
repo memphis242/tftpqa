@@ -12,11 +12,6 @@
 #include "tftptest_faultmode.h"
 #include "tftptest_common.h"
 
-#define FAULT_NAME_PREFIX        "FAULT_"
-#define FAULT_NAME_PREFIX_LEN    (sizeof(FAULT_NAME_PREFIX) - 1)
-#define SHORTEST_FAULT_MODE_NAME "NONE"
-#define LONGEST_FAULT_MODE_NAME  "FAULT_MID_TIMEOUT_NO_FINAL_DATA"
-
 const char * const tftptest_fault_mode_names[FAULT_MODE_COUNT] = {
    [FAULT_NONE]                      = FAULT_NAME_PREFIX "NONE",
    [FAULT_RRQ_TIMEOUT]               = FAULT_NAME_PREFIX "RRQ_TIMEOUT",

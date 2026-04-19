@@ -207,12 +207,12 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
          continue;
       }
 
-      (void)param_set;
       (void)count_set;
 
-      entries[idx].mode  = mode;
-      entries[idx].param = param;
-      entries[idx].count = count;
+      entries[idx].mode          = mode;
+      entries[idx].param         = param;
+      entries[idx].param_present = param_set;
+      entries[idx].count         = count;
       total_sessions += count;
       idx++;
    }
@@ -238,6 +238,8 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
 
 bool tftptest_seq_advance(struct TFTPTest_Seq *seq, struct TFTPTest_FaultState *fault)
 {
+   // FIXME: Need to handle case where this fcn is called after the last step of the last session...
+
    seq->sessions_in_step++;
 
    if ( seq->sessions_in_step >= seq->entries[seq->current].count )
@@ -249,13 +251,24 @@ bool tftptest_seq_advance(struct TFTPTest_Seq *seq, struct TFTPTest_FaultState *
       if ( seq->current >= seq->n_entries )
          return false; // Sequence exhausted
 
-      fault->mode  = seq->entries[seq->current].mode;
-      fault->param = seq->entries[seq->current].param;
+      fault->mode          = seq->entries[seq->current].mode;
+      fault->param         = seq->entries[seq->current].param;
+      fault->param_present = seq->entries[seq->current].param_present;
 
-      tftp_log(TFTP_LOG_INFO, NULL, "Sequence step %zu/%zu: %s param=%u, %zu sessions",
-               seq->current + 1, seq->n_entries,
-               tftptest_fault_mode_names[fault->mode],
-               fault->param, seq->entries[seq->current].count);
+      if ( fault->param_present )
+      {
+         tftp_log(TFTP_LOG_INFO, NULL, "Sequence step %zu/%zu: %s param=%u, %zu sessions",
+                  seq->current + 1, seq->n_entries,
+                  tftptest_fault_mode_names[fault->mode],
+                  fault->param, seq->entries[seq->current].count);
+      }
+      else
+      {
+         tftp_log(TFTP_LOG_INFO, NULL, "Sequence step %zu/%zu: %s (no param), %zu sessions",
+                  seq->current + 1, seq->n_entries,
+                  tftptest_fault_mode_names[fault->mode],
+                  seq->entries[seq->current].count);
+      }
    }
 
    return true;

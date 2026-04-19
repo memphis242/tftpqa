@@ -881,7 +881,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
 
          if ( fault->mode == FAULT_OOO_DATA && !is_last )
          {
-            uint16_t target = (fault->param > 0) ? (uint16_t)fault->param : 3;
+            uint16_t target = fault->param_present ? (uint16_t)fault->param : 3;
             if ( TFTP_FSM_Session.block_num == target )
             {
                // Stash this packet, read next block on next iteration
@@ -971,7 +971,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          if ( fault->mode == FAULT_BURST_DATA && !is_last &&
               TFTP_FSM_Session.block_num == 1 )
          {
-            uint32_t burst_count = (fault->param > 0) ? fault->param : 3;
+            uint32_t burst_count = fault->param_present ? fault->param : 3;
             tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Burst-sending %u additional DATA packets",
                       burst_count );
             for ( uint32_t b = 0; b < burst_count && !is_last; b++ )
@@ -1440,7 +1440,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
 
          if ( fault->mode == FAULT_OOO_ACK && !wrq_is_last )
          {
-            uint16_t target = (fault->param > 0) ? (uint16_t)fault->param : 3;
+            uint16_t target = fault->param_present ? (uint16_t)fault->param : 3;
             if ( TFTP_FSM_Session.block_num == target )
             {
                // Stash ACK for this block, wait for next DATA to arrive
@@ -1632,7 +1632,7 @@ static bool fault_should_suppress_data(const struct TFTPTest_FaultState *fault,
    {
    case FAULT_MID_TIMEOUT_NO_DATA:
       // Suppress DATA at param block (default block 3 if param is 0)
-      return block_num == (fault->param > 0 ? (uint16_t)fault->param : 3);
+      return block_num == (fault->param_present ? (uint16_t)fault->param : 3);
 
    case FAULT_MID_TIMEOUT_NO_FINAL_DATA:
       return is_last;
@@ -1651,7 +1651,7 @@ static bool fault_should_suppress_ack(const struct TFTPTest_FaultState *fault,
    switch ( fault->mode )
    {
    case FAULT_MID_TIMEOUT_NO_ACK:
-      return block_num == (fault->param > 0 ? (uint16_t)fault->param : 3);
+      return block_num == (fault->param_present ? (uint16_t)fault->param : 3);
 
    case FAULT_MID_TIMEOUT_NO_FINAL_ACK:
       return is_last;
@@ -1758,7 +1758,7 @@ static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
    case FAULT_CORRUPT_DATA:
       if ( is_data && *pkt_len > TFTP_DATA_HDR_SZ )
       {
-         uint16_t target_block = (fault->param > 0) ? (uint16_t)fault->param : 3;
+         uint16_t target_block = fault->param_present ? (uint16_t)fault->param : 3;
          if ( block_num == target_block )
          {
             // XOR first 4 payload bytes (or fewer if payload is shorter)
@@ -1808,7 +1808,7 @@ static void fault_maybe_delay(const struct TFTPTest_FaultState *fault)
    if ( fault->mode != FAULT_SLOW_RESPONSE )
       return;
 
-   uint32_t delay_ms = fault->param > 0 ? fault->param : 4000;
+   uint32_t delay_ms = fault->param_present ? fault->param : 4000;
    struct timespec ts = {
       .tv_sec  = delay_ms / 1000,
       .tv_nsec = (long)(delay_ms % 1000) * 1000000L,
