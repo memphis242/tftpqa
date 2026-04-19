@@ -131,14 +131,19 @@ LDLIBS       :=
 
 # --- Release ---
 REL_DIR      := $(BUILD_DIR)/release
-REL_CFLAGS   := $(C_STD) -O2 -DNDEBUG -D_FORTIFY_SOURCE=2 $(COMMON_DEFS) $(COMMON_WARNS) $(GCC_EXTRA_WARNS) $(COMMON_INC) -Werror -fstack-protector-strong -fPIE
+REL_CFLAGS   := $(C_STD) -O2 -DNDEBUG -D_FORTIFY_SOURCE=2 $(COMMON_DEFS) $(COMMON_WARNS) \
+		$(GCC_EXTRA_WARNS) $(COMMON_INC) \
+		-Werror  -Wno-unused-local-typedefs \
+		-fstack-protector-strong -fPIE
 REL_LDFLAGS  := -pie -Wl,-z,relro,-z,now
 REL_OBJS     := $(patsubst $(SRC_DIR)/%.c,$(REL_DIR)/%.o,$(SRCS))
 REL_BIN      := $(REL_DIR)/$(PROJECT)
 
 # --- Debug ---
 DBG_DIR      := $(BUILD_DIR)/debug
-DBG_CFLAGS   := $(C_STD) -Og -g3 $(COMMON_DEFS) $(COMMON_WARNS) -Wno-unused-parameter $(GCC_EXTRA_WARNS) $(COMMON_INC)
+DBG_CFLAGS   := $(C_STD) -Og -g3 $(COMMON_DEFS) $(COMMON_WARNS) \
+		$(GCC_EXTRA_WARNS) $(COMMON_INC) \
+		-Wno-unused-parameter -Wno-unused-local-typedefs
 DBG_OBJS     := $(patsubst $(SRC_DIR)/%.c,$(DBG_DIR)/%.o,$(SRCS))
 DBG_BIN      := $(DBG_DIR)/$(PROJECT)
 
@@ -189,16 +194,16 @@ ANALYSIS_DIR    := $(BUILD_DIR)/analysis
 # ─── Clang analysis flags (used during the analyze-only compile pass) ───────
 
 CLANG_ANALYSIS_CFLAGS := $(C_STD) $(COMMON_DEFS) $(COMMON_WARNS) $(CLANG_EXTRA_WARNS) \
-			 -Wno-unused-parameter \
+			 -Wno-unused-parameter -Wno-unused-local-typedefs \
 			 $(COMMON_INC) \
-                          --analyze \
-                          -Xanalyzer -analyzer-output=text
+                         --analyze \
+                         -Xanalyzer -analyzer-output=text
 
 GCC_ANALYSIS_CFLAGS   := $(C_STD) $(COMMON_DEFS) $(COMMON_WARNS) $(GCC_EXTRA_WARNS) \
-			 -Wno-unused-parameter \
+			 -Wno-unused-parameter -Wno-unused-local-typedefs \
 			 $(COMMON_INC) \
-                          -fanalyzer \
-                          -c -o /dev/null
+                         -fanalyzer \
+                         -c -o /dev/null
 
 # ─── clang-tidy flags (lint against Google C++ style, plus all other checks) ─
 
