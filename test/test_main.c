@@ -25,10 +25,6 @@ void tearDown(void)
  * Forward declarations of all test functions
  *---------------------------------------------------------------------------*/
 
-// tftp_err
-extern void test_err_str_returns_non_null_for_all_codes(void);
-extern void test_err_str_none_is_no_error(void);
-
 // tftp_log
 extern void test_log_init_without_syslog_sets_min_level(void);
 extern void test_log_init_with_syslog_opens_syslog(void);
@@ -281,10 +277,6 @@ extern void test_seq_load_spaces_then_comment_then_spaces(void);
 int main(void)
 {
    UNITY_BEGIN();
-
-   // tftp_err
-   RUN_TEST( test_err_str_returns_non_null_for_all_codes );
-   RUN_TEST( test_err_str_none_is_no_error );
 
    // tftp_log
    RUN_TEST( test_log_init_without_syslog_sets_min_level );

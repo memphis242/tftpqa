@@ -20,12 +20,14 @@
  */
 struct TFTPTest_CtrlCfg
 {
-   int      sfd;        // Socket fd (-1 if uninitialized / after shutdown)
-   uint16_t port;       // Port the control channel is bound to
-   uint64_t whitelist;  // Bitmask of allowed fault modes (bit (mode-1) gates
-                        // each mode; FAULT_NONE is always allowed).
-                        // 0 = lock out all fault modes.
-                        // UINT64_MAX = allow all.
+   int      sfd;                // Socket fd (-1 if uninitialized / after shutdown)
+   uint16_t port;               // Port the control channel is bound to
+   uint64_t whitelist;          // Bitmask of allowed fault modes (bit (mode-1) gates
+                                // each mode; FAULT_NONE is always allowed).
+                                // 0 = lock out all fault modes.
+                                // UINT64_MAX = allow all.
+   uint32_t allowed_client_ip;  // Allowed sender IPv4 (network byte order).
+                                // 0 = accept from any sender.
 };
 
 /**
@@ -52,15 +54,18 @@ enum TFTPTest_CtrlResult
  * is left at -1 (any partially-acquired socket is closed internally), the
  * failing syscall is logged with errno, and a specific error code is returned.
  *
- * @param[out] cfg        Populated on success.
- * @param[in]  port       UDP port to bind to.
- * @param[in]  whitelist  Bitmask of allowed fault modes. 0 = lock out all;
- *                        UINT64_MAX = allow all.
+ * @param[out] cfg                Populated on success.
+ * @param[in]  port               UDP port to bind to.
+ * @param[in]  whitelist          Bitmask of allowed fault modes.
+ *                                0 = lock out all; UINT64_MAX = allow all.
+ * @param[in]  allowed_client_ip  Allowed sender IPv4 (network byte order).
+ *                                0 = accept from any sender.
  * @return TFTPTEST_CTRL_OK on success; a TFTPTEST_CTRL_ERR_* code otherwise.
  */
 enum TFTPTest_CtrlResult tftptest_ctrl_init( struct TFTPTest_CtrlCfg * const cfg,
                                               uint16_t port,
-                                              uint64_t whitelist );
+                                              uint64_t whitelist,
+                                              uint32_t allowed_client_ip );
 
 /**
  * @brief Non-blocking poll of the control channel and handle of available data.
@@ -84,6 +89,6 @@ void tftptest_ctrl_poll_and_handle( const struct TFTPTest_CtrlCfg * const cfg,
  * @brief Close the control channel socket.
  * @param[in] cfg  Control channel config.
  */
-void tftptest_ctrl_shutdown( const struct TFTPTest_CtrlCfg * const cfg );
+void tftptest_ctrl_shutdown( struct TFTPTest_CtrlCfg * const cfg );
 
 #endif // TFTPTEST_CTRL_H

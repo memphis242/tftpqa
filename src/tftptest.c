@@ -342,7 +342,7 @@ int main(int argc, char * argv[])
       assert( sequence_path == NULL );
 
       enum TFTPTest_CtrlResult ctrl_rc =
-         tftptest_ctrl_init(&ctrl_cfg, cfg.ctrl_port, cfg.fault_whitelist);
+         tftptest_ctrl_init(&ctrl_cfg, cfg.ctrl_port, cfg.fault_whitelist, cfg.allowed_client_ip);
       if ( ctrl_rc != TFTPTEST_CTRL_OK )
       {
          tftp_log( TFTP_LOG_WARN, __func__,
