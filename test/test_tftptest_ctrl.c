@@ -64,6 +64,7 @@ void test_ctrl_no_packet_poll_noop(void);
 void test_ctrl_empty_packet_ignored(void);
 
 // SET_FAULT argument validation
+void test_ctrl_set_fault_bare_no_args_reply(void);
 void test_ctrl_set_fault_whitespace_only_after_command(void);
 void test_ctrl_set_fault_param_with_trailing_garbage(void);
 void test_ctrl_set_fault_param_just_above_uint32_max(void);
@@ -768,6 +769,28 @@ void test_ctrl_empty_packet_ignored(void)
 
    TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
    TEST_ASSERT_FALSE( fault.param_present );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// Bare "SET_FAULT" with no trailing space or mode name must be caught by the
+// MIN_SET_FAULT_CMD_SZ guard and produce a specific error reply — distinct from
+// the mode_len==0 path that fires when there is a space but no mode name.
+void test_ctrl_set_fault_bare_no_args_reply(void)
+{
+   uint16_t port = 39966;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+
+   ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault, "SET_FAULT\n", reply, sizeof reply);
+   TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
+   TEST_ASSERT_FALSE( fault.param_present );
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "ERR missing at least mode argument for SET_FAULT\n", reply );
 
    tftptest_ctrl_shutdown(&ctrl_cfg);
 }

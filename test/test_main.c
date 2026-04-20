@@ -203,6 +203,7 @@ extern void test_ctrl_init_null_cfg(void);
 extern void test_ctrl_init_bind_failure(void);
 extern void test_ctrl_no_packet_poll_noop(void);
 extern void test_ctrl_empty_packet_ignored(void);
+extern void test_ctrl_set_fault_bare_no_args_reply(void);
 extern void test_ctrl_set_fault_whitespace_only_after_command(void);
 extern void test_ctrl_set_fault_param_with_trailing_garbage(void);
 extern void test_ctrl_set_fault_param_just_above_uint32_max(void);
@@ -408,6 +409,7 @@ int main(void)
    RUN_TEST( test_ctrl_no_packet_poll_noop );
    RUN_TEST( test_ctrl_empty_packet_ignored );
    // SET_FAULT argument validation
+   RUN_TEST( test_ctrl_set_fault_bare_no_args_reply );
    RUN_TEST( test_ctrl_set_fault_whitespace_only_after_command );
    RUN_TEST( test_ctrl_set_fault_param_with_trailing_garbage );
    RUN_TEST( test_ctrl_set_fault_param_just_above_uint32_max );

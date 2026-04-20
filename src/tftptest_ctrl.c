@@ -40,6 +40,8 @@ CompileTimeAssert( CTRL_CMD_BUF_SZ >= MAX_CTRL_CMD_SZ, tftptest_ctrl_buf_too_sma
 // Reasonable upper bound on response buffer size too...
 CompileTimeAssert( CTRL_RSP_BUF_SZ < INT_MAX, tftptest_ctrl_response_buf_too_big );
 
+#define MIN_SET_FAULT_CMD_SZ (sizeof("SET_FAULT x")-1)
+
 // Stage helpers for the dispatcher
 static ssize_t recv_ctrl_pkt( const struct TFTPTest_CtrlCfg * cfg,
                               char * buf, size_t buf_sz,
@@ -52,7 +54,8 @@ static bool sender_allowed( const struct TFTPTest_CtrlCfg * cfg,
 static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
                               struct TFTPTest_FaultState * fault,
                               const struct sockaddr_in * sender,
-                              const char * cmd );
+                              const char * cmd,
+                              size_t cmdlen );
 static void handle_get_fault( const struct TFTPTest_CtrlCfg * cfg,
                               const struct TFTPTest_FaultState * fault,
                               const struct sockaddr_in * sender );
@@ -228,12 +231,9 @@ void tftptest_ctrl_poll_and_handle( const struct TFTPTest_CtrlCfg * const cfg,
       cmdlen--;
    }
 
-   // SET_FAULT requires at least one argument (mode name); bare "SET_FAULT"
-   // falls through to the unknown-command branch.
-   if ( cmd_matches(cmd, cmdlen, "SET_FAULT", sizeof("SET_FAULT")-1)
-        && cmdlen > sizeof("SET_FAULT")-1 )
+   if ( cmd_matches(cmd, cmdlen, "SET_FAULT", sizeof("SET_FAULT")-1) )
    {
-      handle_set_fault(cfg, fault, &sender, cmd);
+      handle_set_fault(cfg, fault, &sender, cmd, cmdlen);
    }
    else if ( cmd_matches(cmd, cmdlen, "GET_FAULT", sizeof("GET_FAULT")-1) )
    {
@@ -382,7 +382,8 @@ static bool sender_allowed( const struct TFTPTest_CtrlCfg * cfg,
 static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
                               struct TFTPTest_FaultState * fault,
                               const struct sockaddr_in * sender,
-                              const char * cmd )
+                              const char * cmd,
+                              size_t cmdlen )
 {
    assert( cfg != NULL );
    assert( fault != NULL );
@@ -393,6 +394,17 @@ static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
 
    char reply[CTRL_RSP_BUF_SZ];
    int reply_len = 0;
+
+   if ( cmdlen < MIN_SET_FAULT_CMD_SZ )
+   {
+      tftp_log( TFTP_LOG_INFO, NULL, "Bare SET_FAULT cmd received (no args)" );
+
+      reply_len = snprintf(reply, sizeof reply, "ERR missing at least mode argument for SET_FAULT\n");
+      assert( reply_len < (int)(sizeof reply) );
+      send_reply_or_log_fail(cfg->sfd, sender, reply, reply_len, __func__);
+
+      return;
+   }
 
    char mode_name[LONGEST_FAULT_MODE_NAME_LEN + 1] = {0};
    uint32_t param = 0;
@@ -582,9 +594,7 @@ static void handle_unknown( const struct TFTPTest_CtrlCfg * cfg,
    tftp_log( TFTP_LOG_INFO, NULL, "Unknown (or malformed) ctrl port cmd rcvd '%s'", cmd );
 
    char reply[CTRL_RSP_BUF_SZ];
-   int reply_len = snprintf(reply, sizeof reply,
-                            "Unknown (or malformed) ctrl port cmd rcvd '%s'\n",
-                            cmd);
+   int reply_len = snprintf(reply, sizeof reply, "ERR unknown/malformed command '%s'\n", cmd);
    assert( reply_len < (int)(sizeof reply) );
    send_reply_or_log_fail(cfg->sfd, sender, reply, reply_len, __func__);
 }
