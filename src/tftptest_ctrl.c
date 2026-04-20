@@ -90,7 +90,7 @@ static inline void send_reply_or_log_fail( int sfd,
                                            int reply_len,
                                            const char * caller_func )
 {
-   if ( reply_len > 0 )
+   if ( reply_len >= 0 )
    {
       send_reply(sfd, sender, reply, (size_t)reply_len);
    }
