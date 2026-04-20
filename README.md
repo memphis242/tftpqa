@@ -201,3 +201,10 @@ For details on what bytes are allowed, why certain control characters are reject
 
 - Release `1.0.0` will be a feature-complete, single-threaded, single-client TFTP test server that may behave nominally or in a fault mode as the user desires.
 - Release `1.1.0` will be a multi-client upgrade to this test server.
+
+## A Note On My AI Assistance Usage
+This project was written by combination of me and LLMs. Writing code is distinct from designing a software product and setting the ground
+rules for its development, and for that, I take 100% credit. Furthermore, all code has been pain-stakingly reviewed by me, many times
+over. For transparency, any commit whose content was primarily AI generated (but still reviewed by me) is cleared marked as such. AI
+assistance _can_ be a tool for good, and getting greater things done, if we use it accordingly. I have come to believe that, and I hope
+you do as well.
