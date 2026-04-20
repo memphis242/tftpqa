@@ -57,14 +57,17 @@ void test_ctrl_crlf_stripped(void);
 void test_ctrl_allowed_client_ip_accepts_loopback(void);
 void test_ctrl_allowed_client_ip_blocks_other_sender(void);
 
-// Coverage gap tests
+// Init errors and poll-loop behavior
 void test_ctrl_init_null_cfg(void);
 void test_ctrl_init_bind_failure(void);
 void test_ctrl_no_packet_poll_noop(void);
 void test_ctrl_empty_packet_ignored(void);
+
+// SET_FAULT argument validation
 void test_ctrl_set_fault_whitespace_only_after_command(void);
 void test_ctrl_set_fault_param_with_trailing_garbage(void);
 void test_ctrl_set_fault_param_just_above_uint32_max(void);
+void test_ctrl_set_fault_mode_name_too_long_inner(void);
 
 /*---------------------------------------------------------------------------
  * Helpers
@@ -832,6 +835,33 @@ void test_ctrl_set_fault_param_just_above_uint32_max(void)
    TEST_ASSERT_FALSE( fault.param_present );
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "ERR invalid param\n", reply );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// A mode name token longer than LONGEST_FAULT_MODE_NAME_LEN chars (i.e., that
+// would overflow mode_name[]) must be rejected by the mode_len >= sizeof mode_name
+// guard inside handle_set_fault — distinct from the recv_ctrl_pkt size gate, which
+// only drops packets that exceed MAX_CTRL_CMD_SZ entirely.
+// 32 'X's: "SET_FAULT " (10) + 32 'X's (32) + "\n" (1) = 43 bytes ≤ MAX_CTRL_CMD_SZ (60),
+// so the packet passes recv_ctrl_pkt but mode_len (32) >= sizeof mode_name (32) fires.
+void test_ctrl_set_fault_mode_name_too_long_inner(void)
+{
+   uint16_t port = 39967;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+
+   ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault,
+                             "SET_FAULT XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n",
+                             reply, sizeof reply);
+   TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
+   TEST_ASSERT_FALSE( fault.param_present );
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "ERR mode name too long\n", reply );
 
    tftptest_ctrl_shutdown(&ctrl_cfg);
 }

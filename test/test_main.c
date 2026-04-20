@@ -206,6 +206,7 @@ extern void test_ctrl_empty_packet_ignored(void);
 extern void test_ctrl_set_fault_whitespace_only_after_command(void);
 extern void test_ctrl_set_fault_param_with_trailing_garbage(void);
 extern void test_ctrl_set_fault_param_just_above_uint32_max(void);
+extern void test_ctrl_set_fault_mode_name_too_long_inner(void);
 
 // tftptest_faultmode
 extern void test_fault_mode_names_all_present(void);
@@ -401,14 +402,16 @@ int main(void)
    // IP allowlist
    RUN_TEST( test_ctrl_allowed_client_ip_accepts_loopback );
    RUN_TEST( test_ctrl_allowed_client_ip_blocks_other_sender );
-   // coverage gap tests
+   // init errors and poll-loop behavior
    RUN_TEST( test_ctrl_init_null_cfg );
    RUN_TEST( test_ctrl_init_bind_failure );
    RUN_TEST( test_ctrl_no_packet_poll_noop );
    RUN_TEST( test_ctrl_empty_packet_ignored );
+   // SET_FAULT argument validation
    RUN_TEST( test_ctrl_set_fault_whitespace_only_after_command );
    RUN_TEST( test_ctrl_set_fault_param_with_trailing_garbage );
    RUN_TEST( test_ctrl_set_fault_param_just_above_uint32_max );
+   RUN_TEST( test_ctrl_set_fault_mode_name_too_long_inner );
 
    // config file parsing (with real files)
    RUN_TEST( test_parsecfg_load_valid_config );
