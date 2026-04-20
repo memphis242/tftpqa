@@ -327,6 +327,8 @@ static ssize_t recv_ctrl_pkt( const struct TFTPTest_CtrlCfg * cfg,
                 MAX_CTRL_CMD_SZ, (size_t)nbytes );
       return 0;
    }
+   // Presently, this else clause is dead code, but it is meant to be forward
+   // defensive, for if/when other address families come into play.
    else if ( addrlen != sizeof(struct sockaddr_in)
              || sender->sin_family != AF_INET )
    {
@@ -392,7 +394,7 @@ static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
    char reply[CTRL_RSP_BUF_SZ];
    int reply_len = 0;
 
-   char mode_name[64] = {0};
+   char mode_name[LONGEST_FAULT_MODE_NAME_LEN + 1] = {0};
    uint32_t param = 0;
    bool param_present = false;
 
@@ -429,11 +431,9 @@ static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
 
       return;
    }
-   else
-   {
-      memcpy(mode_name, mode_start, mode_len);
-      mode_name[mode_len] = '\0';
-   }
+
+   memcpy(mode_name, mode_start, mode_len);
+   mode_name[mode_len] = '\0';
 
    // Optional second token: parse as uint32_t via strtoul
    while ( *p == ' ' || *p == '\t' )
