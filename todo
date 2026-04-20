@@ -1,10 +1,25 @@
-- tftp_log : error checking clock_gettime and localtime_r
 - if unable to chroot() (e.g., started as user, not root), and -u/--user was specified, needs to fail
 - if unable to chroot() (e.g., started as user, not root), but no -u/--user was specified, the application must still behave chroot()'d, and perform extra checking on all file paths to prevent path traversals
 - add __line__ to logging in addition to __func__?
+- add --addr/-a CLI + cfg for setting bind-address (in addition to the already existing --port/-p)
+- allowed_client_ip needs to be an array, not just a single entity
+- consider more TFTP_LOG_DEBUG reporting
+- IPv6 support
 - review every file exhaustively
+  - [x]   41 ./src/tftp_err.c
+  - [x]   88 ./src/tftptest_faultmode.c
+  - [x]  169 ./src/tftptest_ctrl.c
+  - [x]  181 ./src/tftp_log.c
+  - [ ]  256 ./src/tftp_pkt.c
+  - [ ]  271 ./src/tftptest_seq.c
+  - [ ]  457 ./src/tftp_parsecfg.c
+  - [ ]  524 ./src/tftp_util.c
+  - [ ]  730 ./src/tftptest.c
+  - [ ] 1819 ./src/tftp_fsm.c
+  - [ ] 4536 total
 - fix analyzer warnings
 - fix lint warnings
+- integration test rework + adds
 - review high-level architecture
 - review inter-module linkages/dependencies
 - review coding constructs
@@ -16,3 +31,5 @@
 - go over security directives and analyze each file individually /w respect to them, as well as app as a whole
 - go over performance directives, augment them (because they're pretty sparse), and update app accordingly
 - set up 24/7 multi-instance stress-test runners /w notification system; initial plan is running them continuously for 1mo, /w daily review
+- compare against tftp-hpa's tftpd
+- compare against atftpd
