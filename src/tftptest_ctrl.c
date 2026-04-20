@@ -579,10 +579,12 @@ static void handle_unknown( const struct TFTPTest_CtrlCfg * cfg,
    assert( sender != NULL );
    assert( cmd != NULL );
 
-   tftp_log( TFTP_LOG_INFO, NULL, "Unknown ctrl port cmd rcvd '%s'", cmd );
+   tftp_log( TFTP_LOG_INFO, NULL, "Unknown (or malformed) ctrl port cmd rcvd '%s'", cmd );
 
    char reply[CTRL_RSP_BUF_SZ];
-   int reply_len = snprintf(reply, sizeof reply, "ERR unknown command '%s'\n", cmd);
+   int reply_len = snprintf(reply, sizeof reply,
+                            "Unknown (or malformed) ctrl port cmd rcvd '%s'\n",
+                            cmd);
    assert( reply_len < (int)(sizeof reply) );
    send_reply_or_log_fail(cfg->sfd, sender, reply, reply_len, __func__);
 }
