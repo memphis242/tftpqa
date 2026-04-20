@@ -450,7 +450,7 @@ int main(int argc, char * argv[])
       }
 
       // Determine request type
-      uint16_t opcode = (uint16_t)(((uint16_t)buf[0] << 8) | buf[1]);
+      enum TFTPOpcode opcode = (enum TFTPOpcode)(((uint16_t)buf[0] << 8) | buf[1]);
       bool is_wrq = (opcode == TFTP_OP_WRQ);
 
       // WRQ pre-kickoff rejection checks

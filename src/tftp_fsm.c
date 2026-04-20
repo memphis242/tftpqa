@@ -104,7 +104,7 @@ static struct TFTP_FSM_Session_S
 static void session_cleanup(void);
 static bool tid_matches(const struct sockaddr_in *incoming);
 static enum TFTP_FSM_RC send_error_to(int sfd, const struct sockaddr_in *dest,
-                                       uint16_t error_code, const char *msg);
+                                       enum TFTPErrCode error_code, const char *msg);
 static bool fault_should_suppress_data(const struct TFTPTest_FaultState *fault,
                                         uint16_t block_num, bool is_last);
 static bool fault_should_suppress_ack(const struct TFTPTest_FaultState *fault,
@@ -136,7 +136,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
    enum TFTP_FSM_RC rc = TFTP_FSM_RC_FINE;
 
    // Parse the request
-   uint16_t opcode = 0;
+   enum TFTPOpcode opcode = (enum TFTPOpcode)0;
    const char *filename = NULL;
    const char *mode = NULL;
    if ( tftp_pkt_parse_request(rqbuf, rqsz, &opcode, &filename, &mode) != 0 )
@@ -241,7 +241,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
 
       if ( fd < 0 )
       {
-         uint16_t ecode;
+         enum TFTPErrCode ecode;
          const char *emsg;
 
          switch ( errno )
@@ -306,7 +306,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
 
       if ( pc != TFTP_PERM_OK )
       {
-         uint16_t ecode = TFTP_ERRC_ACCESS_VIOLATION;
+         enum TFTPErrCode ecode = TFTP_ERRC_ACCESS_VIOLATION;
          const char *emsg = "Access denied";
 
          switch ( pc )
@@ -472,7 +472,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
       int fd = tftp_util_open_for_write(filename, cfg->new_file_mode, &created);
       if ( fd < 0 )
       {
-         uint16_t ecode;
+         enum TFTPErrCode ecode;
          const char *emsg;
 
          switch ( errno )
@@ -537,7 +537,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
 
          if ( pc != TFTP_PERM_OK )
          {
-            uint16_t ecode = TFTP_ERRC_ACCESS_VIOLATION;
+            enum TFTPErrCode ecode = TFTP_ERRC_ACCESS_VIOLATION;
             const char *emsg = "Access denied";
 
             switch ( pc )
@@ -914,7 +914,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Sending ERROR %u instead of DATA",
                       fault->param );
             send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
-                          (uint16_t)fault->param, "Injected error");
+                          (enum TFTPErrCode)(uint16_t)fault->param, "Injected error");
             TFTP_FSM_Session.state = TFTP_FSM_IDLE;
             break;
          }
@@ -1084,7 +1084,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
          if ( tftp_pkt_parse_ack(ackbuf, (size_t)nbytes, &ack_block) != 0 )
          {
             // Check if client sent an ERROR
-            uint16_t err_code = 0;
+            enum TFTPErrCode err_code = (enum TFTPErrCode)0;
             const char *err_msg = NULL;
             if ( tftp_pkt_parse_error(ackbuf, (size_t)nbytes, &err_code, &err_msg) == 0 )
             {
@@ -1233,7 +1233,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
 
          // Check if client sent an ERROR
          {
-            uint16_t err_code = 0;
+            enum TFTPErrCode err_code = (enum TFTPErrCode)0;
             const char *err_msg = NULL;
             if ( tftp_pkt_parse_error(databuf, (size_t)nbytes, &err_code, &err_msg) == 0 )
             {
@@ -1401,7 +1401,7 @@ enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
             tftp_log( TFTP_LOG_INFO, NULL, "FSM: FAULT: Sending ERROR %u instead of ACK",
                       fault->param );
             send_error_to(TFTP_FSM_Session.sfd, &TFTP_FSM_Session.peer_addr,
-                          (uint16_t)fault->param, "Injected error");
+                          (enum TFTPErrCode)(uint16_t)fault->param, "Injected error");
             TFTP_FSM_Session.state = TFTP_FSM_IDLE;
             break;
          }
@@ -1602,7 +1602,7 @@ static bool tid_matches(const struct sockaddr_in *incoming)
 }
 
 static enum TFTP_FSM_RC send_error_to(int sfd, const struct sockaddr_in *dest,
-                                       uint16_t error_code, const char *msg)
+                                       enum TFTPErrCode error_code, const char *msg)
 {
    uint8_t errbuf[128];
    size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf, error_code, msg);
@@ -1746,7 +1746,7 @@ static void fault_modify_outgoing(const struct TFTPTest_FaultState *fault,
    {
       uint16_t bad_code = (uint16_t)fault->param;
       if ( bad_code <= 7 ) bad_code = 99;
-      size_t esz = tftp_pkt_build_error(pkt, pkt_cap, bad_code, "Injected bad error");
+      size_t esz = tftp_pkt_build_error(pkt, pkt_cap, (enum TFTPErrCode)bad_code, "Injected bad error");
       if ( esz > 0 )
       {
          *pkt_len = esz;

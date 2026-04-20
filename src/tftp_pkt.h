@@ -13,22 +13,28 @@
 #include <stddef.h>
 
 // TFTP opcodes (RFC 1350 Section 5)
-#define TFTP_OP_RRQ  ((uint16_t)1)
-#define TFTP_OP_WRQ  ((uint16_t)2)
-#define TFTP_OP_DATA ((uint16_t)3)
-#define TFTP_OP_ACK  ((uint16_t)4)
-#define TFTP_OP_ERR  ((uint16_t)5)
+enum TFTPOpcode
+{
+   TFTP_OP_RRQ  = 1,
+   TFTP_OP_WRQ  = 2,
+   TFTP_OP_DATA = 3,
+   TFTP_OP_ACK  = 4,
+   TFTP_OP_ERR  = 5,
+};
 
 // TFTP error codes (RFC 1350 Section 5)
-#define TFTP_ERRC_NOT_DEFINED       ((uint16_t)0)
-#define TFTP_ERRC_FILE_NOT_FOUND    ((uint16_t)1)
-#define TFTP_ERRC_ACCESS_VIOLATION  ((uint16_t)2)
-#define TFTP_ERRC_DISK_FULL         ((uint16_t)3)
-#define TFTP_ERRC_ILLEGAL_OP        ((uint16_t)4)
-#define TFTP_ERRC_UNKNOWN_TID       ((uint16_t)5)
-#define TFTP_ERRC_FILE_EXISTS       ((uint16_t)6)
-#define TFTP_ERRC_NO_SUCH_USER      ((uint16_t)7)
-#define TFTP_ERRC_COUNT             ((uint16_t)8)
+enum TFTPErrCode
+{
+   TFTP_ERRC_NOT_DEFINED      = 0,
+   TFTP_ERRC_FILE_NOT_FOUND   = 1,
+   TFTP_ERRC_ACCESS_VIOLATION = 2,
+   TFTP_ERRC_DISK_FULL        = 3,
+   TFTP_ERRC_ILLEGAL_OP       = 4,
+   TFTP_ERRC_UNKNOWN_TID      = 5,
+   TFTP_ERRC_FILE_EXISTS      = 6,
+   TFTP_ERRC_NO_SUCH_USER     = 7,
+   TFTP_ERRC_COUNT            = 8,
+};
 
 /**
  * @brief Validate that a received buffer is a well-formed RRQ or WRQ packet.
@@ -48,7 +54,7 @@ bool tftp_pkt_request_is_valid(const uint8_t *buf, size_t sz);
  * @return 0 on success, -1 if the packet is malformed.
  */
 int tftp_pkt_parse_request(const uint8_t *buf, size_t sz,
-                           uint16_t *opcode,
+                           enum TFTPOpcode *opcode,
                            const char **filename,
                            const char **mode);
 
@@ -71,7 +77,7 @@ size_t tftp_pkt_build_ack(uint8_t *out, size_t out_cap, uint16_t block_num);
  * @return Number of bytes written to out, or 0 on error.
  */
 size_t tftp_pkt_build_error(uint8_t *out, size_t out_cap,
-                            uint16_t error_code, const char *errmsg);
+                            enum TFTPErrCode error_code, const char *errmsg);
 
 /**
  * @brief Parse an ACK packet.
@@ -92,6 +98,6 @@ int tftp_pkt_parse_data(const uint8_t *buf, size_t sz,
  * @return 0 on success, -1 if malformed.
  */
 int tftp_pkt_parse_error(const uint8_t *buf, size_t sz,
-                         uint16_t *error_code, const char **errmsg);
+                         enum TFTPErrCode *error_code, const char **errmsg);
 
 #endif // TFTP_PKT_H

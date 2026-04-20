@@ -43,7 +43,7 @@ bool tftp_pkt_request_is_valid(const uint8_t *buf, size_t sz)
       return false;
 
    // 1. Check opcode is RRQ or WRQ
-   uint16_t opcode = read_u16( buf );
+   enum TFTPOpcode opcode = (enum TFTPOpcode)read_u16( buf );
    if ( opcode != TFTP_OP_RRQ && opcode != TFTP_OP_WRQ )
       return false;
 
@@ -103,7 +103,7 @@ bool tftp_pkt_request_is_valid(const uint8_t *buf, size_t sz)
 }
 
 int tftp_pkt_parse_request(const uint8_t *buf, size_t sz,
-                           uint16_t *opcode,
+                           enum TFTPOpcode *opcode,
                            const char **filename,
                            const char **mode)
 {
@@ -115,7 +115,7 @@ int tftp_pkt_parse_request(const uint8_t *buf, size_t sz,
    if ( sz < TFTP_RQST_MIN_SZ )
       return -1;
 
-   *opcode = read_u16( buf );
+   *opcode = (enum TFTPOpcode)read_u16( buf );
    if ( *opcode != TFTP_OP_RRQ && *opcode != TFTP_OP_WRQ )
       return -1;
 
@@ -154,7 +154,7 @@ size_t tftp_pkt_build_data(uint8_t *out, size_t out_cap,
    if ( out_cap < total )
       return 0;
 
-   write_u16( out, TFTP_OP_DATA );
+   write_u16( out, (uint16_t)TFTP_OP_DATA );
    write_u16( out + 2, block_num );
 
    if ( data_len > 0 )
@@ -170,14 +170,14 @@ size_t tftp_pkt_build_ack(uint8_t *out, size_t out_cap, uint16_t block_num)
    if ( out_cap < TFTP_ACK_SZ )
       return 0;
 
-   write_u16( out, TFTP_OP_ACK );
+   write_u16( out, (uint16_t)TFTP_OP_ACK );
    write_u16( out + 2, block_num );
 
    return TFTP_ACK_SZ;
 }
 
 size_t tftp_pkt_build_error(uint8_t *out, size_t out_cap,
-                            uint16_t error_code, const char *errmsg)
+                            enum TFTPErrCode error_code, const char *errmsg)
 {
    assert( out != NULL );
    assert( errmsg != NULL );
@@ -187,8 +187,8 @@ size_t tftp_pkt_build_error(uint8_t *out, size_t out_cap,
    if ( out_cap < total )
       return 0;
 
-   write_u16( out, TFTP_OP_ERR );
-   write_u16( out + 2, error_code );
+   write_u16( out, (uint16_t)TFTP_OP_ERR );
+   write_u16( out + 2, (uint16_t)error_code );
    memcpy( out + TFTP_ERR_HDR_SZ, errmsg, msg_len + 1 ); // includes NUL
 
    return total;
@@ -232,7 +232,7 @@ int tftp_pkt_parse_data(const uint8_t *buf, size_t sz,
 }
 
 int tftp_pkt_parse_error(const uint8_t *buf, size_t sz,
-                         uint16_t *error_code, const char **errmsg)
+                         enum TFTPErrCode *error_code, const char **errmsg)
 {
    assert( buf != NULL );
    assert( error_code != NULL );
@@ -245,7 +245,7 @@ int tftp_pkt_parse_error(const uint8_t *buf, size_t sz,
    if ( read_u16( buf ) != TFTP_OP_ERR )
       return -1;
 
-   *error_code = read_u16( buf + 2 );
+   *error_code = (enum TFTPErrCode)read_u16( buf + 2 );
    *errmsg = (const char *)(buf + TFTP_ERR_HDR_SZ);
 
    // Verify the error message is NUL-terminated within the packet

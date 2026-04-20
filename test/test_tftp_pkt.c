@@ -142,13 +142,13 @@ void test_pkt_parse_request_rrq(void)
 {
    uint8_t buf[] = { 0x00, 0x01, 't', 'e', 's', 't', 0x00,
                      'o', 'c', 't', 'e', 't', 0x00 };
-   uint16_t opcode;
+   enum TFTPOpcode opcode;
    const char *filename;
    const char *mode;
 
    int rc = tftp_pkt_parse_request( buf, sizeof buf, &opcode, &filename, &mode );
    TEST_ASSERT_EQUAL_INT( 0, rc );
-   TEST_ASSERT_EQUAL_UINT16( TFTP_OP_RRQ, opcode );
+   TEST_ASSERT_EQUAL_INT( TFTP_OP_RRQ, opcode );
    TEST_ASSERT_EQUAL_STRING( "test", filename );
    TEST_ASSERT_EQUAL_STRING( "octet", mode );
 }
@@ -157,13 +157,13 @@ void test_pkt_parse_request_wrq(void)
 {
    uint8_t buf[] = { 0x00, 0x02, 'u', 'p', 0x00,
                      'n', 'e', 't', 'a', 's', 'c', 'i', 'i', 0x00 };
-   uint16_t opcode;
+   enum TFTPOpcode opcode;
    const char *filename;
    const char *mode;
 
    int rc = tftp_pkt_parse_request( buf, sizeof buf, &opcode, &filename, &mode );
    TEST_ASSERT_EQUAL_INT( 0, rc );
-   TEST_ASSERT_EQUAL_UINT16( TFTP_OP_WRQ, opcode );
+   TEST_ASSERT_EQUAL_INT( TFTP_OP_WRQ, opcode );
    TEST_ASSERT_EQUAL_STRING( "up", filename );
    TEST_ASSERT_EQUAL_STRING( "netascii", mode );
 }
@@ -240,11 +240,11 @@ void test_pkt_error_round_trip(void)
    size_t n = tftp_pkt_build_error( pkt, sizeof pkt, TFTP_ERRC_FILE_NOT_FOUND, "File not found" );
    TEST_ASSERT_GREATER_THAN( 0, n );
 
-   uint16_t code;
+   enum TFTPErrCode code;
    const char *msg;
    int rc = tftp_pkt_parse_error( pkt, n, &code, &msg );
    TEST_ASSERT_EQUAL_INT( 0, rc );
-   TEST_ASSERT_EQUAL_UINT16( TFTP_ERRC_FILE_NOT_FOUND, code );
+   TEST_ASSERT_EQUAL_INT( TFTP_ERRC_FILE_NOT_FOUND, code );
    TEST_ASSERT_EQUAL_STRING( "File not found", msg );
 }
 
@@ -279,7 +279,7 @@ void test_pkt_parse_error_rejects_no_nul(void)
 {
    // ERROR packet with no NUL terminator in message
    uint8_t buf[] = { 0x00, 0x05, 0x00, 0x01, 'o', 'o', 'p', 's' };
-   uint16_t code;
+   enum TFTPErrCode code;
    const char *msg;
    TEST_ASSERT_EQUAL_INT( -1, tftp_pkt_parse_error( buf, sizeof buf, &code, &msg ) );
 }
