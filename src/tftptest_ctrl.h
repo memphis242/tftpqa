@@ -77,7 +77,7 @@ enum TFTPTest_CtrlResult tftptest_ctrl_init( struct TFTPTest_CtrlCfg * const cfg
  *   SET_FAULT <mode_name> [param]\n  -> OK <mode_name> [param]\n
  *   GET_FAULT\n                      -> FAULT <mode_name> [param]\n
  *   RESET\n                          -> OK 0\n
- *   (unknown)                        -> ERR unknown command\n
+ *   (unknown)                        -> ERR unknown/malformed command\n
  *
  * @param[in]     cfg    Control channel config (must have been initialized).
  * @param[in,out] fault  Current fault state (read and updated).

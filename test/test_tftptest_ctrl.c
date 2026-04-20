@@ -462,7 +462,7 @@ void test_ctrl_unknown_cmd_reply(void)
 
    ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault, "BOGUS\n", reply, sizeof reply);
    TEST_ASSERT_GREATER_THAN( 0, n );
-   TEST_ASSERT_EQUAL_STRING( "ERR unknown command 'BOGUS'\n", reply );
+   TEST_ASSERT_EQUAL_STRING( "ERR unknown/malformed command 'BOGUS'\n", reply );
 
    tftptest_ctrl_shutdown(&ctrl_cfg);
 }
