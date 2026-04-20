@@ -40,6 +40,7 @@
   - even if we have 100% line/branch/condition coverage for a function, but there
     is input we want to make sure it handles, we should add unit tests for those
     extra cases, even without the coverage metric benefit
+  - TODO: Need to device a plan for handling syscall stubbing for unit tests...
 
 - if doing any dynamic memory allocation, have memory profiler instrumentation
   (e.g., valgrind, dr.memory) for integration tests that catch memory bugs not
