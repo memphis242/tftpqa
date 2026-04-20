@@ -21,6 +21,7 @@
  * Forward declarations
  *---------------------------------------------------------------------------*/
 
+// Existing tests
 void test_ctrl_set_fault_and_get(void);
 void test_ctrl_set_fault_with_param(void);
 void test_ctrl_unknown_command(void);
@@ -28,11 +29,41 @@ void test_ctrl_unknown_fault_mode(void);
 void test_ctrl_whitelist_rejects_disallowed_mode(void);
 void test_ctrl_set_fault_missing_mode_name(void);
 
+// param_present semantics
+void test_ctrl_param_present_false_when_no_param(void);
+void test_ctrl_param_zero_is_distinct_from_no_param(void);
+void test_ctrl_reset_clears_mode_and_param_present(void);
+
+// Reply content
+void test_ctrl_set_fault_reply_no_param(void);
+void test_ctrl_set_fault_reply_with_param(void);
+void test_ctrl_get_fault_reply_no_param(void);
+void test_ctrl_get_fault_reply_with_param(void);
+void test_ctrl_reset_reply(void);
+void test_ctrl_unknown_cmd_reply(void);
+void test_ctrl_whitelist_reject_reply(void);
+
+// Bad input
+void test_ctrl_set_fault_invalid_param_nonnumeric(void);
+void test_ctrl_set_fault_invalid_param_overflow(void);
+void test_ctrl_set_fault_mode_name_too_long(void);
+
+// Protocol robustness
+void test_ctrl_case_insensitive_command(void);
+void test_ctrl_leading_whitespace_stripped(void);
+void test_ctrl_crlf_stripped(void);
+
+// IP allowlist
+void test_ctrl_allowed_client_ip_accepts_loopback(void);
+void test_ctrl_allowed_client_ip_blocks_other_sender(void);
+
 /*---------------------------------------------------------------------------
- * Control Channel Tests
+ * Helpers
  *---------------------------------------------------------------------------*/
 
-// Helper: send a UDP message and receive the reply
+// Send a UDP message, wait up to 1 s for a reply, then close.
+// Does NOT call poll_and_handle — the packet sits in the server socket buffer.
+// Use when you only need to check fault state (not reply content).
 static ssize_t ctrl_send_recv(uint16_t port, const char *msg,
                                char *reply, size_t reply_cap)
 {
@@ -45,7 +76,6 @@ static ssize_t ctrl_send_recv(uint16_t port, const char *msg,
       .sin_addr.s_addr = htonl(INADDR_LOOPBACK),
    };
 
-   // Set recv timeout so test doesn't hang
    struct timeval tv = { .tv_sec = 1, .tv_usec = 0 };
    (void)setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
 
@@ -58,6 +88,44 @@ static ssize_t ctrl_send_recv(uint16_t port, const char *msg,
    (void)close(sfd);
    return n;
 }
+
+// Send a UDP message, immediately call poll_and_handle (so the server replies
+// while the client socket is still open), then receive the reply.
+// Use when you need to verify the server's reply content.
+static ssize_t ctrl_exchange( uint16_t port,
+                              const struct TFTPTest_CtrlCfg * cfg,
+                              struct TFTPTest_FaultState * fault,
+                              const char * msg,
+                              char * reply, size_t reply_cap )
+{
+   int sfd = socket(AF_INET, SOCK_DGRAM, 0);
+   if ( sfd < 0 ) return -1;
+
+   struct sockaddr_in dest = {
+      .sin_family = AF_INET,
+      .sin_port = htons(port),
+      .sin_addr.s_addr = htonl(INADDR_LOOPBACK),
+   };
+
+   struct timeval tv = { .tv_sec = 1, .tv_usec = 0 };
+   (void)setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv);
+
+   (void)sendto(sfd, msg, strlen(msg), 0,
+                (struct sockaddr *)&dest, sizeof dest);
+
+   // Process while client socket is open so the reply can be delivered back.
+   tftptest_ctrl_poll_and_handle(cfg, fault);
+
+   ssize_t n = recv(sfd, reply, reply_cap - 1, 0);
+   if ( n > 0 ) reply[n] = '\0';
+
+   (void)close(sfd);
+   return n;
+}
+
+/*---------------------------------------------------------------------------
+ * Control Channel Tests
+ *---------------------------------------------------------------------------*/
 
 void test_ctrl_set_fault_and_get(void)
 {
@@ -181,6 +249,427 @@ void test_ctrl_set_fault_missing_mode_name(void)
    ssize_t n = ctrl_send_recv(port, "SET_FAULT\n", reply, sizeof reply);
    tftptest_ctrl_poll_and_handle(&ctrl_cfg, &fault);
    TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
+   (void)n;
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// param_present semantics -------------------------------------------------------
+
+// Verify that setting a fault without a parameter sets param_present=false.
+// Sets a mode WITH param first so the final false value can't be confused
+// with the initial state.
+void test_ctrl_param_present_false_when_no_param(void)
+{
+   uint16_t port = 39993;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128];
+   ssize_t n;
+
+   // First, set a mode WITH a param so param_present is true.
+   n = ctrl_send_recv(port, "SET_FAULT DUP_MID_DATA 3\n", reply, sizeof reply);
+   tftptest_ctrl_poll_and_handle(&ctrl_cfg, &fault);
+   TEST_ASSERT_EQUAL_INT( FAULT_DUP_MID_DATA, fault.mode );
+   TEST_ASSERT_TRUE( fault.param_present );
+
+   // Now set a mode WITHOUT a param; param_present must be false.
+   n = ctrl_send_recv(port, "SET_FAULT RRQ_TIMEOUT\n", reply, sizeof reply);
+   tftptest_ctrl_poll_and_handle(&ctrl_cfg, &fault);
+   TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
+   TEST_ASSERT_FALSE( fault.param_present );
+   (void)n;
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// param=0 with param_present=true is distinct from "no parameter supplied".
+// This is the core correctness guarantee of the param_present field.
+void test_ctrl_param_zero_is_distinct_from_no_param(void)
+{
+   uint16_t port = 39992;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128];
+
+   ssize_t n = ctrl_send_recv(port, "SET_FAULT DUP_MID_DATA 0\n", reply, sizeof reply);
+   tftptest_ctrl_poll_and_handle(&ctrl_cfg, &fault);
+   TEST_ASSERT_EQUAL_INT( FAULT_DUP_MID_DATA, fault.mode );
+   TEST_ASSERT_EQUAL_UINT32( 0, fault.param );
+   TEST_ASSERT_TRUE( fault.param_present );
+   (void)n;
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// RESET must clear param and param_present, not just mode.
+void test_ctrl_reset_clears_mode_and_param_present(void)
+{
+   uint16_t port = 39991;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128];
+   ssize_t n;
+
+   n = ctrl_send_recv(port, "SET_FAULT DUP_MID_DATA 7\n", reply, sizeof reply);
+   tftptest_ctrl_poll_and_handle(&ctrl_cfg, &fault);
+   TEST_ASSERT_EQUAL_INT( FAULT_DUP_MID_DATA, fault.mode );
+   TEST_ASSERT_TRUE( fault.param_present );
+
+   n = ctrl_send_recv(port, "RESET\n", reply, sizeof reply);
+   tftptest_ctrl_poll_and_handle(&ctrl_cfg, &fault);
+   TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
+   TEST_ASSERT_EQUAL_UINT32( 0, fault.param );
+   TEST_ASSERT_FALSE( fault.param_present );
+   (void)n;
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// Reply content ----------------------------------------------------------------
+
+void test_ctrl_set_fault_reply_no_param(void)
+{
+   uint16_t port = 39990;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+
+   ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault, "SET_FAULT RRQ_TIMEOUT\n",
+                             reply, sizeof reply);
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "OK FAULT_RRQ_TIMEOUT\n", reply );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+void test_ctrl_set_fault_reply_with_param(void)
+{
+   uint16_t port = 39989;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+
+   ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault, "SET_FAULT DUP_MID_DATA 5\n",
+                             reply, sizeof reply);
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "OK FAULT_DUP_MID_DATA 5\n", reply );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+void test_ctrl_get_fault_reply_no_param(void)
+{
+   uint16_t port = 39988;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+   ssize_t n;
+
+   // Set a mode without param, then GET_FAULT.
+   n = ctrl_exchange(port, &ctrl_cfg, &fault, "SET_FAULT RRQ_TIMEOUT\n",
+                     reply, sizeof reply);
+   TEST_ASSERT_GREATER_THAN( 0, n );
+
+   memset(reply, 0, sizeof reply);
+   n = ctrl_exchange(port, &ctrl_cfg, &fault, "GET_FAULT\n", reply, sizeof reply);
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "FAULT FAULT_RRQ_TIMEOUT\n", reply );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+void test_ctrl_get_fault_reply_with_param(void)
+{
+   uint16_t port = 39987;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+   ssize_t n;
+
+   n = ctrl_exchange(port, &ctrl_cfg, &fault, "SET_FAULT DUP_MID_DATA 5\n",
+                     reply, sizeof reply);
+   TEST_ASSERT_GREATER_THAN( 0, n );
+
+   memset(reply, 0, sizeof reply);
+   n = ctrl_exchange(port, &ctrl_cfg, &fault, "GET_FAULT\n", reply, sizeof reply);
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "FAULT FAULT_DUP_MID_DATA 5\n", reply );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+void test_ctrl_reset_reply(void)
+{
+   uint16_t port = 39986;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+
+   ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault, "RESET\n", reply, sizeof reply);
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "OK FAULT_NONE\n", reply );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+void test_ctrl_unknown_cmd_reply(void)
+{
+   uint16_t port = 39985;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[256] = {0};
+
+   ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault, "BOGUS\n", reply, sizeof reply);
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "ERR unknown command 'BOGUS'\n", reply );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+void test_ctrl_whitelist_reject_reply(void)
+{
+   uint16_t port = 39984;
+   // Allow only FAULT_RRQ_TIMEOUT (bit 0)
+   uint64_t whitelist = (uint64_t)1 << 0;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, whitelist, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+
+   ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault, "SET_FAULT WRQ_TIMEOUT\n",
+                             reply, sizeof reply);
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "ERR mode 'WRQ_TIMEOUT' not allowed\n", reply );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// Bad input --------------------------------------------------------------------
+
+// Non-numeric param should be rejected; fault state must not change.
+void test_ctrl_set_fault_invalid_param_nonnumeric(void)
+{
+   uint16_t port = 39983;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+
+   ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault, "SET_FAULT SLOW_RESPONSE abc\n",
+                             reply, sizeof reply);
+   TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
+   TEST_ASSERT_FALSE( fault.param_present );
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "ERR invalid param\n", reply );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// Param that overflows uint32_t should be rejected.
+void test_ctrl_set_fault_invalid_param_overflow(void)
+{
+   uint16_t port = 39982;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+
+   ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault,
+                             "SET_FAULT SLOW_RESPONSE 99999999999999999999\n",
+                             reply, sizeof reply);
+   TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
+   TEST_ASSERT_FALSE( fault.param_present );
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "ERR invalid param\n", reply );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// A packet exceeding MAX_CTRL_CMD_SZ must be silently dropped before any
+// parsing — fault state must not change and no reply is sent.
+// Note: MAX_CTRL_CMD_SZ caps the packet well below the mode_name[] buffer
+// limit, so the recv_ctrl_pkt size gate is the first (and effective) line of
+// defense against oversized commands.
+void test_ctrl_set_fault_mode_name_too_long(void)
+{
+   uint16_t port = 39981;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[256] = {0};
+
+   // MAX_CTRL_CMD_SZ = sizeof("SET_FAULT")-1 + LONGEST_FAULT_MODE_NAME_LEN + 20 = 60.
+   // "SET_FAULT " (10) + 51 'X's (51) + "\n" (1) = 62 bytes > 60 → dropped.
+   ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault,
+                             "SET_FAULT "
+                             "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\n",
+                             reply, sizeof reply);
+   // Server drops it: no reply, fault unchanged.
+   TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
+   TEST_ASSERT_FALSE( fault.param_present );
+   TEST_ASSERT_EQUAL( -1, n );   // recv timed out — no reply
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// Protocol robustness ----------------------------------------------------------
+
+// Commands and mode names should be matched case-insensitively.
+void test_ctrl_case_insensitive_command(void)
+{
+   uint16_t port = 39980;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+   ssize_t n;
+
+   // Fully lowercase command and mode name
+   n = ctrl_exchange(port, &ctrl_cfg, &fault, "set_fault rrq_timeout\n",
+                     reply, sizeof reply);
+   TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "OK FAULT_RRQ_TIMEOUT\n", reply );
+
+   // Mixed-case GET_FAULT
+   memset(reply, 0, sizeof reply);
+   n = ctrl_exchange(port, &ctrl_cfg, &fault, "GeT_FaUlT\n", reply, sizeof reply);
+   TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "FAULT FAULT_RRQ_TIMEOUT\n", reply );
+
+   // Lowercase RESET
+   memset(reply, 0, sizeof reply);
+   n = ctrl_exchange(port, &ctrl_cfg, &fault, "reset\n", reply, sizeof reply);
+   TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "OK FAULT_NONE\n", reply );
+   (void)n;
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// Leading whitespace before the command keyword must be tolerated.
+void test_ctrl_leading_whitespace_stripped(void)
+{
+   uint16_t port = 39979;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+
+   ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault, "   SET_FAULT RRQ_TIMEOUT\n",
+                             reply, sizeof reply);
+   TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "OK FAULT_RRQ_TIMEOUT\n", reply );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// CRLF line endings (from netcat/telnet on Windows) must be stripped correctly.
+void test_ctrl_crlf_stripped(void)
+{
+   uint16_t port = 39978;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, 0);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+
+   // The string literal ends with \r\n; sendto sends both bytes.
+   ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault, "SET_FAULT RRQ_TIMEOUT\r\n",
+                             reply, sizeof reply);
+   TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
+   TEST_ASSERT_GREATER_THAN( 0, n );
+   TEST_ASSERT_EQUAL_STRING( "OK FAULT_RRQ_TIMEOUT\n", reply );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// IP allowlist -----------------------------------------------------------------
+
+// A packet from the configured allowed IP (loopback) must be accepted.
+void test_ctrl_allowed_client_ip_accepts_loopback(void)
+{
+   uint16_t port = 39977;
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   // Only accept packets from 127.0.0.1 (network byte order)
+   uint32_t loopback_nbo = htonl(INADDR_LOOPBACK);
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, loopback_nbo);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128] = {0};
+
+   // ctrl_exchange sends from loopback, which is the allowed IP → should work.
+   ssize_t n = ctrl_exchange(port, &ctrl_cfg, &fault, "SET_FAULT RRQ_TIMEOUT\n",
+                             reply, sizeof reply);
+   TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
+   TEST_ASSERT_GREATER_THAN( 0, n );
+
+   tftptest_ctrl_shutdown(&ctrl_cfg);
+}
+
+// A packet from a disallowed IP must be silently dropped; fault must not change.
+void test_ctrl_allowed_client_ip_blocks_other_sender(void)
+{
+   uint16_t port = 39976;
+   // Allow only 10.0.0.1; test helper sends from 127.0.0.1, which should be blocked.
+   uint32_t other_ip = inet_addr("10.0.0.1");
+   struct TFTPTest_CtrlCfg ctrl_cfg = {0};
+   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(&ctrl_cfg, port, UINT64_MAX, other_ip);
+   TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
+
+   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   char reply[128];
+
+   // Send packet (from loopback), then poll. Packet is dropped; fault unchanged.
+   ssize_t n = ctrl_send_recv(port, "SET_FAULT RRQ_TIMEOUT\n", reply, sizeof reply);
+   tftptest_ctrl_poll_and_handle(&ctrl_cfg, &fault);
+   TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
+   TEST_ASSERT_FALSE( fault.param_present );
    (void)n;
 
    tftptest_ctrl_shutdown(&ctrl_cfg);

@@ -181,6 +181,24 @@ extern void test_ctrl_unknown_command(void);
 extern void test_ctrl_unknown_fault_mode(void);
 extern void test_ctrl_whitelist_rejects_disallowed_mode(void);
 extern void test_ctrl_set_fault_missing_mode_name(void);
+extern void test_ctrl_param_present_false_when_no_param(void);
+extern void test_ctrl_param_zero_is_distinct_from_no_param(void);
+extern void test_ctrl_reset_clears_mode_and_param_present(void);
+extern void test_ctrl_set_fault_reply_no_param(void);
+extern void test_ctrl_set_fault_reply_with_param(void);
+extern void test_ctrl_get_fault_reply_no_param(void);
+extern void test_ctrl_get_fault_reply_with_param(void);
+extern void test_ctrl_reset_reply(void);
+extern void test_ctrl_unknown_cmd_reply(void);
+extern void test_ctrl_whitelist_reject_reply(void);
+extern void test_ctrl_set_fault_invalid_param_nonnumeric(void);
+extern void test_ctrl_set_fault_invalid_param_overflow(void);
+extern void test_ctrl_set_fault_mode_name_too_long(void);
+extern void test_ctrl_case_insensitive_command(void);
+extern void test_ctrl_leading_whitespace_stripped(void);
+extern void test_ctrl_crlf_stripped(void);
+extern void test_ctrl_allowed_client_ip_accepts_loopback(void);
+extern void test_ctrl_allowed_client_ip_blocks_other_sender(void);
 
 // tftptest_faultmode
 extern void test_fault_mode_names_all_present(void);
@@ -353,6 +371,29 @@ int main(void)
    RUN_TEST( test_ctrl_unknown_fault_mode );
    RUN_TEST( test_ctrl_whitelist_rejects_disallowed_mode );
    RUN_TEST( test_ctrl_set_fault_missing_mode_name );
+   // param_present semantics
+   RUN_TEST( test_ctrl_param_present_false_when_no_param );
+   RUN_TEST( test_ctrl_param_zero_is_distinct_from_no_param );
+   RUN_TEST( test_ctrl_reset_clears_mode_and_param_present );
+   // reply content
+   RUN_TEST( test_ctrl_set_fault_reply_no_param );
+   RUN_TEST( test_ctrl_set_fault_reply_with_param );
+   RUN_TEST( test_ctrl_get_fault_reply_no_param );
+   RUN_TEST( test_ctrl_get_fault_reply_with_param );
+   RUN_TEST( test_ctrl_reset_reply );
+   RUN_TEST( test_ctrl_unknown_cmd_reply );
+   RUN_TEST( test_ctrl_whitelist_reject_reply );
+   // bad input
+   RUN_TEST( test_ctrl_set_fault_invalid_param_nonnumeric );
+   RUN_TEST( test_ctrl_set_fault_invalid_param_overflow );
+   RUN_TEST( test_ctrl_set_fault_mode_name_too_long );
+   // protocol robustness
+   RUN_TEST( test_ctrl_case_insensitive_command );
+   RUN_TEST( test_ctrl_leading_whitespace_stripped );
+   RUN_TEST( test_ctrl_crlf_stripped );
+   // IP allowlist
+   RUN_TEST( test_ctrl_allowed_client_ip_accepts_loopback );
+   RUN_TEST( test_ctrl_allowed_client_ip_blocks_other_sender );
 
    // config file parsing (with real files)
    RUN_TEST( test_parsecfg_load_valid_config );

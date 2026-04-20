@@ -215,8 +215,8 @@ void tftptest_ctrl_poll_and_handle( const struct TFTPTest_CtrlCfg * const cfg,
    buf[nbytes] = '\0';
    size_t cmdlen = (size_t)nbytes;
 
-   // Strip a single trailing CR or LF
-   if ( cmdlen > 0 && (buf[cmdlen - 1] == '\n' || buf[cmdlen - 1] == '\r') )
+   // Strip all trailing CR/LF (handles bare \n, bare \r, and Windows \r\n)
+   while ( cmdlen > 0 && (buf[cmdlen - 1] == '\n' || buf[cmdlen - 1] == '\r') )
       buf[--cmdlen] = '\0';
 
    // Strip leading whitespace. Bounded by `cmdlen > 0` for defense in depth;
