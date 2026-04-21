@@ -199,8 +199,14 @@ For details on what bytes are allowed, why certain control characters are reject
 
 ## Future Plans
 
-- Release `1.0.0` will be a feature-complete, single-threaded, single-client TFTP test server that may behave nominally or in a fault mode as the user desires.
-- Release `1.1.0` will be a multi-client upgrade to this test server.
+- Release `0.1.0` will be a functional product that has been thorougly reviewed, well tested, and demonstrated to work as intended.
+- Release `0.2.0` will be a maximized unit test, soak test, and integration tested product.
+- Release `0.3.0` will be a performance-optimized product (without sacrificing code quality and security).
+- Release `0.4.0` will be CI-pipelined product.
+- Release `0.5.0` will be post-comparison /w `tftp-hpa` and `atftpd`.
+- Release `1.0.0` will be the first feature-complete release.
+- Release `2.0.0` will be a multi-client upgrade to this test server.
+- Release `2.1.0` will be an rpm-package distribution release.
 
 ## A Note On AI Assistance
 This project was _written_ through a combination of me and LLMs.
