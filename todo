@@ -2,7 +2,6 @@
 - if unable to chroot() (e.g., started as user, not root), but no -u/--user was specified, the application must still behave chroot()'d, and perform extra checking on all file paths to prevent path traversals
 - add __line__ to logging in addition to __func__?
 - add --addr/-a CLI + cfg for setting bind-address (in addition to the already existing --port/-p)
-- allowed_client_ip needs to be an array, not just a single entity
 - consider more TFTP_LOG_DEBUG reporting
 - IPv6 support
 - review every file exhaustively
