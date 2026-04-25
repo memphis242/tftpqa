@@ -4,7 +4,7 @@
 
 This is a TFTP (RFC 1350) _Test_ Server that allows developers to exhaustively integration test TFTP clients against a variety of fault scenarios (see full list at the bottom).
 
-This server can also operate as a standard, nominal TFTP server. Note that for simplicity, this server will only answer to a single client at a time, and can be configured to answer to a _specific_ client as well (see `allowed_client_ip` config file option below), among _many_ other test configuration knobs.
+This server can also operate as a standard, nominal TFTP server. Note that for simplicity, this server will only answer to a single client at a time, and can be configured to answer only specific clients or subnets (see `ip_whitelist` config file option below), among _many_ other test configuration knobs.
 
 ## Basic Usage
 
@@ -56,6 +56,12 @@ tftptest --syslog
 # Restrict session TID ports to a range (useful for packet capture filtering)
 tftptest -r 50000:50100
 tftptest --tid-range 50000:50100
+
+# Set the IP whitelist from the command line (overrides config file; required if no config file)
+tftptest --ip-whitelist 192.168.0.0/24
+tftptest --ip-whitelist "127.0.0.1, 10.0.0.0/8"
+tftptest --ip-whitelist 0.0.0.0/0   # allow all
+tftptest --allow-all                       # shorthand for 0.0.0.0/0
 ```
 
 ### Configuration file (INI format):
@@ -82,7 +88,7 @@ log_level = info # there's trace > debug > info > warn > error > fatal
 fault_whitelist = 0xFFFFFFFFFFFFFFFF # bit masks of allowed fault modes (see table at TODO) - 0 for no fault simulations allowed
 
 # Extra protections against malicious attackers
-allowed_client_ip = 192.168.0.24    # 0 for no restrictions, specific IP otherwise
+ip_whitelist = 192.168.0.24, 10.0.0.0/24           # REQUIRED; comma-separated IPs/CIDRs; use "0.0.0.0/0" to allow all; absent or malformed → deny-all and server exits at startup
 max_abandoned_sessions = 10         # Lock out all requests from a particular IP address after this many timed-out sessions (0 = unlimited)
 
 # TID port range for session sockets (useful for packet capture filtering)

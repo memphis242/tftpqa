@@ -359,7 +359,7 @@ int tftp_util_chroot_and_drop(const char *dir, const char *user)
    {
       tftp_log( TFTP_LOG_ERR, __func__, "chroot('.') failed: %s (%d) : %s",
                 strerrorname_np(errno), errno, strerror(errno) );
-      return -1;
+      return -2;
    }
 
    // Step 3: chdir to new root so relative paths work
@@ -367,7 +367,7 @@ int tftp_util_chroot_and_drop(const char *dir, const char *user)
    {
       tftp_log( TFTP_LOG_ERR, __func__, "chdir('/') after chroot failed: %s (%d) : %s",
                 strerrorname_np(errno), errno, strerror(errno) );
-      return -1;
+      return -3;
    }
 
    // Step 4: Look up the target user
@@ -380,7 +380,7 @@ int tftp_util_chroot_and_drop(const char *dir, const char *user)
                    strerrorname_np(errno), errno, strerror(errno) );
       else
          tftp_log( TFTP_LOG_ERR, __func__, "User '%s' not found", user );
-      return -1;
+      return -4;
    }
 
    // Step 5: Drop group privileges first (must do before setuid)
@@ -388,7 +388,7 @@ int tftp_util_chroot_and_drop(const char *dir, const char *user)
    {
       tftp_log( TFTP_LOG_ERR, __func__, "setgid(%ju) failed: %s (%d) : %s",
                 (uintmax_t)pw->pw_gid, strerrorname_np(errno), errno, strerror(errno) );
-      return -1;
+      return -5;
    }
 
    // Drop supplementary groups
@@ -396,7 +396,7 @@ int tftp_util_chroot_and_drop(const char *dir, const char *user)
    {
       tftp_log( TFTP_LOG_ERR, __func__, "setgroups(0, NULL) failed: %s (%d) : %s",
                 strerrorname_np(errno), errno, strerror(errno) );
-      return -1;
+      return -6;
    }
 
    // Step 6: Drop user privileges (point of no return)
@@ -404,12 +404,20 @@ int tftp_util_chroot_and_drop(const char *dir, const char *user)
    {
       tftp_log( TFTP_LOG_ERR, __func__, "setuid(%ju) failed: %s (%d) : %s",
                 (uintmax_t)pw->pw_uid, strerrorname_np(errno), errno, strerror(errno) );
-      return -1;
+      return -7;
    }
 
    // Step 7: Verify we actually dropped privileges
-   assert( getuid() != 0 );
-   assert( geteuid() != 0 );
+   uid_t real_user_id = getuid();
+   uid_t effective_user_id = geteuid();
+   if ( real_user_id != 0 || effective_user_id != 0 )
+   {
+      tftp_log( TFTP_LOG_ERR, __func__,
+                "Somehow, the prior setuid() calls failed to drop privileges... "
+                "getuid() returned %u :: geteuid() returned %u",
+                real_user_id, effective_user_id );
+      return -8;
+   }
 
    tftp_log( TFTP_LOG_INFO, NULL, "Chrooted to '%s', running as user '%s' (uid=%ju, gid=%ju)",
              dir, user, (uintmax_t)pw->pw_uid, (uintmax_t)pw->pw_gid );

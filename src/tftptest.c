@@ -34,6 +34,7 @@
 // Internal Headers
 #include "tftptest_faultmode.h"
 #include "tftptest_ctrl.h"
+#include "tftptest_whitelist.h"
 #include "tftptest_seq.h"
 #include "tftp_err.h"
 #include "tftp_fsm.h"
@@ -86,18 +87,24 @@ static void record_peer_abandoned_session(uint32_t peer_ip);
 
 /******************************* Main Function ********************************/
 
+// Value for long-only options (no short alias). Must be > 127 to avoid
+// collision with single-character option codes.
+enum { OPT_IP_WHITELIST = 128, OPT_ALLOW_ALL = 129 };
+
 // Long option definitions for getopt_long()
 static const struct option long_options[] =
 {
-   { "config",   required_argument, NULL, 'c' },
-   { "port",     required_argument, NULL, 'p' },
-   { "user",     required_argument, NULL, 'u' },
-   { "sequence", required_argument, NULL, 't' },
-   { "tid-range", required_argument, NULL, 'r' },
-   { "verbose",  no_argument,       NULL, 'v' },
-   { "syslog",   no_argument,       NULL, 's' },
-   { "help",     no_argument,       NULL, 'h' },
-   { NULL,       0,                 NULL,  0  },  // sentinel
+   { "config",            required_argument, NULL, 'c' },
+   { "port",              required_argument, NULL, 'p' },
+   { "user",              required_argument, NULL, 'u' },
+   { "sequence",          required_argument, NULL, 't' },
+   { "tid-range",         required_argument, NULL, 'r' },
+   { "ip-whitelist",        required_argument, NULL, OPT_IP_WHITELIST },
+   { "allow-all",          no_argument,       NULL, OPT_ALLOW_ALL },
+   { "verbose",           no_argument,       NULL, 'v' },
+   { "syslog",            no_argument,       NULL, 's' },
+   { "help",              no_argument,       NULL, 'h' },
+   { NULL,                0,                 NULL,  0  },  // sentinel
 };
 
 static void print_usage(const char *progname)
@@ -105,14 +112,17 @@ static void print_usage(const char *progname)
    fprintf(stderr,
       "Usage: %s [OPTIONS]\n"
       "Options:\n"
-      "  -c, --config <file>     Path to INI config file\n"
-      "  -p, --port <port>       Override TFTP port\n"
-      "  -u, --user <user>       Run as user after chroot (default: nobody)\n"
-      "  -t, --sequence <file>   Test sequence file (disables control channel)\n"
-      "  -r, --tid-range MIN:MAX Restrict session TID ports to this range\n"
-      "  -v, --verbose           Increase verbosity (repeat for more: -vvv)\n"
-      "  -s, --syslog            Enable syslog output\n"
-      "  -h, --help              Show this help message\n",
+      "  -c, --config <file>               Path to INI config file\n"
+      "  -p, --port <port>                 Override TFTP port\n"
+      "  -u, --user <user>                 Run as user after chroot (default: nobody)\n"
+      "  -t, --sequence <file>             Test sequence file (disables control channel)\n"
+      "  -r, --tid-range MIN:MAX           Restrict session TID ports to this range\n"
+      "      --ip-whitelist <list>         Comma-separated IPv4/CIDR whitelist\n"
+      "                                    (overrides config file; '0.0.0.0/0' = allow all)\n"
+      "      --allow-all                   Allow any client IP (shorthand for 0.0.0.0/0)\n"
+      "  -v, --verbose                     Increase verbosity (repeat for more: -vvv)\n"
+      "  -s, --syslog                      Enable syslog output\n"
+      "  -h, --help                        Show this help message\n",
       progname);
 }
 
@@ -127,6 +137,7 @@ int main(int argc, char * argv[])
    const char *config_path = NULL;
    const char *user_override = NULL;
    const char *sequence_path = NULL;
+   const char *ip_whitelist_override = NULL;
    int verbosity = 0;
    bool use_syslog = false;
    uint16_t port_override = 0;
@@ -190,6 +201,12 @@ int main(int argc, char * argv[])
       case 's':
          use_syslog = true;
          break;
+      case OPT_IP_WHITELIST:
+         ip_whitelist_override = optarg;
+         break;
+      case OPT_ALLOW_ALL:
+         ip_whitelist_override = "0.0.0.0/0";
+         break;
       case 'h':
          print_usage(argv[0]);
          return 0;
@@ -236,8 +253,18 @@ int main(int argc, char * argv[])
    tftp_parsecfg_defaults(&cfg);
    if ( config_path != NULL )
    {
-      if ( tftp_parsecfg_load(config_path, &cfg) != 0 )
-         tftp_log( TFTP_LOG_WARN, __func__, "Failed to load config '%s', using defaults", config_path );
+      if ( tftp_parsecfg_load(config_path, &cfg, ip_whitelist_override != NULL) != 0 )
+      {
+         tftp_log( TFTP_LOG_FATAL, NULL, "Failed to load config '%s'", config_path );
+         return 1;
+      }
+   }
+   else if ( ip_whitelist_override == NULL )
+   {
+      tftp_log( TFTP_LOG_FATAL, NULL,
+                "No config file specified and --ip-whitelist not given; "
+                "use -c <file> or --ip-whitelist <list>." );
+      return 1;
    }
 
    // CLI overrides take precedence over config file
@@ -257,6 +284,26 @@ int main(int argc, char * argv[])
    {
       cfg.tid_port_min = tid_min_override;
       cfg.tid_port_max = tid_max_override;
+   }
+   if ( ip_whitelist_override != NULL )
+   {
+      if ( tftp_ipwhitelist_init(ip_whitelist_override) != 0 )
+      {
+         tftp_log( TFTP_LOG_FATAL, NULL,
+                   "--ip-whitelist '%s': malformed entry or overflow",
+                   ip_whitelist_override );
+         return 1;
+      }
+   }
+
+   // A deny-all whitelist means no client can ever connect; exit now.
+   if ( tftp_ipwhitelist_is_deny_all() )
+   {
+      tftp_log( TFTP_LOG_FATAL, NULL,
+                "ip_whitelist resolved to deny-all (empty list). "
+                "Set 'ip_whitelist' in the config file or use "
+                "'--ip-whitelist <list>' (use '0.0.0.0/0' to allow all)." );
+      return 1;
    }
 
    // Validate TID range doesn't overlap with server ports
@@ -308,7 +355,7 @@ int main(int argc, char * argv[])
    // Sequence mode vs. control channel mode
    struct TFTPTest_Seq seq = {0};
    bool use_sequence = false;
-   struct TFTPTest_CtrlCfg ctrl_cfg = { .sfd = -1, .port = 0, .whitelist = 0 };
+   bool ctrl_active = false;
 
    if ( sequence_path != NULL )
    {
@@ -342,13 +389,17 @@ int main(int argc, char * argv[])
       assert( sequence_path == NULL );
 
       enum TFTPTest_CtrlResult ctrl_rc =
-         tftptest_ctrl_init(&ctrl_cfg, cfg.ctrl_port, cfg.fault_whitelist, cfg.allowed_client_ip);
+         tftptest_ctrl_init(cfg.ctrl_port, cfg.fault_whitelist);
       if ( ctrl_rc != TFTPTEST_CTRL_OK )
       {
          tftp_log( TFTP_LOG_WARN, __func__,
                    "Failed to create control channel on port %u (ctrl_rc=%d)",
                    (unsigned)cfg.ctrl_port, (int)ctrl_rc );
          // Non-fatal: continue without control channel
+      }
+      else
+      {
+         ctrl_active = true;
       }
    }
    else
@@ -421,9 +472,9 @@ int main(int argc, char * argv[])
          tftp_log( TFTP_LOG_WARN, __func__, "Received malformed TFTP request, dropping" );
          continue;
       }
-      else if ( cfg.allowed_client_ip != 0 && cfg.allowed_client_ip != peer_addr.sin_addr.s_addr )
+      else if ( !tftp_ipwhitelist_contains( peer_addr.sin_addr.s_addr ) )
       {
-         // Client IP does not match allowed_client_ip; silently drop the packet
+         // Client IP not in whitelist; silently drop the packet
          continue;
       }
 
@@ -483,9 +534,9 @@ int main(int argc, char * argv[])
                             (const struct sockaddr *)&peer_addr, sizeof peer_addr);
             // Block this IP
             blocked_peer_ip = peer_addr.sin_addr.s_addr;
-            if ( cfg.allowed_client_ip != 0 && blocked_peer_ip == cfg.allowed_client_ip )
+            if ( tftp_ipwhitelist_is_only_this_host( blocked_peer_ip ) )
             {
-               tftp_log( TFTP_LOG_ERR, __func__, "Blocked IP is the only allowed client — shutting down" );
+               tftp_log( TFTP_LOG_ERR, __func__, "Blocked IP is the only whitelisted client — shutting down" );
                goto Main_CleanupTag;
             }
             continue;
@@ -533,10 +584,10 @@ int main(int argc, char * argv[])
             (void)inet_ntop(AF_INET, &peer_addr.sin_addr, ipbuf, sizeof ipbuf);
             tftp_log( TFTP_LOG_WARN, __func__, "Limit violation from %s — blocking IP for this session", ipbuf );
 
-            // Exit if this was the only allowed client
-            if ( cfg.allowed_client_ip != 0 && blocked_peer_ip == cfg.allowed_client_ip )
+            // Exit if this was the only whitelisted client
+            if ( tftp_ipwhitelist_is_only_this_host( blocked_peer_ip ) )
             {
-               tftp_log( TFTP_LOG_ERR, __func__, "Blocked IP is the only allowed client — shutting down" );
+               tftp_log( TFTP_LOG_ERR, __func__, "Blocked IP is the only whitelisted client — shutting down" );
                goto Main_CleanupTag;
             }
          }
@@ -575,9 +626,9 @@ int main(int argc, char * argv[])
             break;
          }
       }
-      else if ( ctrl_cfg.sfd >= 0 )
+      else if ( ctrl_active )
       {
-         tftptest_ctrl_poll_and_handle(&ctrl_cfg, &fault);
+         tftptest_ctrl_poll_and_handle(&fault);
       }
    }
 
@@ -604,7 +655,7 @@ Main_CleanupTag:
    if ( use_sequence )
       tftptest_seq_free(&seq);
    else
-      tftptest_ctrl_shutdown(&ctrl_cfg);
+      tftptest_ctrl_shutdown();
    (void)close(sfd_newconn);
    tftp_log( TFTP_LOG_INFO, NULL, "Server shutting down (rc=0x%04x)", (unsigned)mainrc );
    tftp_log_shutdown();

@@ -67,10 +67,13 @@ extern void test_parsecfg_max_retransmits_zero_rejected(void);
 extern void test_parsecfg_max_retransmits_over_100_rejected(void);
 extern void test_parsecfg_max_requests_zero_rejected(void);
 extern void test_parsecfg_fault_whitelist_invalid_rejected(void);
-extern void test_parsecfg_allowed_client_ip_empty_allows_all(void);
-extern void test_parsecfg_allowed_client_ip_zero_allows_all(void);
-extern void test_parsecfg_allowed_client_ip_valid(void);
-extern void test_parsecfg_allowed_client_ip_invalid_rejected(void);
+extern void test_parsecfg_ip_whitelist_empty_is_deny_all(void);
+extern void test_parsecfg_ip_whitelist_slash_zero_allows_all(void);
+extern void test_parsecfg_ip_whitelist_valid(void);
+extern void test_parsecfg_ip_whitelist_invalid_rejected(void);
+extern void test_parsecfg_ip_whitelist_plural_with_cidr(void);
+extern void test_parsecfg_missing_whitelist_key_is_fatal(void);
+extern void test_parsecfg_missing_whitelist_key_ok_when_external(void);
 extern void test_parsecfg_wrq_enabled_yes(void);
 extern void test_parsecfg_wrq_enabled_one(void);
 extern void test_parsecfg_wrq_enabled_no(void);
@@ -197,8 +200,8 @@ extern void test_ctrl_set_fault_mode_name_too_long(void);
 extern void test_ctrl_case_insensitive_command(void);
 extern void test_ctrl_leading_whitespace_stripped(void);
 extern void test_ctrl_crlf_stripped(void);
-extern void test_ctrl_allowed_client_ip_accepts_loopback(void);
-extern void test_ctrl_allowed_client_ip_blocks_other_sender(void);
+extern void test_ctrl_whitelisted_client_ip_accepts_loopback(void);
+extern void test_ctrl_whitelisted_client_ip_blocks_other_sender(void);
 extern void test_ctrl_init_null_cfg(void);
 extern void test_ctrl_init_bind_failure(void);
 extern void test_ctrl_no_packet_poll_noop(void);
@@ -230,6 +233,37 @@ extern void test_fault_lookup_mode_alphabetically_after_modes(void);
 extern void test_fault_lookup_mode_multiple_sequential_searches(void);
 extern void test_fault_lookup_mode_mixed_formats_sequential(void);
 extern void test_fault_lookup_mode_all_modes_exhaustive(void);
+
+// tftp_ipwhitelist
+extern void test_ipwhitelist_empty_is_deny_all(void);
+extern void test_ipwhitelist_is_deny_all_true(void);
+extern void test_ipwhitelist_is_deny_all_false(void);
+extern void test_ipwhitelist_single_bare_ip(void);
+extern void test_ipwhitelist_single_cidr_24(void);
+extern void test_ipwhitelist_host_bits_normalized(void);
+extern void test_ipwhitelist_mixed_list_with_whitespace(void);
+extern void test_ipwhitelist_prefix_zero_matches_all(void);
+extern void test_ipwhitelist_prefix_32_explicit_vs_bare(void);
+extern void test_ipwhitelist_overflow_rejected(void);
+extern void test_ipwhitelist_malformed_trailing_comma(void);
+extern void test_ipwhitelist_malformed_empty_middle_token(void);
+extern void test_ipwhitelist_malformed_non_numeric_prefix(void);
+extern void test_ipwhitelist_malformed_prefix_33(void);
+extern void test_ipwhitelist_malformed_negative_prefix(void);
+extern void test_ipwhitelist_malformed_bad_octet(void);
+extern void test_ipwhitelist_malformed_trailing_garbage(void);
+extern void test_ipwhitelist_malformed_trailing_slash(void);
+extern void test_ipwhitelist_malformed_double_slash(void);
+extern void test_ipwhitelist_matcher_slash_32(void);
+extern void test_ipwhitelist_matcher_slash_24_boundary(void);
+extern void test_ipwhitelist_matcher_multiple_entries(void);
+extern void test_ipwhitelist_is_only_this_host_true(void);
+extern void test_ipwhitelist_is_only_this_host_wrong_ip(void);
+extern void test_ipwhitelist_is_only_this_host_multiple_entries(void);
+extern void test_ipwhitelist_is_only_this_host_empty(void);
+extern void test_ipwhitelist_malformed_results_in_deny_all(void);
+extern void test_ipwhitelist_null_input_is_deny_all(void);
+extern void test_ipwhitelist_init_resets_singleton(void);
 
 // tftp_fsm
 extern void test_fsm_kickoff_rejects_null_rqbuf(void);
@@ -400,9 +434,9 @@ int main(void)
    RUN_TEST( test_ctrl_case_insensitive_command );
    RUN_TEST( test_ctrl_leading_whitespace_stripped );
    RUN_TEST( test_ctrl_crlf_stripped );
-   // IP allowlist
-   RUN_TEST( test_ctrl_allowed_client_ip_accepts_loopback );
-   RUN_TEST( test_ctrl_allowed_client_ip_blocks_other_sender );
+   // IP whitelist
+   RUN_TEST( test_ctrl_whitelisted_client_ip_accepts_loopback );
+   RUN_TEST( test_ctrl_whitelisted_client_ip_blocks_other_sender );
    // init errors and poll-loop behavior
    RUN_TEST( test_ctrl_init_null_cfg );
    RUN_TEST( test_ctrl_init_bind_failure );
@@ -445,10 +479,13 @@ int main(void)
    RUN_TEST( test_parsecfg_max_retransmits_over_100_rejected );
    RUN_TEST( test_parsecfg_max_requests_zero_rejected );
    RUN_TEST( test_parsecfg_fault_whitelist_invalid_rejected );
-   RUN_TEST( test_parsecfg_allowed_client_ip_empty_allows_all );
-   RUN_TEST( test_parsecfg_allowed_client_ip_zero_allows_all );
-   RUN_TEST( test_parsecfg_allowed_client_ip_valid );
-   RUN_TEST( test_parsecfg_allowed_client_ip_invalid_rejected );
+   RUN_TEST( test_parsecfg_ip_whitelist_empty_is_deny_all );
+   RUN_TEST( test_parsecfg_ip_whitelist_slash_zero_allows_all );
+   RUN_TEST( test_parsecfg_ip_whitelist_valid );
+   RUN_TEST( test_parsecfg_ip_whitelist_invalid_rejected );
+   RUN_TEST( test_parsecfg_ip_whitelist_plural_with_cidr );
+   RUN_TEST( test_parsecfg_missing_whitelist_key_is_fatal );
+   RUN_TEST( test_parsecfg_missing_whitelist_key_ok_when_external );
    RUN_TEST( test_parsecfg_wrq_enabled_yes );
    RUN_TEST( test_parsecfg_wrq_enabled_one );
    RUN_TEST( test_parsecfg_wrq_enabled_no );
@@ -541,6 +578,37 @@ int main(void)
    RUN_TEST( test_fault_lookup_mode_multiple_sequential_searches );
    RUN_TEST( test_fault_lookup_mode_mixed_formats_sequential );
    RUN_TEST( test_fault_lookup_mode_all_modes_exhaustive );
+
+   // IP whitelist tests
+   RUN_TEST( test_ipwhitelist_empty_is_deny_all );
+   RUN_TEST( test_ipwhitelist_is_deny_all_true );
+   RUN_TEST( test_ipwhitelist_is_deny_all_false );
+   RUN_TEST( test_ipwhitelist_single_bare_ip );
+   RUN_TEST( test_ipwhitelist_single_cidr_24 );
+   RUN_TEST( test_ipwhitelist_host_bits_normalized );
+   RUN_TEST( test_ipwhitelist_mixed_list_with_whitespace );
+   RUN_TEST( test_ipwhitelist_prefix_zero_matches_all );
+   RUN_TEST( test_ipwhitelist_prefix_32_explicit_vs_bare );
+   RUN_TEST( test_ipwhitelist_overflow_rejected );
+   RUN_TEST( test_ipwhitelist_malformed_trailing_comma );
+   RUN_TEST( test_ipwhitelist_malformed_empty_middle_token );
+   RUN_TEST( test_ipwhitelist_malformed_non_numeric_prefix );
+   RUN_TEST( test_ipwhitelist_malformed_prefix_33 );
+   RUN_TEST( test_ipwhitelist_malformed_negative_prefix );
+   RUN_TEST( test_ipwhitelist_malformed_bad_octet );
+   RUN_TEST( test_ipwhitelist_malformed_trailing_garbage );
+   RUN_TEST( test_ipwhitelist_malformed_trailing_slash );
+   RUN_TEST( test_ipwhitelist_malformed_double_slash );
+   RUN_TEST( test_ipwhitelist_matcher_slash_32 );
+   RUN_TEST( test_ipwhitelist_matcher_slash_24_boundary );
+   RUN_TEST( test_ipwhitelist_matcher_multiple_entries );
+   RUN_TEST( test_ipwhitelist_is_only_this_host_true );
+   RUN_TEST( test_ipwhitelist_is_only_this_host_wrong_ip );
+   RUN_TEST( test_ipwhitelist_is_only_this_host_multiple_entries );
+   RUN_TEST( test_ipwhitelist_is_only_this_host_empty );
+   RUN_TEST( test_ipwhitelist_malformed_results_in_deny_all );
+   RUN_TEST( test_ipwhitelist_null_input_is_deny_all );
+   RUN_TEST( test_ipwhitelist_init_resets_singleton );
 
    // FSM state machine tests
    RUN_TEST( test_fsm_kickoff_rejects_null_rqbuf );

@@ -26,6 +26,7 @@
 
 #include "tftptest_common.h"
 #include "tftptest_ctrl.h"
+#include "tftptest_whitelist.h"
 #include "tftp_log.h"
 
 /***************************** Local Declarations *****************************/
@@ -42,28 +43,32 @@ CompileTimeAssert( CTRL_RSP_BUF_SZ < INT_MAX, tftptest_ctrl_response_buf_too_big
 
 #define MIN_SET_FAULT_CMD_SZ (sizeof("SET_FAULT x")-1)
 
-// Stage helpers for the dispatcher
-static ssize_t recv_ctrl_pkt( const struct TFTPTest_CtrlCfg * cfg,
-                              char * buf, size_t buf_sz,
-                              struct sockaddr_in * sender );
-static bool sender_allowed( const struct TFTPTest_CtrlCfg * cfg,
-                            const struct sockaddr_in * sender );
+// Module-private config struct type
+struct TFTPTest_CtrlCfg
+{
+   int      sfd;       // Socket fd (-1 if uninitialized / after shutdown)
+   uint16_t port;      // Port the control channel is bound to
+   uint64_t whitelist; // Bitmask of allowed fault modes
+};
 
-// Per-command handlers. `cmd` has been trimmed of leading whitespace and a
-// single trailing CR/LF by the dispatcher.
-static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
-                              struct TFTPTest_FaultState * fault,
+// The one instance — sfd=-1 means uninitialised / shut down.
+static struct TFTPTest_CtrlCfg s_ctrl_cfg = { .sfd = -1 };
+
+// Stage helpers for the dispatcher
+static ssize_t recv_ctrl_pkt( char * buf, size_t buf_sz,
+                              struct sockaddr_in * sender );
+static bool sender_allowed( const struct sockaddr_in * sender );
+
+// Per-command handlers
+static void handle_set_fault( struct TFTPTest_FaultState * fault,
                               const struct sockaddr_in * sender,
                               const char * cmd,
                               size_t cmdlen );
-static void handle_get_fault( const struct TFTPTest_CtrlCfg * cfg,
-                              const struct TFTPTest_FaultState * fault,
+static void handle_get_fault( const struct TFTPTest_FaultState * fault,
                               const struct sockaddr_in * sender );
-static void handle_reset( const struct TFTPTest_CtrlCfg * cfg,
-                          struct TFTPTest_FaultState * fault,
+static void handle_reset( struct TFTPTest_FaultState * fault,
                           const struct sockaddr_in * sender );
-static void handle_unknown( const struct TFTPTest_CtrlCfg * cfg,
-                            const struct sockaddr_in * sender,
+static void handle_unknown( const struct sockaddr_in * sender,
                             const char * cmd );
 
 static void send_reply( int sfd,
@@ -107,23 +112,12 @@ static inline void send_reply_or_log_fail( int sfd,
 
 /********************** Public Function Implementations ***********************/
 
-enum TFTPTest_CtrlResult tftptest_ctrl_init( struct TFTPTest_CtrlCfg * const cfg,
-                                             uint16_t port,
-                                             uint64_t whitelist,
-                                             uint32_t allowed_client_ip )
+enum TFTPTest_CtrlResult tftptest_ctrl_init( uint16_t port, uint64_t whitelist )
 {
-   if ( cfg == NULL )
-   {
-      tftp_log(TFTP_LOG_ERR, __func__, "NULL cfg pointer");
-      return TFTPTEST_CTRL_ERR_NULL_CFG;
-   }
-
-   // Initialize early so shutdown() is safe on any failure path, and so
-   // diagnostics can see port/whitelist even if init fails.
-   cfg->sfd               = -1;
-   cfg->port              = port;
-   cfg->whitelist         = whitelist;
-   cfg->allowed_client_ip = allowed_client_ip;
+   // Initialize early so shutdown() is safe on any failure path.
+   s_ctrl_cfg.sfd       = -1;
+   s_ctrl_cfg.port      = port;
+   s_ctrl_cfg.whitelist = whitelist;
 
    enum TFTPTest_CtrlResult rc = TFTPTEST_CTRL_OK;
    int sfd = -1;
@@ -180,7 +174,7 @@ enum TFTPTest_CtrlResult tftptest_ctrl_init( struct TFTPTest_CtrlCfg * const cfg
       goto cleanup;
    }
 
-   cfg->sfd = sfd;
+   s_ctrl_cfg.sfd = sfd;
    tftp_log(TFTP_LOG_INFO, NULL, "Control channel listening on port %u", (unsigned)port);
 
    return TFTPTEST_CTRL_OK;
@@ -196,20 +190,18 @@ cleanup:
    return rc;
 }
 
-void tftptest_ctrl_poll_and_handle( const struct TFTPTest_CtrlCfg * const cfg,
-                                    struct TFTPTest_FaultState * const fault )
+void tftptest_ctrl_poll_and_handle( struct TFTPTest_FaultState * const fault )
 {
-   assert( cfg != NULL );
    assert( fault != NULL );
 
    char buf[CTRL_CMD_BUF_SZ];
    struct sockaddr_in sender = {0};
 
-   ssize_t nbytes = recv_ctrl_pkt(cfg, buf, sizeof buf, &sender);
+   ssize_t nbytes = recv_ctrl_pkt(buf, sizeof buf, &sender);
    if ( nbytes <= 0 )
       return;
 
-   if ( !sender_allowed(cfg, &sender) )
+   if ( !sender_allowed(&sender) )
       return;
 
    assert( nbytes >  0 );
@@ -233,45 +225,39 @@ void tftptest_ctrl_poll_and_handle( const struct TFTPTest_CtrlCfg * const cfg,
 
    if ( cmd_matches(cmd, cmdlen, "SET_FAULT", sizeof("SET_FAULT")-1) )
    {
-      handle_set_fault(cfg, fault, &sender, cmd, cmdlen);
+      handle_set_fault(fault, &sender, cmd, cmdlen);
    }
    else if ( cmd_matches(cmd, cmdlen, "GET_FAULT", sizeof("GET_FAULT")-1) )
    {
-      handle_get_fault(cfg, fault, &sender);
+      handle_get_fault(fault, &sender);
    }
    else if ( cmd_matches(cmd, cmdlen, "RESET", sizeof("RESET")-1) )
    {
-      handle_reset(cfg, fault, &sender);
+      handle_reset(fault, &sender);
    }
    else
    {
-      handle_unknown(cfg, &sender, cmd);
+      handle_unknown(&sender, cmd);
    }
 }
 
-void tftptest_ctrl_shutdown( struct TFTPTest_CtrlCfg * const cfg )
+void tftptest_ctrl_shutdown( void )
 {
-
-#ifndef NDEBUG
-   assert( cfg != NULL );
-   assert( cfg->sfd >= 0 );
-#else
-   if ( cfg == NULL || cfg->sfd < 0 )
+   if ( s_ctrl_cfg.sfd < 0 )
       return;
-#endif
 
    tftp_log( TFTP_LOG_INFO, NULL,
              "Closing ctrl port socket %d listening on port %u...",
-             cfg->sfd, cfg->port );
+             s_ctrl_cfg.sfd, s_ctrl_cfg.port );
 
-   if ( close(cfg->sfd) != 0 )
+   if ( close(s_ctrl_cfg.sfd) != 0 )
    {
       tftp_log( TFTP_LOG_WARN, __func__,
                 "close(sfd=%d) failed: %s (%d) : %s",
-                cfg->sfd, strerrorname_np(errno), errno, strerror(errno) );
+                s_ctrl_cfg.sfd, strerrorname_np(errno), errno, strerror(errno) );
    }
 
-   cfg->sfd = -1;
+   s_ctrl_cfg.sfd = -1;
 }
 
 /*********************** Local Function Implementations ***********************/
@@ -280,18 +266,16 @@ void tftptest_ctrl_shutdown( struct TFTPTest_CtrlCfg * const cfg )
 // Returns the byte count on a usable packet; returns 0 (and the caller should
 // silently move on) for empty / oversized / wrong-address-family / no-data
 // cases. Returns -1 only on an unexpected recvfrom() error (already logged).
-static ssize_t recv_ctrl_pkt( const struct TFTPTest_CtrlCfg * cfg,
-                              char * buf, size_t buf_sz,
+static ssize_t recv_ctrl_pkt( char * buf, size_t buf_sz,
                               struct sockaddr_in * sender )
 {
-   assert( cfg != NULL );
    assert( buf != NULL );
    assert( sender != NULL );
    assert( buf_sz > 0 );
 
    socklen_t addrlen = sizeof *sender;
 
-   ssize_t nbytes = recvfrom( cfg->sfd,
+   ssize_t nbytes = recvfrom( s_ctrl_cfg.sfd,
                               buf, buf_sz - 1,
                               0,
                               (struct sockaddr *)sender, &addrlen );
@@ -348,15 +332,11 @@ static ssize_t recv_ctrl_pkt( const struct TFTPTest_CtrlCfg * cfg,
 
 // Returns true if the sender is permitted to talk to this control channel.
 // Logs the drop at INFO when rejecting.
-static bool sender_allowed( const struct TFTPTest_CtrlCfg * cfg,
-                            const struct sockaddr_in * sender )
+static bool sender_allowed( const struct sockaddr_in * sender )
 {
-   assert( cfg != NULL );
    assert( sender != NULL );
 
-   // 0 = accept any sender
-   if ( cfg->allowed_client_ip == 0
-        || cfg->allowed_client_ip == sender->sin_addr.s_addr )
+   if ( tftp_ipwhitelist_contains( sender->sin_addr.s_addr ) )
    {
       return true;
    }
@@ -379,13 +359,11 @@ static bool sender_allowed( const struct TFTPTest_CtrlCfg * cfg,
 
 // Handle SET_FAULT <mode> [param]. Caller has already verified that `cmd`
 // begins with "SET_FAULT" + whitespace and contains at least one byte after.
-static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
-                              struct TFTPTest_FaultState * fault,
+static void handle_set_fault( struct TFTPTest_FaultState * fault,
                               const struct sockaddr_in * sender,
                               const char * cmd,
                               size_t cmdlen )
 {
-   assert( cfg != NULL );
    assert( fault != NULL );
    assert( sender != NULL );
    assert( cmd != NULL );
@@ -401,7 +379,7 @@ static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
 
       reply_len = snprintf(reply, sizeof reply, "ERR missing at least mode argument for SET_FAULT\n");
       assert( reply_len < (int)(sizeof reply) );
-      send_reply_or_log_fail(cfg->sfd, sender, reply, reply_len, __func__);
+      send_reply_or_log_fail(s_ctrl_cfg.sfd, sender, reply, reply_len, __func__);
 
       return;
    }
@@ -428,7 +406,7 @@ static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
 
       reply_len = snprintf(reply, sizeof reply, "ERR missing mode name\n");
       assert( reply_len < (int)(sizeof reply) );
-      send_reply_or_log_fail(cfg->sfd, sender, reply, reply_len, __func__);
+      send_reply_or_log_fail(s_ctrl_cfg.sfd, sender, reply, reply_len, __func__);
 
       return;
    }
@@ -439,7 +417,7 @@ static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
 
       reply_len = snprintf(reply, sizeof reply, "ERR mode name too long\n");
       assert( reply_len < (int)(sizeof reply) );
-      send_reply_or_log_fail(cfg->sfd, sender, reply, reply_len, __func__);
+      send_reply_or_log_fail(s_ctrl_cfg.sfd, sender, reply, reply_len, __func__);
 
       return;
    }
@@ -467,7 +445,7 @@ static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
 
          reply_len = snprintf(reply, sizeof reply, "ERR invalid param\n");
          assert( reply_len < (int)(sizeof reply) );
-         send_reply_or_log_fail(cfg->sfd, sender, reply, reply_len, __func__);
+         send_reply_or_log_fail(s_ctrl_cfg.sfd, sender, reply, reply_len, __func__);
 
          return;
       }
@@ -485,7 +463,7 @@ static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
                             "ERR unknown mode '%s' : error code %d\n",
                             mode_name, (int)mode_idx );
       assert( reply_len < (int)(sizeof reply) );
-      send_reply_or_log_fail(cfg->sfd, sender, reply, reply_len, __func__);
+      send_reply_or_log_fail(s_ctrl_cfg.sfd, sender, reply, reply_len, __func__);
 
       return;
    }
@@ -495,13 +473,13 @@ static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
    if ( (int)mode_idx > FAULT_NONE )
    {
       uint64_t mode_bit = (uint64_t)1 << (unsigned)((int)mode_idx - 1);
-      if ( !(cfg->whitelist & mode_bit) )
+      if ( !(s_ctrl_cfg.whitelist & mode_bit) )
       {
          tftp_log( TFTP_LOG_INFO, NULL, "Ctrl port cmd not on whitelist: '%s'", mode_name );
 
          reply_len = snprintf(reply, sizeof reply, "ERR mode '%s' not allowed\n", mode_name);
          assert( reply_len < (int)(sizeof reply) );
-         send_reply_or_log_fail(cfg->sfd, sender, reply, reply_len, __func__);
+         send_reply_or_log_fail(s_ctrl_cfg.sfd, sender, reply, reply_len, __func__);
 
          return;
       }
@@ -530,14 +508,12 @@ static void handle_set_fault( const struct TFTPTest_CtrlCfg * cfg,
                             tftptest_fault_mode_names[fault->mode] );
    }
    assert( reply_len < (int)(sizeof reply) );
-   send_reply_or_log_fail(cfg->sfd, sender, reply, reply_len, __func__);
+   send_reply_or_log_fail(s_ctrl_cfg.sfd, sender, reply, reply_len, __func__);
 }
 
-static void handle_get_fault( const struct TFTPTest_CtrlCfg * cfg,
-                              const struct TFTPTest_FaultState * fault,
+static void handle_get_fault( const struct TFTPTest_FaultState * fault,
                               const struct sockaddr_in * sender )
 {
-   assert( cfg != NULL );
    assert( fault != NULL );
    assert( sender != NULL );
 
@@ -559,14 +535,12 @@ static void handle_get_fault( const struct TFTPTest_CtrlCfg * cfg,
                             tftptest_fault_mode_names[fault->mode] );
    }
    assert( reply_len < (int)(sizeof reply) );
-   send_reply_or_log_fail(cfg->sfd, sender, reply, reply_len, __func__);
+   send_reply_or_log_fail(s_ctrl_cfg.sfd, sender, reply, reply_len, __func__);
 }
 
-static void handle_reset( const struct TFTPTest_CtrlCfg * cfg,
-                          struct TFTPTest_FaultState * fault,
+static void handle_reset( struct TFTPTest_FaultState * fault,
                           const struct sockaddr_in * sender )
 {
-   assert( cfg != NULL );
    assert( fault != NULL );
    assert( sender != NULL );
 
@@ -580,14 +554,12 @@ static void handle_reset( const struct TFTPTest_CtrlCfg * cfg,
    char reply[CTRL_RSP_BUF_SZ];
    int reply_len = snprintf(reply, sizeof reply, "OK FAULT_NONE\n");
    assert( reply_len < (int)(sizeof reply) );
-   send_reply_or_log_fail(cfg->sfd, sender, reply, reply_len, __func__);
+   send_reply_or_log_fail(s_ctrl_cfg.sfd, sender, reply, reply_len, __func__);
 }
 
-static void handle_unknown( const struct TFTPTest_CtrlCfg * cfg,
-                            const struct sockaddr_in * sender,
+static void handle_unknown( const struct sockaddr_in * sender,
                             const char * cmd )
 {
-   assert( cfg != NULL );
    assert( sender != NULL );
    assert( cmd != NULL );
 
@@ -596,7 +568,7 @@ static void handle_unknown( const struct TFTPTest_CtrlCfg * cfg,
    char reply[CTRL_RSP_BUF_SZ];
    int reply_len = snprintf(reply, sizeof reply, "ERR unknown/malformed command '%s'\n", cmd);
    assert( reply_len < (int)(sizeof reply) );
-   send_reply_or_log_fail(cfg->sfd, sender, reply, reply_len, __func__);
+   send_reply_or_log_fail(s_ctrl_cfg.sfd, sender, reply, reply_len, __func__);
 }
 
 static void send_reply( int sfd,

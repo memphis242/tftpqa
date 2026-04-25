@@ -29,7 +29,6 @@ struct TFTPTest_Config
    unsigned int       max_retransmits;  // Max retransmit attempts (default 5)
    size_t             max_requests;     // Max TFTP requests before restart (default 10000)
    uint64_t           fault_whitelist;  // Bitmask of allowed fault modes
-   uint32_t           allowed_client_ip; // Restrict to this IP (0.0.0.0 = allow all)
    // WRQ DoS protection
    size_t             max_wrq_file_size;      // Per-file size limit in bytes (0 = unlimited)
    size_t             max_wrq_session_bytes;  // Cumulative WRQ bytes for entire server run (0 = unlimited)
@@ -59,10 +58,14 @@ void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg);
  * The struct should be pre-filled with defaults (via tftp_parsecfg_defaults)
  * before calling this function; only keys present in the file are overwritten.
  *
- * @param[in]  path  Path to the config file.
- * @param[out] cfg   The config struct to populate.
+ * @param[in]  path               Path to the config file.
+ * @param[out] cfg                The config struct to populate.
+ * @param[in]  whitelist_external When true, a missing ip_whitelist key is not an
+ *                                error (the caller will supply the whitelist via
+ *                                another means, e.g. a CLI flag). When false, the
+ *                                key is required and its absence is fatal.
  * @return 0 on success, -1 on error (logged via tftp_log).
  */
-int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg);
+int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg, bool whitelist_external);
 
 #endif // TFTP_PARSECFG_H

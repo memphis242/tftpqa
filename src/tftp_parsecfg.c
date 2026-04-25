@@ -20,6 +20,7 @@
 #include "tftptest_common.h"
 #include "tftp_parsecfg.h"
 #include "tftp_log.h"
+#include "tftptest_whitelist.h"
 
 /***************************** Local Declarations *****************************/
 
@@ -52,7 +53,6 @@ void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg)
    cfg->max_retransmits = DEFAULT_MAX_RETX;
    cfg->max_requests    = DEFAULT_MAX_REQUESTS;
    cfg->fault_whitelist = UINT64_MAX; // All faults allowed by default
-   cfg->allowed_client_ip = 0; // 0.0.0.0 = allow all clients
    cfg->max_wrq_file_size = 0;       // 0 = unlimited
    cfg->max_wrq_session_bytes = 0;   // 0 = unlimited
    cfg->max_wrq_duration_sec = 0;    // 0 = unlimited
@@ -73,7 +73,7 @@ void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg)
    cfg->run_as_user[sizeof cfg->run_as_user - 1] = '\0';
 }
 
-int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
+int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg, bool whitelist_external)
 {
    assert( path != NULL );
    assert( cfg != NULL );
@@ -89,6 +89,8 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
    char line[MAX_LINE_LEN];
    int line_num = 0;
    int errors = 0;
+   bool fatal = false;
+   bool seen_ip_whitelist = false;
 
    while ( fgets( line, (int)sizeof line, fp ) != NULL )
    {
@@ -242,25 +244,19 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
             cfg->fault_whitelist = v;
          }
       }
-      else if ( strcmp( key, "allowed_client_ip" ) == 0 )
+      else if ( strcmp( key, "ip_whitelist" ) == 0 )
       {
-         // Parse IP address (0.0.0.0 means allow all)
-         if ( strlen( value ) == 0 || strcmp( value, "0.0.0.0" ) == 0 )
+         // Required key. Comma-separated IPv4/CIDR list.
+         // Use "0.0.0.0/0" to allow any sender.
+         // Empty or malformed value is fail-closed: the whole config load fails.
+         seen_ip_whitelist = true;
+         if ( tftp_ipwhitelist_init( value ) != 0 )
          {
-            cfg->allowed_client_ip = 0; // Allow all clients
-         }
-         else
-         {
-            struct in_addr addr;
-            if ( inet_aton( value, &addr ) == 0 )
-            {
-               tftp_log( TFTP_LOG_WARN, __func__, "Config line %d: invalid allowed_client_ip '%s'", line_num, value );
-               errors++;
-            }
-            else
-            {
-               cfg->allowed_client_ip = addr.s_addr; // Store in network byte order
-            }
+            tftp_log( TFTP_LOG_ERR, __func__,
+                      "Config line %d: invalid ip_whitelist '%s' (rejecting config)",
+                      line_num, value );
+            errors++;
+            fatal = true;
          }
       }
       else if ( strcmp( key, "max_wrq_file_size" ) == 0 )
@@ -408,6 +404,14 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
 
    (void)fclose( fp );
 
+   if ( !seen_ip_whitelist && !whitelist_external )
+   {
+      tftp_log( TFTP_LOG_ERR, __func__,
+                "required key 'ip_whitelist' is missing from '%s'", path );
+      errors++;
+      fatal = true;
+   }
+
    if ( errors > 0 )
    {
       tftp_log( TFTP_LOG_WARN, __func__, "Config file '%s': %d error(s) encountered", path, errors );
@@ -416,6 +420,9 @@ int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg)
    {
       tftp_log( TFTP_LOG_INFO, NULL, "Config file '%s' loaded successfully", path );
    }
+
+   if ( fatal )
+      return -1;
 
    return 0;
 }
