@@ -226,3 +226,6 @@ the test and quality assurance suite I wanted to set up, and more. Furthermore, 
 With that said, for transparency, any commit whose content was primarily AI generated (but still reviewed by me) is cleared marked as such. AI
 assistance _can_ be a tool for good, and getting greater things done, if we use it well. I have come to believe that after being a long-time
 skeptic.
+
+## Developer Guide
+Please reference [./docs/DevelopersGuide.md](./docs/DeveloperGuides.md) for the software engineering principles in use for this project.
