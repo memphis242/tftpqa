@@ -45,6 +45,13 @@ bool tftp_ipwhitelist_is_deny_all(void);
 bool tftp_ipwhitelist_contains(uint32_t ip_nbo);
 
 /**
+ * @brief Block a particular IP address
+ * @param[in] ip_nbo IPv4 address to block in network byte order
+ * @return 0 on successful add to blacklist, non-zero otherwise
+ */
+int tftp_ipwhitelist_block(uint32_t ip_nbo);
+
+/**
  * @brief Check if the whitelist contains exclusively ip_nbo.
  *
  * Used to detect the "blocking the only whitelisted client" scenario so the

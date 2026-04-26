@@ -9,9 +9,11 @@
 
 #include <string.h>
 #include <ctype.h>
-#include <assert.h>
 #include <stdlib.h>
 #include <stddef.h>
+
+#include <assert.h>
+#include <errno.h>
 
 #include <arpa/inet.h>
 
@@ -20,7 +22,8 @@
 
 /***************************** Local Declarations *****************************/
 
-#define TFTP_IPWHITELIST_MAX ((size_t)16)
+#define TFTP_IPWHITELIST_MAX        ((size_t)16)
+#define TFTP_BLACKLIST_MAX_CAPACITY ((size_t)65536)
 
 // Longest possible token: "255.255.255.255/32" = 18 chars + NUL = 19
 #define MAX_TOKEN_LEN ((size_t)19)
@@ -31,9 +34,22 @@ struct TFTP_IPWhitelist
    uint32_t mask_nbo[TFTP_IPWHITELIST_MAX]; // NBO; 0xFFFFFFFF for /32, 0 for /0
    size_t   count;                          // 0 = deny all
 };
-
 // Module singleton
 static struct TFTP_IPWhitelist s_whitelist;
+
+// We need a separate black-list because individual IPs may be blocked out of a
+// given subnet that is on the whitelist, so it is not sufficient to block an IP
+// by removing an entry from the whitelist.
+// Also, for now, the blacklist will be a list of individual IPs, not subnets.
+// On the performance pass-through, we'll try and add subnet functionality to
+// optimize.
+struct TFTP_IPBlackList
+{
+   uint32_t * addrs_nbo;
+   size_t len;
+   size_t cap;
+};
+static struct TFTP_IPBlackList s_blacklist;
 
 static const char *skip_ws(const char *p);
 static int parse_list( const char *s, struct TFTP_IPWhitelist *out );
@@ -41,6 +57,8 @@ static int parse_one_token( const char *tok,
                             size_t tok_len,
                             uint32_t *out_addr_nbo,
                             uint32_t *out_mask_nbo );
+
+static bool on_blacklist(uint32_t ip_nbo);
 
 /********************** Public Function Implementations ***********************/
 
@@ -75,12 +93,65 @@ bool tftp_ipwhitelist_contains(uint32_t ip_nbo)
 
    for ( size_t i = 0; i < s_whitelist.count; i++ )
    {
-      if ( (ip_nbo & s_whitelist.mask_nbo[i]) == s_whitelist.addr_nbo[i] )
+      if ( (ip_nbo & s_whitelist.mask_nbo[i]) == s_whitelist.addr_nbo[i]
+            && !on_blacklist(ip_nbo) )
          return true;
    }
 
    return false;
 }
+
+int tftp_ipwhitelist_block(uint32_t ip_nbo)
+{
+   if ( ip_nbo == INADDR_ANY || ip_nbo == INADDR_BROADCAST )
+   {
+      tftp_log( TFTP_LOG_INFO, __func__,
+                "Attempted to block an invalid IP address: %u :: Not allowed",
+                ntohl(ip_nbo) );
+      return -1;
+   }
+
+   // Check if entry already exists on the blacklist...
+   if ( on_blacklist(ip_nbo) )
+      return 0;
+
+   // Add to the blacklist
+   // Expand blacklist vector if needed
+   if ( s_blacklist.len >= s_blacklist.cap )
+   {
+      size_t new_cap = s_blacklist.cap * 2;
+
+      if ( new_cap > TFTP_BLACKLIST_MAX_CAPACITY )
+      {
+         tftp_log( TFTP_LOG_ERR, __func__,
+                   "Blacklist is at maximum capacity! Unable to block %08X",
+                   ntohl(ip_nbo) );
+         return 1;
+      }
+
+      uint32_t * tmp = realloc( s_blacklist.addrs_nbo, new_cap );
+      if ( tmp == NULL )
+      {
+         tftp_log( TFTP_LOG_ERR, __func__,
+                   "realloc() failed at blacklist expansion!"
+                   " %s (%d) : %s :: Unable to block %08X",
+                   strerrorname_np(errno), errno, strerror(errno),
+                   ntohl(ip_nbo) );
+         return 2;
+      }
+
+      s_blacklist.addrs_nbo = tmp;
+      s_blacklist.cap = new_cap;
+   }
+
+   s_blacklist.addrs_nbo[s_blacklist.len++] = ip_nbo;
+
+   assert( s_blacklist.len <= s_blacklist.cap );
+   assert( s_blacklist.cap <= TFTP_BLACKLIST_MAX_CAPACITY );
+
+   return 0;
+}
+
 
 bool tftp_ipwhitelist_is_only_this_host(uint32_t ip_nbo)
 {
@@ -261,4 +332,17 @@ static int parse_one_token( const char *tok,
    *out_mask_nbo = mask_nbo;
 
    return 0;
+}
+
+static bool on_blacklist(uint32_t ip_nbo)
+{
+   assert( s_blacklist.len <= s_blacklist.cap);
+
+   // For now, we will do a linear scan through; later on, I'll optimize this on
+   // the performance pass through the codebase.
+   for ( size_t i=0; i < s_blacklist.len; ++i )
+      if ( ip_nbo == s_blacklist.addrs_nbo[i] )
+         return true;
+
+   return false;
 }
