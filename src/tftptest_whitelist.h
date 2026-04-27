@@ -47,20 +47,13 @@ bool tftp_ipwhitelist_contains(uint32_t ip_nbo);
 /**
  * @brief Block a particular IP address
  * @param[in] ip_nbo IPv4 address to block in network byte order
- * @return 0 on successful add to blacklist, non-zero otherwise
+ * @return 0 on successful add to blacklist or already present, otherwise:
+ *         -1 if ip_nbo is INADDR_ANY or INADDR_BROADCAST (invalid),
+ *         -2 if malloc() failed during first blacklist allocation,
+ *          1 if blacklist is at maximum capacity,
+ *          2 if realloc() failed during growth
  */
 int tftp_ipwhitelist_block(uint32_t ip_nbo);
-
-/**
- * @brief Check if the whitelist contains exclusively ip_nbo.
- *
- * Used to detect the "blocking the only whitelisted client" scenario so the
- * server can shut down rather than lock itself out permanently.
- *
- * @param[in] ip_nbo  Candidate IPv4 address in network byte order
- * @return true if ip_nbo is the only whitelisted address, false otherwise
- */
-bool tftp_ipwhitelist_is_only_this_host(uint32_t ip_nbo);
 
 /**
  * @brief Clean up internal resources used by this module (use at exit)

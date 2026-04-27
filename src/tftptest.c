@@ -67,7 +67,6 @@ static volatile sig_atomic_t bUserEndedSession = false;
 static size_t   session_wrq_bytes      = 0;
 static size_t   session_wrq_file_count = 0;
 static bool     wrq_session_blocked    = false;
-static uint32_t blocked_peer_ip        = 0;   // network byte order; 0 = none
 
 // Per-IP abandoned session tracking (prevents per-peer DoS)
 #define MAX_TRACKED_PEERS ((size_t)20)
@@ -424,7 +423,9 @@ int main(int argc, char * argv[])
    }
 
    // Primary loop
-   while ( !bUserEndedSession && nreps++ < cfg.max_requests )
+   while ( !bUserEndedSession
+           && !tftp_ipwhitelist_is_deny_all()
+           && nreps++ < cfg.max_requests )
    {
       // Await packet
       uint8_t buf[TFTP_RQST_MAX_SZ + 1] = {0};
@@ -474,7 +475,19 @@ int main(int argc, char * argv[])
       }
       else if ( !tftp_ipwhitelist_contains( peer_addr.sin_addr.s_addr ) )
       {
-         // Client IP not in whitelist; silently drop the packet
+         tftp_log( TFTP_LOG_INFO, __func__,
+                   "Blocked IP attempting connection: %08X... rejecting...",
+                   ntohl(peer_addr.sin_addr.s_addr) );
+
+         uint8_t errbuf[128];
+         size_t errsz = tftp_pkt_build_error( errbuf, sizeof errbuf,
+                                              TFTP_ERRC_ACCESS_VIOLATION,
+                                              "Access denied" );
+         if ( errsz > 0 )
+            (void)sendto( sfd_newconn,
+                          errbuf, errsz,
+                          0,
+                          (const struct sockaddr *)&peer_addr, sizeof peer_addr );
          continue;
       }
 
@@ -491,12 +504,20 @@ int main(int argc, char * argv[])
          char addrbuf[INET_ADDRSTRLEN];
          (void)inet_ntop( AF_INET, &peer_addr.sin_addr, addrbuf, sizeof addrbuf );
          tftp_log( TFTP_LOG_WARN, __func__, "Peer %s locked out (exceeded max_abandoned_sessions)", addrbuf );
+
          uint8_t errbuf[128];
-         size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
-                                              TFTP_ERRC_ACCESS_VIOLATION, "Too many abandoned sessions");
+         size_t errsz = tftp_pkt_build_error( errbuf, sizeof errbuf,
+                                              TFTP_ERRC_ACCESS_VIOLATION,
+                                              "Too many abandoned sessions" );
          if ( errsz > 0 )
-            (void)sendto(sfd_newconn, errbuf, errsz, 0,
-                         (const struct sockaddr *)&peer_addr, sizeof peer_addr);
+            (void)sendto( sfd_newconn,
+                          errbuf, errsz,
+                          0,
+                          (const struct sockaddr *)&peer_addr, sizeof peer_addr );
+
+         int block_rc = tftp_ipwhitelist_block(peer_addr.sin_addr.s_addr);
+         if ( block_rc != 0 )
+            tftp_log( TFTP_LOG_WARN, __func__, "Failed to block abandoned peer: rc=%d", block_rc );
          continue;
       }
 
@@ -507,38 +528,24 @@ int main(int argc, char * argv[])
       // WRQ pre-kickoff rejection checks
       if ( is_wrq )
       {
-         // Blocked attacker IP?
-         if ( blocked_peer_ip != 0 && peer_addr.sin_addr.s_addr == blocked_peer_ip )
-         {
-            tftp_log( TFTP_LOG_WARN, __func__, "Blocked IP attempting WRQ, rejecting" );
-            uint8_t errbuf[128];
-            size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
-                                                 TFTP_ERRC_ACCESS_VIOLATION, "Access denied");
-            if ( errsz > 0 )
-               (void)sendto(sfd_newconn, errbuf, errsz, 0,
-                            (const struct sockaddr *)&peer_addr, sizeof peer_addr);
-            continue;
-         }
-
          // File count limit?
          if ( cfg.max_wrq_file_count > 0 &&
               session_wrq_file_count >= cfg.max_wrq_file_count )
          {
             tftp_log( TFTP_LOG_WARN, __func__, "WRQ file count limit (%zu) reached, rejecting",
                       cfg.max_wrq_file_count );
+
             uint8_t errbuf[128];
             size_t errsz = tftp_pkt_build_error(errbuf, sizeof errbuf,
                                                  TFTP_ERRC_DISK_FULL, "Upload limit exceeded");
             if ( errsz > 0 )
                (void)sendto(sfd_newconn, errbuf, errsz, 0,
                             (const struct sockaddr *)&peer_addr, sizeof peer_addr);
+
             // Block this IP
-            blocked_peer_ip = peer_addr.sin_addr.s_addr;
-            if ( tftp_ipwhitelist_is_only_this_host( blocked_peer_ip ) )
-            {
-               tftp_log( TFTP_LOG_ERR, __func__, "Blocked IP is the only whitelisted client — shutting down" );
-               goto Main_CleanupTag;
-            }
+            int block_rc = tftp_ipwhitelist_block(peer_addr.sin_addr.s_addr);
+            if ( block_rc != 0 )
+               tftp_log( TFTP_LOG_WARN, __func__, "Failed to block WRQ file-count violator: rc=%d", block_rc );
             continue;
          }
 
@@ -579,17 +586,14 @@ int main(int argc, char * argv[])
          // Did a limit violation happen during transfer?
          if ( fsm_rc & TFTP_FSM_RC_WRQ_LIMIT_VIOLATION )
          {
-            blocked_peer_ip = peer_addr.sin_addr.s_addr;
+            int block_rc = tftp_ipwhitelist_block(peer_addr.sin_addr.s_addr);
+
             char ipbuf[INET_ADDRSTRLEN];
             (void)inet_ntop(AF_INET, &peer_addr.sin_addr, ipbuf, sizeof ipbuf);
-            tftp_log( TFTP_LOG_WARN, __func__, "Limit violation from %s — blocking IP for this session", ipbuf );
-
-            // Exit if this was the only whitelisted client
-            if ( tftp_ipwhitelist_is_only_this_host( blocked_peer_ip ) )
-            {
-               tftp_log( TFTP_LOG_ERR, __func__, "Blocked IP is the only whitelisted client — shutting down" );
-               goto Main_CleanupTag;
-            }
+            if ( block_rc != 0 )
+               tftp_log( TFTP_LOG_WARN, __func__, "Limit violation from %s — failed to block: rc=%d", ipbuf, block_rc );
+            else
+               tftp_log( TFTP_LOG_WARN, __func__, "Limit violation from %s — blocking IP for remainder of session", ipbuf );
          }
 
          // Mark session as WRQ-blocked if session total exceeded
@@ -645,6 +649,11 @@ int main(int argc, char * argv[])
    else if ( nreps >= cfg.max_requests )
    {
       tftp_log( TFTP_LOG_WARN, __func__, "Max request limit (%zu) reached, shutting down", cfg.max_requests );
+   }
+   else if ( tftp_ipwhitelist_is_deny_all() )
+   {
+      tftp_log( TFTP_LOG_INFO, __func__,
+                "White list was nullified (none to begin with or blacklist overshadowed it) — shutting down" );
    }
    else
    {

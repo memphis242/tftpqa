@@ -257,13 +257,31 @@ extern void test_ipwhitelist_malformed_double_slash(void);
 extern void test_ipwhitelist_matcher_slash_32(void);
 extern void test_ipwhitelist_matcher_slash_24_boundary(void);
 extern void test_ipwhitelist_matcher_multiple_entries(void);
-extern void test_ipwhitelist_is_only_this_host_true(void);
-extern void test_ipwhitelist_is_only_this_host_wrong_ip(void);
-extern void test_ipwhitelist_is_only_this_host_multiple_entries(void);
-extern void test_ipwhitelist_is_only_this_host_empty(void);
 extern void test_ipwhitelist_malformed_results_in_deny_all(void);
 extern void test_ipwhitelist_null_input_is_deny_all(void);
 extern void test_ipwhitelist_init_resets_singleton(void);
+extern void test_ipwhitelist_block_whitelisted_ip_excluded(void);
+extern void test_ipwhitelist_block_non_whitelisted_ip_stays_false(void);
+extern void test_ipwhitelist_block_duplicate_is_noop(void);
+extern void test_ipwhitelist_block_invalid_inaddr_any(void);
+extern void test_ipwhitelist_block_invalid_broadcast(void);
+extern void test_ipwhitelist_block_one_from_subnet(void);
+extern void test_ipwhitelist_block_multiple_from_subnet(void);
+extern void test_ipwhitelist_block_subnet_boundary_ips(void);
+extern void test_ipwhitelist_clear_resets_to_deny_all(void);
+extern void test_ipwhitelist_clear_resets_blacklist(void);
+extern void test_ipwhitelist_clear_twice_is_safe(void);
+extern void test_ipwhitelist_init_does_not_reset_blacklist(void);
+extern void test_ipwhitelist_block_forces_growth(void);
+extern void test_ipwhitelist_block_with_allow_all_whitelist(void);
+extern void test_ipwhitelist_is_deny_all_when_only_host_blocked(void);
+extern void test_ipwhitelist_is_deny_all_allow_all_with_blocked_ips(void);
+extern void test_ipwhitelist_is_deny_all_subnet_fully_shadowed(void);
+extern void test_ipwhitelist_is_deny_all_subnet_partially_shadowed(void);
+extern void test_ipwhitelist_is_deny_all_multi_entry_all_shadowed(void);
+extern void test_ipwhitelist_is_deny_all_multi_entry_one_live(void);
+extern void test_ipwhitelist_clear_allows_reblock(void);
+extern void test_ipwhitelist_clear_then_reblock_is_deny_all(void);
 
 // tftp_fsm
 extern void test_fsm_kickoff_rejects_null_rqbuf(void);
@@ -602,13 +620,34 @@ int main(void)
    RUN_TEST( test_ipwhitelist_matcher_slash_32 );
    RUN_TEST( test_ipwhitelist_matcher_slash_24_boundary );
    RUN_TEST( test_ipwhitelist_matcher_multiple_entries );
-   RUN_TEST( test_ipwhitelist_is_only_this_host_true );
-   RUN_TEST( test_ipwhitelist_is_only_this_host_wrong_ip );
-   RUN_TEST( test_ipwhitelist_is_only_this_host_multiple_entries );
-   RUN_TEST( test_ipwhitelist_is_only_this_host_empty );
    RUN_TEST( test_ipwhitelist_malformed_results_in_deny_all );
    RUN_TEST( test_ipwhitelist_null_input_is_deny_all );
    RUN_TEST( test_ipwhitelist_init_resets_singleton );
+   // blacklist & combined whitelist+blacklist
+   RUN_TEST( test_ipwhitelist_block_whitelisted_ip_excluded );
+   RUN_TEST( test_ipwhitelist_block_non_whitelisted_ip_stays_false );
+   RUN_TEST( test_ipwhitelist_block_duplicate_is_noop );
+   RUN_TEST( test_ipwhitelist_block_invalid_inaddr_any );
+   RUN_TEST( test_ipwhitelist_block_invalid_broadcast );
+   RUN_TEST( test_ipwhitelist_block_one_from_subnet );
+   RUN_TEST( test_ipwhitelist_block_multiple_from_subnet );
+   RUN_TEST( test_ipwhitelist_block_subnet_boundary_ips );
+   RUN_TEST( test_ipwhitelist_clear_resets_to_deny_all );
+   RUN_TEST( test_ipwhitelist_clear_resets_blacklist );
+   RUN_TEST( test_ipwhitelist_clear_twice_is_safe );
+   RUN_TEST( test_ipwhitelist_init_does_not_reset_blacklist );
+   RUN_TEST( test_ipwhitelist_block_forces_growth );
+   RUN_TEST( test_ipwhitelist_block_with_allow_all_whitelist );
+   // is_deny_all() blacklist-shadowing
+   RUN_TEST( test_ipwhitelist_is_deny_all_when_only_host_blocked );
+   RUN_TEST( test_ipwhitelist_is_deny_all_allow_all_with_blocked_ips );
+   RUN_TEST( test_ipwhitelist_is_deny_all_subnet_fully_shadowed );
+   RUN_TEST( test_ipwhitelist_is_deny_all_subnet_partially_shadowed );
+   RUN_TEST( test_ipwhitelist_is_deny_all_multi_entry_all_shadowed );
+   RUN_TEST( test_ipwhitelist_is_deny_all_multi_entry_one_live );
+   // additional clear() coverage
+   RUN_TEST( test_ipwhitelist_clear_allows_reblock );
+   RUN_TEST( test_ipwhitelist_clear_then_reblock_is_deny_all );
 
    // FSM state machine tests
    RUN_TEST( test_fsm_kickoff_rejects_null_rqbuf );

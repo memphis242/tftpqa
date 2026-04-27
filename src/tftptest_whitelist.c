@@ -86,7 +86,50 @@ int tftp_ipwhitelist_init(const char *s)
 
 bool tftp_ipwhitelist_is_deny_all(void)
 {
-   return s_whitelist.count == 0;
+   if ( s_whitelist.count == 0 )
+      return true;
+
+   // Check if the blacklist completely cancels out the whitelist
+   // I'll do a basic linear at first, and then optimize on the performance
+   // run through the codebase. TODO: Strong candidate for optimization!
+   // Iterate through each whitelist item and try to find one that _isn't_ covered
+   // by the blacklist
+   for ( size_t i=0; i < s_whitelist.count; ++i )
+   {
+      uint32_t ip   = s_whitelist.addr_nbo[i];
+      uint32_t mask = s_whitelist.mask_nbo[i];
+      bool is_blocked = false;
+
+      assert( (mask == 0 && ip == 0) || (mask != 0) );
+
+      // 0.0.0.0/0 means allow-all, so there's no blacklisting that full range
+      // at the moment, realistically.
+      if ( mask == 0 )
+         return false;
+
+      uint32_t base_ip_of_subnet = ip & mask; // redundant, because whitelist IP
+                                              // already stored at base of subnet,
+                                              // but just to be defensive...
+      uint32_t subnet_range = ~ntohl(mask) + 1;
+      assert(subnet_range > 0);
+
+      // Have to check every IP in subnet against blacklist...
+      if ( subnet_range <= TFTP_BLACKLIST_MAX_CAPACITY )
+      {
+         for ( uint32_t j=0, candidate_ip = ntohl(base_ip_of_subnet);
+               j < subnet_range; 
+               ++j, ++candidate_ip )
+         {
+            if ( !( is_blocked = on_blacklist(htonl(candidate_ip)) ) )
+               break;
+         }
+      }
+
+      if ( !is_blocked ) // found whitelist IP that isn't blocked?
+         return false;
+   }
+
+   return true;
 }
 
 bool tftp_ipwhitelist_contains(uint32_t ip_nbo)
@@ -180,15 +223,11 @@ int tftp_ipwhitelist_block(uint32_t ip_nbo)
 
    s_blacklist.addrs_nbo[s_blacklist.len++] = ip_nbo;
 
+   char addrbuf[INET_ADDRSTRLEN];
+   (void)inet_ntop( AF_INET, &(struct in_addr){ .s_addr = ip_nbo }, addrbuf, sizeof addrbuf );
+   tftp_log( TFTP_LOG_INFO, NULL, "Blocking IP address: %s", addrbuf );
+
    return 0;
-}
-
-
-bool tftp_ipwhitelist_is_only_this_host(uint32_t ip_nbo)
-{
-   return s_whitelist.count == 1
-       && s_whitelist.mask_nbo[0] == 0xFFFFFFFFu
-       && s_whitelist.addr_nbo[0] == ip_nbo;
 }
 
 void tftp_ipwhitelist_clear(void)
@@ -381,6 +420,7 @@ static bool on_blacklist(uint32_t ip_nbo)
 {
    assert( s_blacklist.len <= s_blacklist.cap);
 
+   // TODO: Strong candidate for optimization!
    // For now, we will do a linear scan through; later on, I'll optimize this on
    // the performance pass through the codebase.
    for ( size_t i=0; i < s_blacklist.len; ++i )
