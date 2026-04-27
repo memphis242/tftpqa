@@ -24,6 +24,7 @@
 
 #define TFTP_IPWHITELIST_MAX        ((size_t)16)
 #define TFTP_BLACKLIST_MAX_CAPACITY ((size_t)65536)
+#define INITIAL_BLACKLIST_CAPACITY  ((size_t)4)
 
 // Longest possible token: "255.255.255.255/32" = 18 chars + NUL = 19
 #define MAX_TOKEN_LEN ((size_t)19)
@@ -76,8 +77,21 @@ int tftp_ipwhitelist_init(const char *s)
       memset(s_whitelist.mask_nbo, 0xFF, sizeof s_whitelist.mask_nbo);
       return -1;
    }
-
    s_whitelist = tmp;
+
+   s_blacklist.addrs_nbo = malloc( INITIAL_BLACKLIST_CAPACITY * sizeof(uint32_t) );
+   if ( s_blacklist.addrs_nbo == NULL )
+   {
+      tftp_log( TFTP_LOG_WARN, __func__,
+                "malloc() failed at blacklist creation. %s (%d) : %s",
+                strerrorname_np(errno), errno, strerror(errno) );
+   }
+   else
+   {
+      s_blacklist.len = 0;
+      s_blacklist.cap = INITIAL_BLACKLIST_CAPACITY;
+   }
+
    return 0;
 }
 
@@ -106,7 +120,7 @@ int tftp_ipwhitelist_block(uint32_t ip_nbo)
    if ( ip_nbo == INADDR_ANY || ip_nbo == INADDR_BROADCAST )
    {
       tftp_log( TFTP_LOG_INFO, __func__,
-                "Attempted to block an invalid IP address: %u :: Not allowed",
+                "Attempted to block an invalid IP address: %08X :: Not allowed",
                 ntohl(ip_nbo) );
       return -1;
    }
@@ -144,10 +158,10 @@ int tftp_ipwhitelist_block(uint32_t ip_nbo)
       s_blacklist.cap = new_cap;
    }
 
-   s_blacklist.addrs_nbo[s_blacklist.len++] = ip_nbo;
-
-   assert( s_blacklist.len <= s_blacklist.cap );
    assert( s_blacklist.cap <= TFTP_BLACKLIST_MAX_CAPACITY );
+   assert( s_blacklist.len <  s_blacklist.cap );
+
+   s_blacklist.addrs_nbo[s_blacklist.len++] = ip_nbo;
 
    return 0;
 }
