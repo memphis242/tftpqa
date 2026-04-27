@@ -71,26 +71,15 @@ int tftp_ipwhitelist_init(const char *s)
       if ( s == NULL )
          tftp_log( TFTP_LOG_ERR, __func__, "NULL whitelist string — deny-all installed" );
 
-      // Reset to deny-all on any failure
+      // Reset whitelist to deny-all on any failure
       s_whitelist.count = 0;
       memset(s_whitelist.addr_nbo, 0x00, sizeof s_whitelist.addr_nbo);
       memset(s_whitelist.mask_nbo, 0xFF, sizeof s_whitelist.mask_nbo);
+
       return -1;
    }
-   s_whitelist = tmp;
 
-   s_blacklist.addrs_nbo = malloc( INITIAL_BLACKLIST_CAPACITY * sizeof(uint32_t) );
-   if ( s_blacklist.addrs_nbo == NULL )
-   {
-      tftp_log( TFTP_LOG_WARN, __func__,
-                "malloc() failed at blacklist creation. %s (%d) : %s",
-                strerrorname_np(errno), errno, strerror(errno) );
-   }
-   else
-   {
-      s_blacklist.len = 0;
-      s_blacklist.cap = INITIAL_BLACKLIST_CAPACITY;
-   }
+   s_whitelist = tmp;
 
    return 0;
 }
@@ -102,13 +91,12 @@ bool tftp_ipwhitelist_is_deny_all(void)
 
 bool tftp_ipwhitelist_contains(uint32_t ip_nbo)
 {
-   if ( s_whitelist.count == 0 )
+   if ( s_whitelist.count == 0 || on_blacklist(ip_nbo) )
       return false;
 
    for ( size_t i = 0; i < s_whitelist.count; i++ )
    {
-      if ( (ip_nbo & s_whitelist.mask_nbo[i]) == s_whitelist.addr_nbo[i]
-            && !on_blacklist(ip_nbo) )
+      if ( (ip_nbo & s_whitelist.mask_nbo[i]) == s_whitelist.addr_nbo[i] )
          return true;
    }
 
@@ -129,8 +117,37 @@ int tftp_ipwhitelist_block(uint32_t ip_nbo)
    if ( on_blacklist(ip_nbo) )
       return 0;
 
+   // Check if this is the first time
+   assert( (s_blacklist.addrs_nbo == NULL && s_blacklist.cap == 0)
+           || (s_blacklist.addrs_nbo != NULL && s_blacklist.cap > 0) );
+
+   if ( s_blacklist.addrs_nbo == NULL )
+   {
+      // Allocate a new blacklist
+      s_blacklist.addrs_nbo = malloc( INITIAL_BLACKLIST_CAPACITY * sizeof(uint32_t) );
+
+      if ( s_blacklist.addrs_nbo == NULL )
+      {
+         tftp_log( TFTP_LOG_ERR, __func__,
+                   "malloc() failed at blacklist creation. %s (%d) : %s"
+                   " Unable to block %08X",
+                   strerrorname_np(errno), errno, strerror(errno),
+                   ntohl(ip_nbo) );
+         s_blacklist.len = 0;
+         s_blacklist.cap = 0;
+         return -2;
+      }
+      else
+      {
+         s_blacklist.len = 0;
+         s_blacklist.cap = INITIAL_BLACKLIST_CAPACITY;
+      }
+   }
+
    // Add to the blacklist
    // Expand blacklist vector if needed
+   assert( s_blacklist.cap > 0 );
+
    if ( s_blacklist.len >= s_blacklist.cap )
    {
       size_t new_cap = s_blacklist.cap * 2;
@@ -143,7 +160,7 @@ int tftp_ipwhitelist_block(uint32_t ip_nbo)
          return 1;
       }
 
-      uint32_t * tmp = realloc( s_blacklist.addrs_nbo, new_cap );
+      uint32_t * tmp = realloc( s_blacklist.addrs_nbo, new_cap * sizeof(uint32_t) );
       if ( tmp == NULL )
       {
          tftp_log( TFTP_LOG_ERR, __func__,
@@ -172,6 +189,18 @@ bool tftp_ipwhitelist_is_only_this_host(uint32_t ip_nbo)
    return s_whitelist.count == 1
        && s_whitelist.mask_nbo[0] == 0xFFFFFFFFu
        && s_whitelist.addr_nbo[0] == ip_nbo;
+}
+
+void tftp_ipwhitelist_clear(void)
+{
+   s_whitelist.count = 0;
+   memset(s_whitelist.addr_nbo, 0x00, sizeof s_whitelist.addr_nbo);
+   memset(s_whitelist.mask_nbo, 0xFF, sizeof s_whitelist.mask_nbo);
+
+   free(s_blacklist.addrs_nbo);
+   s_blacklist.addrs_nbo = NULL;
+   s_blacklist.len = 0;
+   s_blacklist.cap = 0;
 }
 
 /*********************** Local Function Implementations ***********************/

@@ -62,4 +62,9 @@ int tftp_ipwhitelist_block(uint32_t ip_nbo);
  */
 bool tftp_ipwhitelist_is_only_this_host(uint32_t ip_nbo);
 
+/**
+ * @brief Clean up internal resources used by this module (use at exit)
+ */
+void tftp_ipwhitelist_clear(void);
+
 #endif // TFTPTEST_WHITELIST_H
