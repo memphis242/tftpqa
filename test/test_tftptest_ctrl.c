@@ -143,7 +143,7 @@ static ssize_t ctrl_exchange( uint16_t port,
 void test_ctrl_set_fault_and_get(void)
 {
    uint16_t port = 39999;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -171,7 +171,7 @@ void test_ctrl_set_fault_and_get(void)
 void test_ctrl_set_fault_with_param(void)
 {
    uint16_t port = 39998;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -190,7 +190,7 @@ void test_ctrl_set_fault_with_param(void)
 void test_ctrl_unknown_command(void)
 {
    uint16_t port = 39997;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -208,7 +208,7 @@ void test_ctrl_unknown_command(void)
 void test_ctrl_unknown_fault_mode(void)
 {
    uint16_t port = 39996;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -228,7 +228,7 @@ void test_ctrl_whitelist_rejects_disallowed_mode(void)
    uint16_t port = 39995;
    // Whitelist that allows only FAULT_RRQ_TIMEOUT (bit 0)
    uint64_t whitelist = (uint64_t)1 << 0;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, whitelist);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -252,7 +252,7 @@ void test_ctrl_whitelist_rejects_disallowed_mode(void)
 void test_ctrl_set_fault_missing_mode_name(void)
 {
    uint16_t port = 39994;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -275,7 +275,7 @@ void test_ctrl_set_fault_missing_mode_name(void)
 void test_ctrl_param_present_false_when_no_param(void)
 {
    uint16_t port = 39993;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -304,7 +304,7 @@ void test_ctrl_param_present_false_when_no_param(void)
 void test_ctrl_param_zero_is_distinct_from_no_param(void)
 {
    uint16_t port = 39992;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -325,7 +325,7 @@ void test_ctrl_param_zero_is_distinct_from_no_param(void)
 void test_ctrl_reset_clears_mode_and_param_present(void)
 {
    uint16_t port = 39991;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -353,7 +353,7 @@ void test_ctrl_reset_clears_mode_and_param_present(void)
 void test_ctrl_set_fault_reply_no_param(void)
 {
    uint16_t port = 39990;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -371,7 +371,7 @@ void test_ctrl_set_fault_reply_no_param(void)
 void test_ctrl_set_fault_reply_with_param(void)
 {
    uint16_t port = 39989;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -389,7 +389,7 @@ void test_ctrl_set_fault_reply_with_param(void)
 void test_ctrl_get_fault_reply_no_param(void)
 {
    uint16_t port = 39988;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -413,7 +413,7 @@ void test_ctrl_get_fault_reply_no_param(void)
 void test_ctrl_get_fault_reply_with_param(void)
 {
    uint16_t port = 39987;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -436,7 +436,7 @@ void test_ctrl_get_fault_reply_with_param(void)
 void test_ctrl_reset_reply(void)
 {
    uint16_t port = 39986;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -453,7 +453,7 @@ void test_ctrl_reset_reply(void)
 void test_ctrl_unknown_cmd_reply(void)
 {
    uint16_t port = 39985;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -472,7 +472,7 @@ void test_ctrl_whitelist_reject_reply(void)
    uint16_t port = 39984;
    // Allow only FAULT_RRQ_TIMEOUT (bit 0)
    uint64_t whitelist = (uint64_t)1 << 0;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, whitelist);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -493,7 +493,7 @@ void test_ctrl_whitelist_reject_reply(void)
 void test_ctrl_set_fault_invalid_param_nonnumeric(void)
 {
    uint16_t port = 39983;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -514,7 +514,7 @@ void test_ctrl_set_fault_invalid_param_nonnumeric(void)
 void test_ctrl_set_fault_invalid_param_overflow(void)
 {
    uint16_t port = 39982;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -540,7 +540,7 @@ void test_ctrl_set_fault_invalid_param_overflow(void)
 void test_ctrl_set_fault_mode_name_too_long(void)
 {
    uint16_t port = 39981;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -567,7 +567,7 @@ void test_ctrl_set_fault_mode_name_too_long(void)
 void test_ctrl_case_insensitive_command(void)
 {
    uint16_t port = 39980;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -604,7 +604,7 @@ void test_ctrl_case_insensitive_command(void)
 void test_ctrl_leading_whitespace_stripped(void)
 {
    uint16_t port = 39979;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -624,7 +624,7 @@ void test_ctrl_leading_whitespace_stripped(void)
 void test_ctrl_crlf_stripped(void)
 {
    uint16_t port = 39978;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -648,7 +648,7 @@ void test_ctrl_whitelisted_client_ip_accepts_loopback(void)
 {
    uint16_t port = 39977;
    // Only accept packets from 127.0.0.1
-   TEST_ASSERT_EQUAL_INT( 0, tftp_ipwhitelist_init( "127.0.0.1" ) );
+   TEST_ASSERT_EQUAL_INT( 0, tftptest_ipwhitelist_init( "127.0.0.1" ) );
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -669,7 +669,7 @@ void test_ctrl_whitelisted_client_ip_blocks_other_sender(void)
 {
    uint16_t port = 39976;
    // Allow only 10.0.0.1; test helper sends from 127.0.0.1, which should be blocked.
-   TEST_ASSERT_EQUAL_INT( 0, tftp_ipwhitelist_init( "10.0.0.1" ) );
+   TEST_ASSERT_EQUAL_INT( 0, tftptest_ipwhitelist_init( "10.0.0.1" ) );
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -684,7 +684,7 @@ void test_ctrl_whitelisted_client_ip_blocks_other_sender(void)
    (void)n;
 
    // Reset whitelist singleton to allow-any so subsequent tests aren't affected.
-   tftp_ipwhitelist_init("0.0.0.0/0");
+   tftptest_ipwhitelist_init("0.0.0.0/0");
    tftptest_ctrl_shutdown();
 }
 
@@ -714,7 +714,7 @@ void test_ctrl_init_bind_failure(void)
    int bind_rc = bind(blocker, (struct sockaddr *)&addr, sizeof addr);
    TEST_ASSERT_EQUAL_INT( 0, bind_rc );
 
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_ERR_BIND, rc );
 
@@ -726,7 +726,7 @@ void test_ctrl_init_bind_failure(void)
 void test_ctrl_no_packet_poll_noop(void)
 {
    uint16_t port = 39972;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -746,7 +746,7 @@ void test_ctrl_no_packet_poll_noop(void)
 void test_ctrl_empty_packet_ignored(void)
 {
    uint16_t port = 39971;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -777,7 +777,7 @@ void test_ctrl_empty_packet_ignored(void)
 void test_ctrl_set_fault_bare_no_args_reply(void)
 {
    uint16_t port = 39966;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -798,7 +798,7 @@ void test_ctrl_set_fault_bare_no_args_reply(void)
 void test_ctrl_set_fault_whitespace_only_after_command(void)
 {
    uint16_t port = 39970;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -820,7 +820,7 @@ void test_ctrl_set_fault_whitespace_only_after_command(void)
 void test_ctrl_set_fault_param_with_trailing_garbage(void)
 {
    uint16_t port = 39969;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -842,7 +842,7 @@ void test_ctrl_set_fault_param_with_trailing_garbage(void)
 void test_ctrl_set_fault_param_just_above_uint32_max(void)
 {
    uint16_t port = 39968;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
@@ -869,7 +869,7 @@ void test_ctrl_set_fault_param_just_above_uint32_max(void)
 void test_ctrl_set_fault_mode_name_too_long_inner(void)
 {
    uint16_t port = 39967;
-   (void)tftp_ipwhitelist_init("0.0.0.0/0");
+   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
    enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 

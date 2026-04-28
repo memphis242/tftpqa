@@ -29,20 +29,20 @@
  * @param[in] s  Input string comma-separated list
  * @return 0 on success, -1 on any parse error or malformed input
  */
-int tftp_ipwhitelist_init(const char *s);
+int tftptest_ipwhitelist_init(const char *s);
 
 /**
  * @brief Check if the whitelist is deny-all (empty).
  * @return true iff whitelist is empty (deny-all), false otherwise
  */
-bool tftp_ipwhitelist_is_deny_all(void);
+bool tftptest_ipwhitelist_is_deny_all(void);
 
 /**
  * @brief Check whether an IPv4 address is on the whitelist.
  * @param[in] ip_nbo  Candidate IPv4 address in network byte order
  * @return true if ip_nbo is whitelisted, false otherwise
  */
-bool tftp_ipwhitelist_contains(uint32_t ip_nbo);
+bool tftptest_ipwhitelist_contains(uint32_t ip_nbo);
 
 /**
  * @brief Block a particular IP address
@@ -53,11 +53,11 @@ bool tftp_ipwhitelist_contains(uint32_t ip_nbo);
  *          1 if blacklist is at maximum capacity,
  *          2 if realloc() failed during growth
  */
-int tftp_ipwhitelist_block(uint32_t ip_nbo);
+int tftptest_ipwhitelist_block(uint32_t ip_nbo);
 
 /**
  * @brief Clean up internal resources used by this module (use at exit)
  */
-void tftp_ipwhitelist_clear(void);
+void tftptest_ipwhitelist_clear(void);
 
 #endif // TFTPTEST_WHITELIST_H

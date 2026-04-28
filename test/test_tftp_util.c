@@ -6,7 +6,7 @@
  */
 
 #include "test_common.h"
-#include "tftp_util.h"
+#include "tftptest_util.h"
 #include "tftp_pkt.h"
 #include "tftptest_common.h"
 #include <errno.h>
@@ -82,31 +82,31 @@ void test_util_text_check_utf8_mixed_with_ascii(void);
 
 void test_util_is_valid_filename_char_accepts_alphanumeric(void)
 {
-   TEST_ASSERT_TRUE( tftp_util_is_valid_filename_char( 'a' ) );
-   TEST_ASSERT_TRUE( tftp_util_is_valid_filename_char( 'Z' ) );
-   TEST_ASSERT_TRUE( tftp_util_is_valid_filename_char( '0' ) );
-   TEST_ASSERT_TRUE( tftp_util_is_valid_filename_char( '.' ) );
-   TEST_ASSERT_TRUE( tftp_util_is_valid_filename_char( '-' ) );
-   TEST_ASSERT_TRUE( tftp_util_is_valid_filename_char( '_' ) );
+   TEST_ASSERT_TRUE( tftptest_util_is_valid_filename_char( 'a' ) );
+   TEST_ASSERT_TRUE( tftptest_util_is_valid_filename_char( 'Z' ) );
+   TEST_ASSERT_TRUE( tftptest_util_is_valid_filename_char( '0' ) );
+   TEST_ASSERT_TRUE( tftptest_util_is_valid_filename_char( '.' ) );
+   TEST_ASSERT_TRUE( tftptest_util_is_valid_filename_char( '-' ) );
+   TEST_ASSERT_TRUE( tftptest_util_is_valid_filename_char( '_' ) );
 }
 
 void test_util_is_valid_filename_char_rejects_separators(void)
 {
-   TEST_ASSERT_FALSE( tftp_util_is_valid_filename_char( '/' ) );
-   TEST_ASSERT_FALSE( tftp_util_is_valid_filename_char( '\\' ) );
+   TEST_ASSERT_FALSE( tftptest_util_is_valid_filename_char( '/' ) );
+   TEST_ASSERT_FALSE( tftptest_util_is_valid_filename_char( '\\' ) );
 }
 
 void test_util_is_valid_filename_char_rejects_control_chars(void)
 {
-   TEST_ASSERT_FALSE( tftp_util_is_valid_filename_char( '\0' ) );
-   TEST_ASSERT_FALSE( tftp_util_is_valid_filename_char( '\n' ) );
-   TEST_ASSERT_FALSE( tftp_util_is_valid_filename_char( '\x7F' ) );
+   TEST_ASSERT_FALSE( tftptest_util_is_valid_filename_char( '\0' ) );
+   TEST_ASSERT_FALSE( tftptest_util_is_valid_filename_char( '\n' ) );
+   TEST_ASSERT_FALSE( tftptest_util_is_valid_filename_char( '\x7F' ) );
 }
 
 void test_util_create_ephemeral_socket_succeeds(void)
 {
    struct sockaddr_in addr;
-   int sfd = tftp_util_create_ephemeral_udp_socket( &addr );
+   int sfd = tftptest_util_create_ephemeral_udp_socket( &addr );
    TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, sfd );
    TEST_ASSERT_EQUAL_INT( AF_INET, addr.sin_family );
    // Kernel should have assigned a non-zero port
@@ -116,10 +116,10 @@ void test_util_create_ephemeral_socket_succeeds(void)
 
 void test_util_set_recv_timeout_succeeds(void)
 {
-   int sfd = tftp_util_create_ephemeral_udp_socket( NULL );
+   int sfd = tftptest_util_create_ephemeral_udp_socket( NULL );
    TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, sfd );
 
-   int rc = tftp_util_set_recv_timeout( sfd, 2 );
+   int rc = tftptest_util_set_recv_timeout( sfd, 2 );
    TEST_ASSERT_EQUAL_INT( 0, rc );
    (void)close( sfd );
 }
@@ -134,7 +134,7 @@ void test_util_netascii_bare_lf_becomes_crlf(void)
    uint8_t in[] = "hello\nworld";
    uint8_t out[32];
    bool pending_cr = false;
-   size_t n = tftp_util_octet_to_netascii(in, sizeof(in) - 1, out, sizeof out, &pending_cr);
+   size_t n = tftptest_util_octet_to_netascii(in, sizeof(in) - 1, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 12, n ); // "hello\r\nworld" = 12 bytes
    TEST_ASSERT_EQUAL_UINT8( '\r', out[5] );
    TEST_ASSERT_EQUAL_UINT8( '\n', out[6] );
@@ -147,7 +147,7 @@ void test_util_netascii_bare_cr_becomes_cr_nul(void)
    uint8_t in[] = { 'a', '\r', 'b' };
    uint8_t out[16];
    bool pending_cr = false;
-   size_t n = tftp_util_octet_to_netascii(in, sizeof in, out, sizeof out, &pending_cr);
+   size_t n = tftptest_util_octet_to_netascii(in, sizeof in, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 4, n );
    TEST_ASSERT_EQUAL_UINT8( 'a', out[0] );
    TEST_ASSERT_EQUAL_UINT8( '\r', out[1] );
@@ -162,7 +162,7 @@ void test_util_netascii_crlf_passes_through(void)
    uint8_t in[] = { '\r', '\n' };
    uint8_t out[8];
    bool pending_cr = false;
-   size_t n = tftp_util_octet_to_netascii(in, sizeof in, out, sizeof out, &pending_cr);
+   size_t n = tftptest_util_octet_to_netascii(in, sizeof in, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 2, n );
    TEST_ASSERT_EQUAL_UINT8( '\r', out[0] );
    TEST_ASSERT_EQUAL_UINT8( '\n', out[1] );
@@ -175,13 +175,13 @@ void test_util_netascii_pending_cr_across_boundary(void)
    uint8_t in1[] = { 'a', '\r' };
    uint8_t out[16];
    bool pending_cr = false;
-   size_t n1 = tftp_util_octet_to_netascii(in1, sizeof in1, out, sizeof out, &pending_cr);
+   size_t n1 = tftptest_util_octet_to_netascii(in1, sizeof in1, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 2, n1 ); // 'a' + '\r'
    TEST_ASSERT_TRUE( pending_cr );
 
    // Next chunk starts with \n -- should complete the \r\n
    uint8_t in2[] = { '\n', 'b' };
-   size_t n2 = tftp_util_octet_to_netascii(in2, sizeof in2, out, sizeof out, &pending_cr);
+   size_t n2 = tftptest_util_octet_to_netascii(in2, sizeof in2, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 2, n2 ); // '\n' + 'b'
    TEST_ASSERT_EQUAL_UINT8( '\n', out[0] );
    TEST_ASSERT_EQUAL_UINT8( 'b', out[1] );
@@ -194,13 +194,13 @@ void test_util_netascii_pending_cr_followed_by_non_lf(void)
    uint8_t in1[] = { 'x', '\r' };
    uint8_t out[16];
    bool pending_cr = false;
-   size_t n1 = tftp_util_octet_to_netascii(in1, sizeof in1, out, sizeof out, &pending_cr);
+   size_t n1 = tftptest_util_octet_to_netascii(in1, sizeof in1, out, sizeof out, &pending_cr);
    TEST_ASSERT_TRUE( pending_cr );
    (void)n1;
 
    // Next chunk: 'y' -- pending \r becomes \r\0, then 'y'
    uint8_t in2[] = { 'y' };
-   size_t n2 = tftp_util_octet_to_netascii(in2, sizeof in2, out, sizeof out, &pending_cr);
+   size_t n2 = tftptest_util_octet_to_netascii(in2, sizeof in2, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 2, n2 ); // '\0' + 'y'
    TEST_ASSERT_EQUAL_UINT8( '\0', out[0] );
    TEST_ASSERT_EQUAL_UINT8( 'y', out[1] );
@@ -212,7 +212,7 @@ void test_util_netascii_no_special_chars(void)
    uint8_t in[] = "hello";
    uint8_t out[16];
    bool pending_cr = false;
-   size_t n = tftp_util_octet_to_netascii(in, 5, out, sizeof out, &pending_cr);
+   size_t n = tftptest_util_octet_to_netascii(in, 5, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 5, n );
    TEST_ASSERT_EQUAL_MEMORY( "hello", out, 5 );
    TEST_ASSERT_FALSE( pending_cr );
@@ -222,7 +222,7 @@ void test_util_netascii_empty_input(void)
 {
    uint8_t out[8];
    bool pending_cr = false;
-   size_t n = tftp_util_octet_to_netascii(NULL, 0, out, sizeof out, &pending_cr);
+   size_t n = tftptest_util_octet_to_netascii(NULL, 0, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 0, n );
 }
 
@@ -235,7 +235,7 @@ void test_util_netascii_to_octet_crlf_becomes_lf(void)
    uint8_t in[] = { 'a', '\r', '\n', 'b' };
    uint8_t out[8];
    bool pending_cr = false;
-   size_t n = tftp_util_netascii_to_octet(in, sizeof in, out, sizeof out, &pending_cr);
+   size_t n = tftptest_util_netascii_to_octet(in, sizeof in, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 3, n ); // "a\nb"
    TEST_ASSERT_EQUAL_UINT8( 'a', out[0] );
    TEST_ASSERT_EQUAL_UINT8( '\n', out[1] );
@@ -248,7 +248,7 @@ void test_util_netascii_to_octet_cr_nul_becomes_cr(void)
    uint8_t in[] = { 'a', '\r', '\0', 'b' };
    uint8_t out[8];
    bool pending_cr = false;
-   size_t n = tftp_util_netascii_to_octet(in, sizeof in, out, sizeof out, &pending_cr);
+   size_t n = tftptest_util_netascii_to_octet(in, sizeof in, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 3, n ); // "a\rb"
    TEST_ASSERT_EQUAL_UINT8( 'a', out[0] );
    TEST_ASSERT_EQUAL_UINT8( '\r', out[1] );
@@ -262,13 +262,13 @@ void test_util_netascii_to_octet_pending_cr_boundary(void)
    uint8_t in1[] = { 'x', '\r' };
    uint8_t out[8];
    bool pending_cr = false;
-   size_t n1 = tftp_util_netascii_to_octet(in1, sizeof in1, out, sizeof out, &pending_cr);
+   size_t n1 = tftptest_util_netascii_to_octet(in1, sizeof in1, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 1, n1 ); // just 'x', \r is pending
    TEST_ASSERT_TRUE( pending_cr );
 
    // Second chunk: \n completes the \r\n -> \n
    uint8_t in2[] = { '\n', 'y' };
-   size_t n2 = tftp_util_netascii_to_octet(in2, sizeof in2, out, sizeof out, &pending_cr);
+   size_t n2 = tftptest_util_netascii_to_octet(in2, sizeof in2, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 2, n2 ); // '\n' + 'y'
    TEST_ASSERT_EQUAL_UINT8( '\n', out[0] );
    TEST_ASSERT_EQUAL_UINT8( 'y', out[1] );
@@ -280,7 +280,7 @@ void test_util_netascii_to_octet_no_special(void)
    uint8_t in[] = "hello";
    uint8_t out[8];
    bool pending_cr = false;
-   size_t n = tftp_util_netascii_to_octet(in, 5, out, sizeof out, &pending_cr);
+   size_t n = tftptest_util_netascii_to_octet(in, 5, out, sizeof out, &pending_cr);
    TEST_ASSERT_EQUAL_size_t( 5, n );
    TEST_ASSERT_EQUAL_MEMORY( "hello", out, 5 );
    TEST_ASSERT_FALSE( pending_cr );
@@ -301,7 +301,7 @@ void test_chroot_and_drop_non_root_succeeds(void)
    }
 
    // Use /tmp as the directory (always exists and is writable)
-   int rc = tftp_util_chroot_and_drop("/tmp", "nobody");
+   int rc = tftptest_util_chroot_and_drop("/tmp", "nobody");
    TEST_ASSERT_EQUAL_INT( 0, rc );
 
    // Verify we're now in /tmp
@@ -312,7 +312,7 @@ void test_chroot_and_drop_non_root_succeeds(void)
 
 void test_chroot_and_drop_bad_dir_fails(void)
 {
-   int rc = tftp_util_chroot_and_drop("/nonexistent_dir_12345", "nobody");
+   int rc = tftptest_util_chroot_and_drop("/nonexistent_dir_12345", "nobody");
    TEST_ASSERT_EQUAL_INT( -1, rc );
 }
 
@@ -331,7 +331,7 @@ void test_pkt_ack_block_zero(void)
 void test_util_create_udp_socket_in_range_succeeds(void)
 {
    struct sockaddr_in bound_addr = {0};
-   int sfd = tftp_util_create_udp_socket_in_range(49200, 49210, &bound_addr);
+   int sfd = tftptest_util_create_udp_socket_in_range(49200, 49210, &bound_addr);
    TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, sfd );
 
    uint16_t port = ntohs(bound_addr.sin_port);
@@ -344,7 +344,7 @@ void test_util_create_udp_socket_in_range_succeeds(void)
 void test_util_create_udp_socket_in_range_single_port(void)
 {
    struct sockaddr_in bound_addr = {0};
-   int sfd = tftp_util_create_udp_socket_in_range(49220, 49220, &bound_addr);
+   int sfd = tftptest_util_create_udp_socket_in_range(49220, 49220, &bound_addr);
    TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, sfd );
    TEST_ASSERT_EQUAL_UINT16( 49220, ntohs(bound_addr.sin_port) );
    close(sfd);
@@ -369,7 +369,7 @@ void test_util_create_udp_socket_in_range_all_busy(void)
    }
 
    // Now try to create a socket in the fully occupied range
-   int sfd = tftp_util_create_udp_socket_in_range(base, (uint16_t)(base + 2), NULL);
+   int sfd = tftptest_util_create_udp_socket_in_range(base, (uint16_t)(base + 2), NULL);
    TEST_ASSERT_EQUAL_INT( -1, sfd );
 
    for ( int i = 0; i < 3; i++ )
@@ -383,61 +383,61 @@ void test_util_create_udp_socket_in_range_all_busy(void)
 void test_util_suspicious_text_clean_ascii(void)
 {
    const uint8_t data[] = "Hello, world!\r\n";
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_CLEAN, tftp_util_check_text_bytes(data, sizeof(data) - 1) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_CLEAN, tftptest_util_check_text_bytes(data, sizeof(data) - 1) );
 }
 
 void test_util_suspicious_text_allowed_controls(void)
 {
    // HT, LF, VT, FF, CR, ESC — all allowed
    const uint8_t data[] = { 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x1B };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_CLEAN, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_CLEAN, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_cr_nul_allowed(void)
 {
    // CR+NUL is legitimate netascii for bare CR
    const uint8_t data[] = { 'A', '\r', '\0', 'B' };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_CLEAN, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_CLEAN, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_standalone_nul(void)
 {
    // NUL not preceded by CR is suspicious
    const uint8_t data[] = { 'A', '\0', 'B' };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_leading_nul(void)
 {
    // NUL at start of buffer — no preceding CR
    const uint8_t data[] = { '\0', 'A' };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_bell_char(void)
 {
    // BEL (0x07) — not in the allowed set
    const uint8_t data[] = { 'A', 0x07, 'B' };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_del_char(void)
 {
    // DEL (0x7F) — suspicious
    const uint8_t data[] = { 'A', 0x7F };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_high_byte(void)
 {
    // 0xC0 is an invalid UTF-8 lead byte (overlong) — suspicious
    const uint8_t data[] = { 'H', 'i', 0xC0 };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_suspicious_text_empty_buffer(void)
 {
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_CLEAN, tftp_util_check_text_bytes(NULL, 0) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_CLEAN, tftptest_util_check_text_bytes(NULL, 0) );
 }
 
 /*---------------------------------------------------------------------------
@@ -448,21 +448,21 @@ void test_util_text_check_valid_utf8_2byte(void)
 {
    // "café" — 0xC3 0xA9 is é (U+00E9)
    const uint8_t data[] = { 'c', 'a', 'f', 0xC3, 0xA9 };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_HAS_UTF8, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_HAS_UTF8, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_text_check_valid_utf8_3byte(void)
 {
    // € (U+20AC) = 0xE2 0x82 0xAC
    const uint8_t data[] = { 0xE2, 0x82, 0xAC };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_HAS_UTF8, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_HAS_UTF8, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_text_check_valid_utf8_4byte(void)
 {
    // 🎉 (U+1F389) = 0xF0 0x9F 0x8E 0x89
    const uint8_t data[] = { 0xF0, 0x9F, 0x8E, 0x89 };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_HAS_UTF8, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_HAS_UTF8, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_text_check_utf8_mixed_with_ascii(void)
@@ -470,42 +470,42 @@ void test_util_text_check_utf8_mixed_with_ascii(void)
    // "Hello café\n" — mixed ASCII + UTF-8
    const uint8_t data[] = { 'H', 'e', 'l', 'l', 'o', ' ',
                              'c', 'a', 'f', 0xC3, 0xA9, '\n' };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_HAS_UTF8, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_HAS_UTF8, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_text_check_lone_continuation_byte(void)
 {
    // 0x80 alone — continuation byte without lead
    const uint8_t data[] = { 0x80 };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_text_check_overlong_2byte(void)
 {
    // 0xC0 0x80 — overlong encoding of U+0000
    const uint8_t data[] = { 0xC0, 0x80 };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_text_check_truncated_sequence(void)
 {
    // 0xC3 at end of buffer — truncated 2-byte sequence
    const uint8_t data[] = { 0xC3 };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_text_check_overlong_3byte(void)
 {
    // 0xE0 0x80 0x80 — overlong encoding (second byte < 0xA0)
    const uint8_t data[] = { 0xE0, 0x80, 0x80 };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 void test_util_text_check_above_max_codepoint(void)
 {
    // 0xF4 0x90 0x80 0x80 — above U+10FFFF
    const uint8_t data[] = { 0xF4, 0x90, 0x80, 0x80 };
-   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftp_util_check_text_bytes(data, sizeof(data)) );
+   TEST_ASSERT_EQUAL_INT( TFTP_TEXT_SUSPICIOUS, tftptest_util_check_text_bytes(data, sizeof(data)) );
 }
 
 /*---------------------------------------------------------------------------
@@ -536,7 +536,7 @@ void test_util_check_read_perms_world_readable(void)
    TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
 
    mode_t observed = 0;
-   enum TFTPUtil_PermCheck rc = tftp_util_check_read_perms(fd, &observed);
+   enum TFTPTestUtil_PermCheck rc = tftptest_util_check_read_perms(fd, &observed);
    TEST_ASSERT_EQUAL_INT( TFTP_PERM_OK, rc );
    TEST_ASSERT_EQUAL_UINT( 0644, observed & 0777 );
 
@@ -551,7 +551,7 @@ void test_util_check_read_perms_not_world_readable(void)
    TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
 
    mode_t observed = 0;
-   enum TFTPUtil_PermCheck rc = tftp_util_check_read_perms(fd, &observed);
+   enum TFTPTestUtil_PermCheck rc = tftptest_util_check_read_perms(fd, &observed);
    TEST_ASSERT_EQUAL_INT( TFTP_PERM_NOT_WORLD_READABLE, rc );
    TEST_ASSERT_EQUAL_UINT( 0640, observed & 0777 );
 
@@ -573,7 +573,7 @@ void test_util_check_read_perms_setuid_rejected(void)
    if ( st.st_mode & S_ISUID )
    {
       mode_t observed = 0;
-      enum TFTPUtil_PermCheck rc = tftp_util_check_read_perms(fd, &observed);
+      enum TFTPTestUtil_PermCheck rc = tftptest_util_check_read_perms(fd, &observed);
       TEST_ASSERT_EQUAL_INT( TFTP_PERM_SETUID_SETGID, rc );
    }
 
@@ -588,7 +588,7 @@ void test_util_check_read_perms_directory_rejected(void)
    TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
 
    mode_t observed = 0;
-   enum TFTPUtil_PermCheck rc = tftp_util_check_read_perms(fd, &observed);
+   enum TFTPTestUtil_PermCheck rc = tftptest_util_check_read_perms(fd, &observed);
    TEST_ASSERT_EQUAL_INT( TFTP_PERM_NOT_REGULAR, rc );
 
    (void)close(fd);
@@ -601,7 +601,7 @@ void test_util_check_write_perms_world_writable(void)
    TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
 
    mode_t observed = 0;
-   enum TFTPUtil_PermCheck rc = tftp_util_check_write_perms(fd, &observed);
+   enum TFTPTestUtil_PermCheck rc = tftptest_util_check_write_perms(fd, &observed);
    TEST_ASSERT_EQUAL_INT( TFTP_PERM_OK, rc );
    TEST_ASSERT_EQUAL_UINT( 0666, observed & 0777 );
 
@@ -616,7 +616,7 @@ void test_util_check_write_perms_not_world_writable(void)
    TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
 
    mode_t observed = 0;
-   enum TFTPUtil_PermCheck rc = tftp_util_check_write_perms(fd, &observed);
+   enum TFTPTestUtil_PermCheck rc = tftptest_util_check_write_perms(fd, &observed);
    TEST_ASSERT_EQUAL_INT( TFTP_PERM_NOT_WORLD_WRITABLE, rc );
    TEST_ASSERT_EQUAL_UINT( 0664, observed & 0777 );
 
@@ -641,7 +641,7 @@ void test_util_open_for_read_rejects_symlink(void)
    TEST_ASSERT_EQUAL_INT( 0, symlink(target, linkpath) );
 
    errno = 0;
-   int fd = tftp_util_open_for_read(linkpath);
+   int fd = tftptest_util_open_for_read(linkpath);
    int saved_errno = errno;
    TEST_ASSERT_EQUAL_INT( -1, fd );
    TEST_ASSERT_EQUAL_INT( ELOOP, saved_errno );
@@ -661,7 +661,7 @@ void test_util_open_for_write_creates_with_mode(void)
    mode_t saved = umask(0);
 
    bool created = false;
-   int fd = tftp_util_open_for_write(path, 0666, &created);
+   int fd = tftptest_util_open_for_write(path, 0666, &created);
    TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
    TEST_ASSERT_TRUE( created );
 
@@ -685,7 +685,7 @@ void test_util_open_for_write_overwrites_existing(void)
    (void)close(fd);
 
    bool created = true;  // should be flipped to false
-   int wfd = tftp_util_open_for_write(path, 0666, &created);
+   int wfd = tftptest_util_open_for_write(path, 0666, &created);
    TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, wfd );
    TEST_ASSERT_FALSE( created );
 
@@ -708,7 +708,7 @@ void test_util_open_for_write_create_mode_stripped_by_umask(void)
    mode_t saved = umask(0022);
 
    bool created = false;
-   int fd = tftp_util_open_for_write(path, 0666, &created);
+   int fd = tftptest_util_open_for_write(path, 0666, &created);
    TEST_ASSERT_GREATER_OR_EQUAL_INT( 0, fd );
    TEST_ASSERT_TRUE( created );
 

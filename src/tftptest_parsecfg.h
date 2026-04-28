@@ -1,12 +1,12 @@
 /**
- * @file tftp_parsecfg.h
+ * @file tftptest_parsecfg.h
  * @brief INI-style configuration file parser.
  * @date Apr 10, 2026
  * @author Abdulla Almosalmi, @memphis242
  */
 
-#ifndef TFTP_PARSECFG_H
-#define TFTP_PARSECFG_H
+#ifndef TFTPTEST_PARSECFG_H
+#define TFTPTEST_PARSECFG_H
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -15,7 +15,7 @@
 
 #include <sys/types.h>
 
-#include "tftp_log.h"
+#include "tftptest_log.h"
 
 // Server configuration
 struct TFTPTest_Config
@@ -50,12 +50,12 @@ struct TFTPTest_Config
  * @brief Fill a config struct with sane defaults.
  * @param[out] cfg  The config struct to populate.
  */
-void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg);
+void tftptest_parsecfg_defaults(struct TFTPTest_Config *cfg);
 
 /**
  * @brief Parse an INI-style config file into a config struct.
  *
- * The struct should be pre-filled with defaults (via tftp_parsecfg_defaults)
+ * The struct should be pre-filled with defaults (via tftptest_parsecfg_defaults)
  * before calling this function; only keys present in the file are overwritten.
  *
  * @param[in]  path               Path to the config file.
@@ -64,8 +64,8 @@ void tftp_parsecfg_defaults(struct TFTPTest_Config *cfg);
  *                                error (the caller will supply the whitelist via
  *                                another means, e.g. a CLI flag). When false, the
  *                                key is required and its absence is fatal.
- * @return 0 on success, -1 on error (logged via tftp_log).
+ * @return 0 on success, -1 on error (logged via tftptest_log).
  */
-int tftp_parsecfg_load(const char *path, struct TFTPTest_Config *cfg, bool whitelist_external);
+int tftptest_parsecfg_load(const char *path, struct TFTPTest_Config *cfg, bool whitelist_external);
 
-#endif // TFTP_PARSECFG_H
+#endif // TFTPTEST_PARSECFG_H

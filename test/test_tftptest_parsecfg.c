@@ -6,7 +6,7 @@
  */
 
 #include "test_common.h"
-#include "tftp_parsecfg.h"
+#include "tftptest_parsecfg.h"
 #include "tftptest_whitelist.h"
 #include <limits.h>
 #include <stdio.h>
@@ -83,7 +83,7 @@ void test_parsecfg_new_file_mode_rejects_trailing_garbage(void);
 void test_parsecfg_defaults_produces_sane_values(void)
 {
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults( &cfg );
+   tftptest_parsecfg_defaults( &cfg );
 
    TEST_ASSERT_EQUAL_UINT16( 23069, cfg.tftp_port );
    TEST_ASSERT_EQUAL_UINT16( 23070, cfg.ctrl_port );
@@ -94,7 +94,7 @@ void test_parsecfg_defaults_produces_sane_values(void)
    TEST_ASSERT_EQUAL_UINT( 5, cfg.max_retransmits );
    TEST_ASSERT_EQUAL( 10000, cfg.max_requests );
    TEST_ASSERT_EQUAL_UINT64( UINT64_MAX, cfg.fault_whitelist );
-   TEST_ASSERT_TRUE( tftp_ipwhitelist_is_deny_all() ); // defaults leave whitelist untouched (deny-all)
+   TEST_ASSERT_TRUE( tftptest_ipwhitelist_is_deny_all() ); // defaults leave whitelist untouched (deny-all)
    TEST_ASSERT_EQUAL( 0, cfg.max_wrq_file_size );
    TEST_ASSERT_EQUAL( 0, cfg.max_wrq_session_bytes );
    TEST_ASSERT_EQUAL_UINT( 0, cfg.max_wrq_duration_sec );
@@ -108,9 +108,9 @@ void test_parsecfg_defaults_produces_sane_values(void)
 void test_parsecfg_load_nonexistent_file_returns_error(void)
 {
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults( &cfg );
+   tftptest_parsecfg_defaults( &cfg );
 
-   int rc = tftp_parsecfg_load( "/nonexistent/path/config.ini", &cfg, true );
+   int rc = tftptest_parsecfg_load( "/nonexistent/path/config.ini", &cfg, true );
    TEST_ASSERT_EQUAL_INT( -1, rc );
 }
 
@@ -136,8 +136,8 @@ void test_parsecfg_load_valid_config(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 12345, cfg.tftp_port );
    TEST_ASSERT_EQUAL_UINT16( 12346, cfg.ctrl_port );
@@ -164,8 +164,8 @@ void test_parsecfg_ignores_comments_and_blanks(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 54321, cfg.tftp_port );
 
@@ -185,8 +185,8 @@ void test_parsecfg_inline_comments_stripped(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 54321, cfg.tftp_port );
    TEST_ASSERT_EQUAL_UINT( 5, cfg.timeout_sec );
@@ -204,10 +204,10 @@ void test_parsecfg_ctrl_port_zero_disables_faults(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
+   tftptest_parsecfg_defaults(&cfg);
    TEST_ASSERT_NOT_EQUAL( 0, cfg.ctrl_port );  // Default should not be 0
 
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 0, cfg.ctrl_port );  // Should now be 0
 
@@ -223,8 +223,8 @@ void test_parsecfg_rejects_invalid_port(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    // Should still return 0 (warnings, not fatal), but port should be unchanged
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 23069, cfg.tftp_port ); // default unchanged
@@ -241,8 +241,8 @@ void test_parsecfg_unknown_key_still_succeeds(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    // Unknown keys log a warning but don't cause failure
    TEST_ASSERT_EQUAL_INT( 0, rc );
    (void)remove(path);
@@ -257,8 +257,8 @@ void test_parsecfg_missing_equals_delimiter(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    (void)remove(path);
 }
@@ -275,8 +275,8 @@ void test_parsecfg_root_dir_and_fault_whitelist(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_STRING( "/srv/tftp", cfg.root_dir );
    TEST_ASSERT_EQUAL_UINT64( 0xFF, cfg.fault_whitelist );
@@ -296,8 +296,8 @@ void test_parsecfg_all_numeric_fields(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT( 5, cfg.timeout_sec );
    TEST_ASSERT_EQUAL_UINT( 3, cfg.max_retransmits );
@@ -321,8 +321,8 @@ void test_parsecfg_wrq_protection_fields_loaded(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL( 1048576, cfg.max_wrq_file_size );
    TEST_ASSERT_EQUAL( 10485760, cfg.max_wrq_session_bytes );
@@ -342,9 +342,9 @@ void test_parsecfg_wrq_enabled_false(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
+   tftptest_parsecfg_defaults(&cfg);
    TEST_ASSERT_TRUE( cfg.wrq_enabled );  // default is true
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_FALSE( cfg.wrq_enabled );
    (void)remove(path);
@@ -359,8 +359,8 @@ void test_parsecfg_wrq_duration_sec_invalid(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );  // load succeeds (non-fatal)
    TEST_ASSERT_EQUAL_UINT( 0, cfg.max_wrq_duration_sec );  // unchanged from default
    (void)remove(path);
@@ -375,8 +375,8 @@ void test_parsecfg_wrq_enabled_invalid_value(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );  // load succeeds (non-fatal)
    TEST_ASSERT_TRUE( cfg.wrq_enabled );  // unchanged from default
    (void)remove(path);
@@ -385,7 +385,7 @@ void test_parsecfg_wrq_enabled_invalid_value(void)
 void test_parsecfg_abandoned_sessions_default_zero(void)
 {
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
+   tftptest_parsecfg_defaults(&cfg);
    TEST_ASSERT_EQUAL( 0, cfg.max_abandoned_sessions );
 }
 
@@ -398,8 +398,8 @@ void test_parsecfg_max_abandoned_sessions_loaded(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL( 5, cfg.max_abandoned_sessions );
    (void)remove(path);
@@ -418,9 +418,9 @@ void test_parsecfg_ctrl_port_over_65535_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
+   tftptest_parsecfg_defaults(&cfg);
    uint16_t orig_ctrl_port = cfg.ctrl_port;
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( orig_ctrl_port, cfg.ctrl_port ); // unchanged
    (void)remove(path);
@@ -435,8 +435,8 @@ void test_parsecfg_root_dir_empty_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_STRING( ".", cfg.root_dir ); // default unchanged
    (void)remove(path);
@@ -461,8 +461,8 @@ void test_parsecfg_root_dir_too_long_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    // 490 < PATH_MAX, so it should be accepted and stored
    TEST_ASSERT_EQUAL_INT( 490, (int)strlen( cfg.root_dir ) );
@@ -478,8 +478,8 @@ void test_parsecfg_run_as_user_valid(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_STRING( "tftpd", cfg.run_as_user );
    (void)remove(path);
@@ -494,8 +494,8 @@ void test_parsecfg_run_as_user_empty_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_STRING( "nobody", cfg.run_as_user ); // default unchanged
    (void)remove(path);
@@ -514,8 +514,8 @@ void test_parsecfg_run_as_user_too_long_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_STRING( "nobody", cfg.run_as_user ); // default unchanged
    (void)remove(path);
@@ -540,8 +540,8 @@ void test_parsecfg_log_level_all_values(void)
       fclose(f);
 
       struct TFTPTest_Config cfg;
-      tftp_parsecfg_defaults(&cfg);
-      int rc = tftp_parsecfg_load(path, &cfg, true);
+      tftptest_parsecfg_defaults(&cfg);
+      int rc = tftptest_parsecfg_load(path, &cfg, true);
       TEST_ASSERT_EQUAL_INT( 0, rc );
       TEST_ASSERT_EQUAL_INT( expected[i], cfg.log_level );
       (void)remove(path);
@@ -557,8 +557,8 @@ void test_parsecfg_log_level_invalid_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_INT( TFTP_LOG_INFO, cfg.log_level ); // default unchanged
    (void)remove(path);
@@ -573,8 +573,8 @@ void test_parsecfg_timeout_sec_zero_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT( 1, cfg.timeout_sec ); // default unchanged
    (void)remove(path);
@@ -589,8 +589,8 @@ void test_parsecfg_timeout_sec_over_300_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT( 1, cfg.timeout_sec ); // default unchanged
    (void)remove(path);
@@ -605,8 +605,8 @@ void test_parsecfg_max_retransmits_zero_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT( 5, cfg.max_retransmits ); // default unchanged
    (void)remove(path);
@@ -621,8 +621,8 @@ void test_parsecfg_max_retransmits_over_100_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT( 5, cfg.max_retransmits ); // default unchanged
    (void)remove(path);
@@ -637,8 +637,8 @@ void test_parsecfg_max_requests_zero_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL( 10000, cfg.max_requests ); // default unchanged
    (void)remove(path);
@@ -653,8 +653,8 @@ void test_parsecfg_fault_whitelist_invalid_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT64( UINT64_MAX, cfg.fault_whitelist ); // default unchanged
    (void)remove(path);
@@ -669,13 +669,13 @@ void test_parsecfg_ip_whitelist_empty_is_deny_all(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, false);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, false);
    // empty value is a parse error (fail-closed); deny-all is the fallback
    TEST_ASSERT_NOT_EQUAL( 0, rc );
-   TEST_ASSERT_TRUE( tftp_ipwhitelist_is_deny_all() );
+   TEST_ASSERT_TRUE( tftptest_ipwhitelist_is_deny_all() );
    struct in_addr a; (void)inet_aton("203.0.113.1", &a);
-   TEST_ASSERT_FALSE( tftp_ipwhitelist_contains(a.s_addr) );
+   TEST_ASSERT_FALSE( tftptest_ipwhitelist_contains(a.s_addr) );
    (void)remove(path);
 }
 
@@ -688,13 +688,13 @@ void test_parsecfg_ip_whitelist_slash_zero_allows_all(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, false);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, false);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    // 0.0.0.0/0 explicitly matches any sender
-   TEST_ASSERT_FALSE( tftp_ipwhitelist_is_deny_all() );
+   TEST_ASSERT_FALSE( tftptest_ipwhitelist_is_deny_all() );
    struct in_addr a; (void)inet_aton("203.0.113.1", &a);
-   TEST_ASSERT_TRUE( tftp_ipwhitelist_contains(a.s_addr) );
+   TEST_ASSERT_TRUE( tftptest_ipwhitelist_contains(a.s_addr) );
    (void)remove(path);
 }
 
@@ -707,14 +707,14 @@ void test_parsecfg_ip_whitelist_valid(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, false);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, false);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    struct in_addr allowed, blocked;
    (void)inet_aton("192.168.1.100", &allowed);
    (void)inet_aton("192.168.1.101", &blocked);
-   TEST_ASSERT_TRUE(  tftp_ipwhitelist_contains(allowed.s_addr) );
-   TEST_ASSERT_FALSE( tftp_ipwhitelist_contains(blocked.s_addr) );
+   TEST_ASSERT_TRUE(  tftptest_ipwhitelist_contains(allowed.s_addr) );
+   TEST_ASSERT_FALSE( tftptest_ipwhitelist_contains(blocked.s_addr) );
    (void)remove(path);
 }
 
@@ -727,8 +727,8 @@ void test_parsecfg_ip_whitelist_invalid_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, false);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, false);
    // Fail-closed: config load returns non-zero on malformed entry.
    TEST_ASSERT_NOT_EQUAL( 0, rc );
    (void)remove(path);
@@ -743,14 +743,14 @@ void test_parsecfg_ip_whitelist_plural_with_cidr(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, false);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, false);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    struct in_addr a;
-   (void)inet_aton("127.0.0.1",   &a); TEST_ASSERT_TRUE(  tftp_ipwhitelist_contains(a.s_addr) );
-   (void)inet_aton("192.168.0.50",&a); TEST_ASSERT_TRUE(  tftp_ipwhitelist_contains(a.s_addr) );
-   (void)inet_aton("10.255.255.1",&a); TEST_ASSERT_TRUE(  tftp_ipwhitelist_contains(a.s_addr) );
-   (void)inet_aton("172.16.0.1",  &a); TEST_ASSERT_FALSE( tftp_ipwhitelist_contains(a.s_addr) );
+   (void)inet_aton("127.0.0.1",   &a); TEST_ASSERT_TRUE(  tftptest_ipwhitelist_contains(a.s_addr) );
+   (void)inet_aton("192.168.0.50",&a); TEST_ASSERT_TRUE(  tftptest_ipwhitelist_contains(a.s_addr) );
+   (void)inet_aton("10.255.255.1",&a); TEST_ASSERT_TRUE(  tftptest_ipwhitelist_contains(a.s_addr) );
+   (void)inet_aton("172.16.0.1",  &a); TEST_ASSERT_FALSE( tftptest_ipwhitelist_contains(a.s_addr) );
    (void)remove(path);
 }
 
@@ -763,9 +763,9 @@ void test_parsecfg_missing_whitelist_key_is_fatal(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
+   tftptest_parsecfg_defaults(&cfg);
    // whitelist_external=false: missing key must be fatal
-   int rc = tftp_parsecfg_load(path, &cfg, false);
+   int rc = tftptest_parsecfg_load(path, &cfg, false);
    TEST_ASSERT_NOT_EQUAL( 0, rc );
    (void)remove(path);
 }
@@ -779,9 +779,9 @@ void test_parsecfg_missing_whitelist_key_ok_when_external(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
+   tftptest_parsecfg_defaults(&cfg);
    // whitelist_external=true: CLI will supply whitelist; missing key is OK
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    (void)remove(path);
 }
@@ -795,9 +795,9 @@ void test_parsecfg_wrq_enabled_yes(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
+   tftptest_parsecfg_defaults(&cfg);
    cfg.wrq_enabled = false; // force off so we can test "yes" turns it on
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_TRUE( cfg.wrq_enabled );
    (void)remove(path);
@@ -812,9 +812,9 @@ void test_parsecfg_wrq_enabled_one(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
+   tftptest_parsecfg_defaults(&cfg);
    cfg.wrq_enabled = false;
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_TRUE( cfg.wrq_enabled );
    (void)remove(path);
@@ -829,9 +829,9 @@ void test_parsecfg_wrq_enabled_no(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
+   tftptest_parsecfg_defaults(&cfg);
    TEST_ASSERT_TRUE( cfg.wrq_enabled ); // default is true
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_FALSE( cfg.wrq_enabled );
    (void)remove(path);
@@ -846,9 +846,9 @@ void test_parsecfg_wrq_enabled_zero(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
+   tftptest_parsecfg_defaults(&cfg);
    TEST_ASSERT_TRUE( cfg.wrq_enabled );
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_FALSE( cfg.wrq_enabled );
    (void)remove(path);
@@ -863,8 +863,8 @@ void test_parsecfg_tftp_port_zero_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 23069, cfg.tftp_port ); // default unchanged
    (void)remove(path);
@@ -881,8 +881,8 @@ void test_parsecfg_line_without_trailing_newline(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 11111, cfg.tftp_port );
    (void)remove(path);
@@ -898,8 +898,8 @@ void test_parsecfg_fault_whitelist_decimal(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT64( 42, cfg.fault_whitelist );
    (void)remove(path);
@@ -919,8 +919,8 @@ void test_parsecfg_multiple_errors_reports_count(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc ); // still returns 0 (non-fatal)
    // All three values should be unchanged from defaults
    TEST_ASSERT_EQUAL_UINT16( 23069, cfg.tftp_port );
@@ -938,8 +938,8 @@ void test_parsecfg_tid_port_range_valid(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 50000, cfg.tid_port_min );
    TEST_ASSERT_EQUAL_UINT16( 50100, cfg.tid_port_max );
@@ -955,8 +955,8 @@ void test_parsecfg_tid_port_range_single_port(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 50000, cfg.tid_port_min );
    TEST_ASSERT_EQUAL_UINT16( 50000, cfg.tid_port_max );
@@ -972,8 +972,8 @@ void test_parsecfg_tid_port_range_invalid_format(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc ); // Non-fatal
    // Should remain at defaults (0/0)
    TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_min );
@@ -990,8 +990,8 @@ void test_parsecfg_tid_port_range_min_greater_than_max(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_min );
    TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_max );
@@ -1007,8 +1007,8 @@ void test_parsecfg_tid_port_range_zero_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_min );
    TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_max );
@@ -1024,8 +1024,8 @@ void test_parsecfg_tid_port_range_over_65535_rejected(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_min );
    TEST_ASSERT_EQUAL_UINT16( 0, cfg.tid_port_max );
@@ -1039,7 +1039,7 @@ void test_parsecfg_tid_port_range_over_65535_rejected(void)
 void test_parsecfg_new_file_mode_default_is_0666(void)
 {
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
+   tftptest_parsecfg_defaults(&cfg);
    TEST_ASSERT_EQUAL_UINT( 0666, cfg.new_file_mode );
 }
 
@@ -1052,8 +1052,8 @@ void test_parsecfg_new_file_mode_octal(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT( 0640, cfg.new_file_mode );
    (void)remove(path);
@@ -1068,8 +1068,8 @@ void test_parsecfg_new_file_mode_rejects_setuid(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    // Load still returns 0 (non-fatal), but the field stays at default (0666).
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT( 0666, cfg.new_file_mode );
@@ -1085,8 +1085,8 @@ void test_parsecfg_new_file_mode_rejects_sticky(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT( 0666, cfg.new_file_mode ); // unchanged
    (void)remove(path);
@@ -1101,8 +1101,8 @@ void test_parsecfg_new_file_mode_rejects_trailing_garbage(void)
    fclose(f);
 
    struct TFTPTest_Config cfg;
-   tftp_parsecfg_defaults(&cfg);
-   int rc = tftp_parsecfg_load(path, &cfg, true);
+   tftptest_parsecfg_defaults(&cfg);
+   int rc = tftptest_parsecfg_load(path, &cfg, true);
    TEST_ASSERT_EQUAL_INT( 0, rc );
    TEST_ASSERT_EQUAL_UINT( 0666, cfg.new_file_mode ); // unchanged
    (void)remove(path);

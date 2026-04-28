@@ -3,12 +3,15 @@
 - add __line__ to logging in addition to __func__?
 - add --addr/-a CLI + cfg for setting bind-address (in addition to the already existing --port/-p)
 - consider more TFTP_LOG_DEBUG reporting
+- convert direct prints of network byte-order addresses to inet_ntop()
 - IPv6 support
+- Add "string-is-bounded" util fcn for !NDEBUG
 - review every file exhaustively
   - [x]   41 ./src/tftp_err.c
   - [x]   88 ./src/tftptest_faultmode.c
   - [x]  169 ./src/tftptest_ctrl.c
   - [x]  181 ./src/tftp_log.c
+  - [x]  xxx ./src/tftp_whitelist.c
   - [ ]  256 ./src/tftp_pkt.c
   - [ ]  271 ./src/tftptest_seq.c
   - [ ]  457 ./src/tftp_parsecfg.c

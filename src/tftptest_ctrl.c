@@ -27,7 +27,7 @@
 #include "tftptest_common.h"
 #include "tftptest_ctrl.h"
 #include "tftptest_whitelist.h"
-#include "tftp_log.h"
+#include "tftptest_log.h"
 
 /***************************** Local Declarations *****************************/
 
@@ -104,7 +104,7 @@ static inline void send_reply_or_log_fail( int sfd,
    }
    else
    {
-      tftp_log( TFTP_LOG_ERR, caller_func,
+      tftptest_log( TFTP_LOG_ERR, caller_func,
                 "Unable to send reply :: snprintf() failed, %s (%d) : %s",
                 strerrorname_np(errno), errno, strerror(errno) );
    }
@@ -131,7 +131,7 @@ enum TFTPTest_CtrlResult tftptest_ctrl_init( uint16_t port, uint64_t whitelist )
    sfd = socket(AF_INET, SOCK_DGRAM, 0);
    if ( sfd < 0 )
    {
-      tftp_log( TFTP_LOG_ERR, __func__,
+      tftptest_log( TFTP_LOG_ERR, __func__,
                 "socket() failed: %s (%d) : %s",
                 strerrorname_np(errno), errno, strerror(errno) );
       return TFTPTEST_CTRL_ERR_SOCKET;
@@ -140,7 +140,7 @@ enum TFTPTest_CtrlResult tftptest_ctrl_init( uint16_t port, uint64_t whitelist )
    flags = fcntl(sfd, F_GETFL, 0);
    if ( flags < 0 )
    {
-      tftp_log( TFTP_LOG_ERR, __func__,
+      tftptest_log( TFTP_LOG_ERR, __func__,
                 "fcntl(F_GETFL) failed: %s (%d) : %s",
                 strerrorname_np(errno), errno, strerror(errno) );
       rc = TFTPTEST_CTRL_ERR_FCNTL_GETFL;
@@ -149,7 +149,7 @@ enum TFTPTest_CtrlResult tftptest_ctrl_init( uint16_t port, uint64_t whitelist )
 
    if ( fcntl(sfd, F_SETFL, flags | O_NONBLOCK) < 0 )
    {
-      tftp_log( TFTP_LOG_ERR, __func__,
+      tftptest_log( TFTP_LOG_ERR, __func__,
                 "fcntl(F_SETFL, O_NONBLOCK) failed: %s (%d) : %s",
                 strerrorname_np(errno), errno, strerror(errno) );
       rc = TFTPTEST_CTRL_ERR_FCNTL_SETFL;
@@ -158,7 +158,7 @@ enum TFTPTest_CtrlResult tftptest_ctrl_init( uint16_t port, uint64_t whitelist )
 
    if ( setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &(int){1}, sizeof(int)) < 0 )
    {
-      tftp_log( TFTP_LOG_ERR, __func__,
+      tftptest_log( TFTP_LOG_ERR, __func__,
                 "setsockopt(SO_REUSEADDR) failed: %s (%d) : %s",
                 strerrorname_np(errno), errno, strerror(errno) );
       rc = TFTPTEST_CTRL_ERR_SETSOCKOPT;
@@ -167,7 +167,7 @@ enum TFTPTest_CtrlResult tftptest_ctrl_init( uint16_t port, uint64_t whitelist )
 
    if ( bind(sfd, (struct sockaddr *)&addr, sizeof addr) != 0 )
    {
-      tftp_log( TFTP_LOG_ERR, __func__,
+      tftptest_log( TFTP_LOG_ERR, __func__,
                 "bind(port=%u) failed: %s (%d) : %s",
                 (unsigned)port, strerrorname_np(errno), errno, strerror(errno) );
       rc = TFTPTEST_CTRL_ERR_BIND;
@@ -175,14 +175,14 @@ enum TFTPTest_CtrlResult tftptest_ctrl_init( uint16_t port, uint64_t whitelist )
    }
 
    s_ctrl_cfg.sfd = sfd;
-   tftp_log(TFTP_LOG_INFO, NULL, "Control channel listening on port %u", (unsigned)port);
+   tftptest_log(TFTP_LOG_INFO, NULL, "Control channel listening on port %u", (unsigned)port);
 
    return TFTPTEST_CTRL_OK;
 
 cleanup:
    if ( sfd >= 0 && close(sfd) != 0 )
    {
-      tftp_log( TFTP_LOG_WARN, __func__,
+      tftptest_log( TFTP_LOG_WARN, __func__,
                 "close(sfd=%d) failed during init cleanup: %s (%d) : %s",
                 sfd, strerrorname_np(errno), errno, strerror(errno) );
    }
@@ -246,13 +246,13 @@ void tftptest_ctrl_shutdown( void )
    if ( s_ctrl_cfg.sfd < 0 )
       return;
 
-   tftp_log( TFTP_LOG_INFO, NULL,
+   tftptest_log( TFTP_LOG_INFO, NULL,
              "Closing ctrl port socket %d listening on port %u...",
              s_ctrl_cfg.sfd, s_ctrl_cfg.port );
 
    if ( close(s_ctrl_cfg.sfd) != 0 )
    {
-      tftp_log( TFTP_LOG_WARN, __func__,
+      tftptest_log( TFTP_LOG_WARN, __func__,
                 "close(sfd=%d) failed: %s (%d) : %s",
                 s_ctrl_cfg.sfd, strerrorname_np(errno), errno, strerror(errno) );
    }
@@ -287,7 +287,7 @@ static ssize_t recv_ctrl_pkt( char * buf, size_t buf_sz,
       if ( errno != EAGAIN && errno != EWOULDBLOCK )
 #endif
       {
-         tftp_log( TFTP_LOG_WARN, __func__,
+         tftptest_log( TFTP_LOG_WARN, __func__,
                    "recvfrom() got unexpected error, returned %zd :: %s (%d) : %s",
                    nbytes, strerrorname_np(errno), errno, strerror(errno) );
          return -1;
@@ -299,14 +299,14 @@ static ssize_t recv_ctrl_pkt( char * buf, size_t buf_sz,
    {
       static size_t empty_pkt_rcv_counter = 0;
 
-      tftp_log( TFTP_LOG_INFO, NULL,
+      tftptest_log( TFTP_LOG_INFO, NULL,
                 "Empty UDP packet received on ctrl port... %zu of those rcvd now",
                 ++empty_pkt_rcv_counter );
       return 0;
    }
    else if ( (size_t)nbytes > MAX_CTRL_CMD_SZ )
    {
-      tftp_log( TFTP_LOG_INFO, NULL,
+      tftptest_log( TFTP_LOG_INFO, NULL,
                 "Ctrl cmd larger than expected max sz (%zu), received %zu bytes",
                 MAX_CTRL_CMD_SZ, (size_t)nbytes );
       return 0;
@@ -318,7 +318,7 @@ static ssize_t recv_ctrl_pkt( char * buf, size_t buf_sz,
    {
       static size_t unsupported_af_counter = 0;
 
-      tftp_log( TFTP_LOG_INFO, NULL,
+      tftptest_log( TFTP_LOG_INFO, NULL,
                 "Msg from non-IPv4 sender on ctrl port: addrlen=%u family=%u"
                 " ... %zu non-IPv4 pkts rcvd now",
                 addrlen, (unsigned)sender->sin_family,
@@ -336,7 +336,7 @@ static bool sender_allowed( const struct sockaddr_in * sender )
 {
    assert( sender != NULL );
 
-   if ( tftp_ipwhitelist_contains( sender->sin_addr.s_addr ) )
+   if ( tftptest_ipwhitelist_contains( sender->sin_addr.s_addr ) )
    {
       return true;
    }
@@ -345,12 +345,12 @@ static bool sender_allowed( const struct sockaddr_in * sender )
    const char * rcptr = inet_ntop(AF_INET, &sender->sin_addr,
                                   sender_ip, sizeof sender_ip);
    if ( rcptr == NULL )
-      tftp_log( TFTP_LOG_INFO, NULL,
+      tftptest_log( TFTP_LOG_INFO, NULL,
                 "inet_ntop failed :: sender.sin_addr.s_addr: %lu :: %s (%d) : %s",
                 (unsigned long)sender->sin_addr.s_addr,
                 strerrorname_np(errno), errno, strerror(errno) );
    else
-      tftp_log( TFTP_LOG_INFO, NULL,
+      tftptest_log( TFTP_LOG_INFO, NULL,
                 "Dropping ctrl pkt from disallowed sender %s:%u",
                 sender_ip, (unsigned)ntohs(sender->sin_port) );
 
@@ -368,14 +368,14 @@ static void handle_set_fault( struct TFTPTest_FaultState * fault,
    assert( sender != NULL );
    assert( cmd != NULL );
 
-   tftp_log( TFTP_LOG_DEBUG, __func__, "Rcvd SET_FAULT cmd '%s'", cmd );
+   tftptest_log( TFTP_LOG_DEBUG, __func__, "Rcvd SET_FAULT cmd '%s'", cmd );
 
    char reply[CTRL_RSP_BUF_SZ];
    int reply_len = 0;
 
    if ( cmdlen < MIN_SET_FAULT_CMD_SZ )
    {
-      tftp_log( TFTP_LOG_INFO, NULL, "Bare SET_FAULT cmd received (no args)" );
+      tftptest_log( TFTP_LOG_INFO, NULL, "Bare SET_FAULT cmd received (no args)" );
 
       reply_len = snprintf(reply, sizeof reply, "ERR missing at least mode argument for SET_FAULT\n");
       assert( reply_len < (int)(sizeof reply) );
@@ -402,7 +402,7 @@ static void handle_set_fault( struct TFTPTest_FaultState * fault,
 
    if ( mode_len == 0 )
    {
-      tftp_log( TFTP_LOG_INFO, NULL, "Too few args for SET_FAULT cmd: '%s'", cmd );
+      tftptest_log( TFTP_LOG_INFO, NULL, "Too few args for SET_FAULT cmd: '%s'", cmd );
 
       reply_len = snprintf(reply, sizeof reply, "ERR missing mode name\n");
       assert( reply_len < (int)(sizeof reply) );
@@ -412,7 +412,7 @@ static void handle_set_fault( struct TFTPTest_FaultState * fault,
    }
    else if ( mode_len >= sizeof mode_name )
    {
-      tftp_log( TFTP_LOG_INFO, NULL,
+      tftptest_log( TFTP_LOG_INFO, NULL,
                 "SET_FAULT mode name too long (%zu bytes)", mode_len );
 
       reply_len = snprintf(reply, sizeof reply, "ERR mode name too long\n");
@@ -440,7 +440,7 @@ static void handle_set_fault( struct TFTPTest_FaultState * fault,
            || errno == ERANGE
            || val > UINT32_MAX )
       {
-         tftp_log( TFTP_LOG_INFO, NULL,
+         tftptest_log( TFTP_LOG_INFO, NULL,
                    "SET_FAULT param invalid or out of range: '%s'", p );
 
          reply_len = snprintf(reply, sizeof reply, "ERR invalid param\n");
@@ -457,7 +457,7 @@ static void handle_set_fault( struct TFTPTest_FaultState * fault,
    enum TFTPTest_FaultMode mode_idx = tftptest_fault_name_lookup_mode(mode_name);
    if ( (int)mode_idx < 0 )
    {
-      tftp_log( TFTP_LOG_INFO, NULL, "Ctrl port cmd mode unknown: '%s'", mode_name );
+      tftptest_log( TFTP_LOG_INFO, NULL, "Ctrl port cmd mode unknown: '%s'", mode_name );
 
       reply_len = snprintf( reply, sizeof reply,
                             "ERR unknown mode '%s' : error code %d\n",
@@ -475,7 +475,7 @@ static void handle_set_fault( struct TFTPTest_FaultState * fault,
       uint64_t mode_bit = (uint64_t)1 << (unsigned)((int)mode_idx - 1);
       if ( !(s_ctrl_cfg.whitelist & mode_bit) )
       {
-         tftp_log( TFTP_LOG_INFO, NULL, "Ctrl port cmd not on whitelist: '%s'", mode_name );
+         tftptest_log( TFTP_LOG_INFO, NULL, "Ctrl port cmd not on whitelist: '%s'", mode_name );
 
          reply_len = snprintf(reply, sizeof reply, "ERR mode '%s' not allowed\n", mode_name);
          assert( reply_len < (int)(sizeof reply) );
@@ -491,7 +491,7 @@ static void handle_set_fault( struct TFTPTest_FaultState * fault,
 
    if ( fault->param_present )
    {
-      tftp_log( TFTP_LOG_INFO, NULL,
+      tftptest_log( TFTP_LOG_INFO, NULL,
                 "Control: fault mode set to %s (param=%u)",
                 tftptest_fault_mode_names[fault->mode], fault->param );
       reply_len = snprintf( reply, sizeof reply,
@@ -500,7 +500,7 @@ static void handle_set_fault( struct TFTPTest_FaultState * fault,
    }
    else
    {
-      tftp_log( TFTP_LOG_INFO, NULL,
+      tftptest_log( TFTP_LOG_INFO, NULL,
                 "Control: fault mode set to %s (no param)",
                 tftptest_fault_mode_names[fault->mode] );
       reply_len = snprintf( reply, sizeof reply,
@@ -517,7 +517,7 @@ static void handle_get_fault( const struct TFTPTest_FaultState * fault,
    assert( fault != NULL );
    assert( sender != NULL );
 
-   tftp_log( TFTP_LOG_DEBUG, __func__, "Rcvd GET_FAULT cmd" );
+   tftptest_log( TFTP_LOG_DEBUG, __func__, "Rcvd GET_FAULT cmd" );
 
    char reply[CTRL_RSP_BUF_SZ];
    int reply_len = 0;
@@ -544,12 +544,12 @@ static void handle_reset( struct TFTPTest_FaultState * fault,
    assert( fault != NULL );
    assert( sender != NULL );
 
-   tftp_log( TFTP_LOG_DEBUG, __func__, "Rcvd RESET cmd" );
+   tftptest_log( TFTP_LOG_DEBUG, __func__, "Rcvd RESET cmd" );
 
    fault->mode          = FAULT_NONE;
    fault->param         = 0;
    fault->param_present = false;
-   tftp_log( TFTP_LOG_INFO, NULL, "Control: fault mode reset" );
+   tftptest_log( TFTP_LOG_INFO, NULL, "Control: fault mode reset" );
 
    char reply[CTRL_RSP_BUF_SZ];
    int reply_len = snprintf(reply, sizeof reply, "OK FAULT_NONE\n");
@@ -563,7 +563,7 @@ static void handle_unknown( const struct sockaddr_in * sender,
    assert( sender != NULL );
    assert( cmd != NULL );
 
-   tftp_log( TFTP_LOG_INFO, NULL, "Unknown (or malformed) ctrl port cmd rcvd '%s'", cmd );
+   tftptest_log( TFTP_LOG_INFO, NULL, "Unknown (or malformed) ctrl port cmd rcvd '%s'", cmd );
 
    char reply[CTRL_RSP_BUF_SZ];
    int reply_len = snprintf(reply, sizeof reply, "ERR unknown/malformed command '%s'\n", cmd);
@@ -583,7 +583,7 @@ static void send_reply( int sfd,
                            sizeof *dest );
 
    if ( sysrc < 0 )
-      tftp_log( TFTP_LOG_WARN, __func__,
+      tftptest_log( TFTP_LOG_WARN, __func__,
                 "Failed to send reply '%s' to UDP ctrl port cmd :: "
                 "sendto() returned %zd :: %s (%d) : %s",
                 msg,

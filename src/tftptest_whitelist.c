@@ -18,7 +18,7 @@
 #include <arpa/inet.h>
 
 #include "tftptest_whitelist.h"
-#include "tftp_log.h"
+#include "tftptest_log.h"
 
 /***************************** Local Declarations *****************************/
 
@@ -63,13 +63,13 @@ static bool on_blacklist(uint32_t ip_nbo);
 
 /********************** Public Function Implementations ***********************/
 
-int tftp_ipwhitelist_init(const char *s)
+int tftptest_ipwhitelist_init(const char *s)
 {
    struct TFTP_IPWhitelist tmp;
    if ( s == NULL || parse_list(s, &tmp) != 0 )
    {
       if ( s == NULL )
-         tftp_log( TFTP_LOG_ERR, __func__, "NULL whitelist string — deny-all installed" );
+         tftptest_log( TFTP_LOG_ERR, __func__, "NULL whitelist string — deny-all installed" );
 
       // Reset whitelist to deny-all on any failure
       s_whitelist.count = 0;
@@ -84,7 +84,7 @@ int tftp_ipwhitelist_init(const char *s)
    return 0;
 }
 
-bool tftp_ipwhitelist_is_deny_all(void)
+bool tftptest_ipwhitelist_is_deny_all(void)
 {
    if ( s_whitelist.count == 0 )
       return true;
@@ -132,7 +132,7 @@ bool tftp_ipwhitelist_is_deny_all(void)
    return true;
 }
 
-bool tftp_ipwhitelist_contains(uint32_t ip_nbo)
+bool tftptest_ipwhitelist_contains(uint32_t ip_nbo)
 {
    if ( s_whitelist.count == 0 || on_blacklist(ip_nbo) )
       return false;
@@ -146,11 +146,11 @@ bool tftp_ipwhitelist_contains(uint32_t ip_nbo)
    return false;
 }
 
-int tftp_ipwhitelist_block(uint32_t ip_nbo)
+int tftptest_ipwhitelist_block(uint32_t ip_nbo)
 {
    if ( ip_nbo == INADDR_ANY || ip_nbo == INADDR_BROADCAST )
    {
-      tftp_log( TFTP_LOG_INFO, __func__,
+      tftptest_log( TFTP_LOG_INFO, __func__,
                 "Attempted to block an invalid IP address: %08X :: Not allowed",
                 ntohl(ip_nbo) );
       return -1;
@@ -171,7 +171,7 @@ int tftp_ipwhitelist_block(uint32_t ip_nbo)
 
       if ( s_blacklist.addrs_nbo == NULL )
       {
-         tftp_log( TFTP_LOG_ERR, __func__,
+         tftptest_log( TFTP_LOG_ERR, __func__,
                    "malloc() failed at blacklist creation. %s (%d) : %s"
                    " Unable to block %08X",
                    strerrorname_np(errno), errno, strerror(errno),
@@ -197,7 +197,7 @@ int tftp_ipwhitelist_block(uint32_t ip_nbo)
 
       if ( new_cap > TFTP_BLACKLIST_MAX_CAPACITY )
       {
-         tftp_log( TFTP_LOG_ERR, __func__,
+         tftptest_log( TFTP_LOG_ERR, __func__,
                    "Blacklist is at maximum capacity! Unable to block %08X",
                    ntohl(ip_nbo) );
          return 1;
@@ -206,7 +206,7 @@ int tftp_ipwhitelist_block(uint32_t ip_nbo)
       uint32_t * tmp = realloc( s_blacklist.addrs_nbo, new_cap * sizeof(uint32_t) );
       if ( tmp == NULL )
       {
-         tftp_log( TFTP_LOG_ERR, __func__,
+         tftptest_log( TFTP_LOG_ERR, __func__,
                    "realloc() failed at blacklist expansion!"
                    " %s (%d) : %s :: Unable to block %08X",
                    strerrorname_np(errno), errno, strerror(errno),
@@ -225,12 +225,12 @@ int tftp_ipwhitelist_block(uint32_t ip_nbo)
 
    char addrbuf[INET_ADDRSTRLEN];
    (void)inet_ntop( AF_INET, &(struct in_addr){ .s_addr = ip_nbo }, addrbuf, sizeof addrbuf );
-   tftp_log( TFTP_LOG_INFO, NULL, "Blocking IP address: %s", addrbuf );
+   tftptest_log( TFTP_LOG_INFO, NULL, "Blocking IP address: %s", addrbuf );
 
    return 0;
 }
 
-void tftp_ipwhitelist_clear(void)
+void tftptest_ipwhitelist_clear(void)
 {
    s_whitelist.count = 0;
    memset(s_whitelist.addr_nbo, 0x00, sizeof s_whitelist.addr_nbo);
@@ -267,7 +267,7 @@ static int parse_list(const char *s, struct TFTP_IPWhitelist *out)
    {
       if ( out->count >= TFTP_IPWHITELIST_MAX )
       {
-         tftp_log( TFTP_LOG_ERR, __func__,
+         tftptest_log( TFTP_LOG_ERR, __func__,
                    "Too many entries (max %zu) — deny-all installed", TFTP_IPWHITELIST_MAX );
          return -2; // overflow
       }
@@ -285,7 +285,7 @@ static int parse_list(const char *s, struct TFTP_IPWhitelist *out)
       size_t tok_len = (size_t)(tok_end - tok_start);
       if ( tok_len == 0 )
       {
-         tftp_log( TFTP_LOG_ERR, __func__,
+         tftptest_log( TFTP_LOG_ERR, __func__,
                    "Empty entry (double comma, leading comma, or trailing comma) "
                    "— deny-all installed" );
          return -3;
@@ -295,7 +295,7 @@ static int parse_list(const char *s, struct TFTP_IPWhitelist *out)
       uint32_t mask_nbo = 0;
       if ( parse_one_token( tok_start, tok_len, &addr_nbo, &mask_nbo ) != 0 )
       {
-         tftp_log( TFTP_LOG_ERR, __func__,
+         tftptest_log( TFTP_LOG_ERR, __func__,
                    "Malformed entry '%.*s' — deny-all installed",
                    (int)tok_len, tok_start );
          return -4;
@@ -311,7 +311,7 @@ static int parse_list(const char *s, struct TFTP_IPWhitelist *out)
          p = skip_ws( p );
          if ( *p == '\0' ) // trailing comma
          {
-            tftp_log( TFTP_LOG_ERR, __func__,
+            tftptest_log( TFTP_LOG_ERR, __func__,
                       "Trailing comma in whitelist — deny-all installed" );
             return -5;
          }

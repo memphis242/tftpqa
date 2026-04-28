@@ -12,7 +12,7 @@
 #include <stddef.h>
 #include <netinet/in.h>
 
-#include "tftp_parsecfg.h"
+#include "tftptest_parsecfg.h"
 #include "tftptest_faultmode.h"
 
 // Types

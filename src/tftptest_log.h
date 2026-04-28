@@ -1,12 +1,12 @@
 /**
- * @file tftp_log.h
+ * @file tftptest_log.h
  * @brief Logging interface -- writes to stderr and optionally syslog.
  * @date Apr 10, 2026
  * @author Abdulla Almosalmi, @memphis242
  */
 
-#ifndef TFTP_LOG_H
-#define TFTP_LOG_H
+#ifndef TFTPTEST_LOG_H
+#define TFTPTEST_LOG_H
 
 #include <stdbool.h>
 
@@ -28,7 +28,7 @@ enum TFTP_LogLevel
  * @param[in] use_syslog  If true, also log to syslog (opens with "tftptest" ident).
  * @param[in] min_level   Messages below this level are suppressed.
  */
-void tftp_log_init(bool use_syslog, enum TFTP_LogLevel min_level);
+void tftptest_log_init(bool use_syslog, enum TFTP_LogLevel min_level);
 
 /**
  * @brief Emit a log message.
@@ -39,13 +39,13 @@ void tftp_log_init(bool use_syslog, enum TFTP_LogLevel min_level);
  * @param[in] fmt    printf-style format string.
  */
 __attribute__(( format(printf, 3, 4) ))
-void tftp_log( enum TFTP_LogLevel level,
-               const char *func,
-               const char *fmt, ... );
+void tftptest_log( enum TFTP_LogLevel level,
+                   const char *func,
+                   const char *fmt, ... );
 
 /**
  * @brief Shut down the logging subsystem (closes syslog if open).
  */
-void tftp_log_shutdown(void);
+void tftptest_log_shutdown(void);
 
-#endif // TFTP_LOG_H
+#endif // TFTPTEST_LOG_H

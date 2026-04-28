@@ -8,7 +8,7 @@
 #include "test_common.h"
 #include "tftp_fsm.h"
 #include "tftp_pkt.h"
-#include "tftp_parsecfg.h"
+#include "tftptest_parsecfg.h"
 #include "tftptest_faultmode.h"
 
 #include <stdio.h>
