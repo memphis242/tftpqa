@@ -1,5 +1,5 @@
 /**
- * @file tftptest_faultmode.c
+ * @file tftpqa_faultmode.c
  * @brief Fault mode name table and lookup, shared by ctrl and seq modules.
  * @date Apr 11, 2026
  * @author Abdulla Almosalmi, @memphis242
@@ -9,10 +9,10 @@
 #include <strings.h> // for strcasecmp()
 #include <assert.h>
 
-#include "tftptest_faultmode.h"
-#include "tftptest_common.h"
+#include "tftpqa_faultmode.h"
+#include "tftpqa_common.h"
 
-const char * const tftptest_fault_mode_names[FAULT_MODE_COUNT] = {
+const char * const tftpqa_fault_mode_names[FAULT_MODE_COUNT] = {
    [FAULT_NONE]                      = FAULT_NAME_PREFIX "NONE",
    [FAULT_RRQ_TIMEOUT]               = FAULT_NAME_PREFIX "RRQ_TIMEOUT",
    [FAULT_WRQ_TIMEOUT]               = FAULT_NAME_PREFIX "WRQ_TIMEOUT",
@@ -48,16 +48,16 @@ const char * const tftptest_fault_mode_names[FAULT_MODE_COUNT] = {
    [FAULT_TRUNCATED_PKT]             = FAULT_NAME_PREFIX "TRUNCATED_PKT",
    [FAULT_BURST_DATA]                = FAULT_NAME_PREFIX "BURST_DATA",
 };
-CompileTimeAssert( ARRAY_LEN(tftptest_fault_mode_names) == FAULT_MODE_COUNT,
-                   tftptest_fault_mode_names_size_check );
+CompileTimeAssert( ARRAY_LEN(tftpqa_fault_mode_names) == FAULT_MODE_COUNT,
+                   tftpqa_fault_mode_names_size_check );
 
 /* -----------------------------------------------------------------------------
  * Function Implementations
  * -------------------------------------------------------------------------- */ 
 
-enum TFTPTest_FaultMode tftptest_fault_name_lookup_mode(const char * const name)
+enum TFTPQa_FaultMode tftpqa_fault_name_lookup_mode(const char * const name)
 {
-   // tftptest_seq and tftptest_ctrl really shouldn't be calling this fcn /w
+   // tftpqa_seq and tftpqa_ctrl really shouldn't be calling this fcn /w
    // null pointers, so catch that for debug builds (UTs, integration tests),
    // but for release, do the if-check just to take away a DoS attack surface.
 #ifndef NDEBUG
@@ -79,13 +79,13 @@ enum TFTPTest_FaultMode tftptest_fault_name_lookup_mode(const char * const name)
    for ( int i = 0; i < FAULT_MODE_COUNT; ++i )
    {
       // Match full name, case-insensitive (e.g., "FAULT_RRQ_TIMEOUT")
-      if ( strcasecmp(name, tftptest_fault_mode_names[i]) == 0 )
-         return (enum TFTPTest_FaultMode)i;
+      if ( strcasecmp(name, tftpqa_fault_mode_names[i]) == 0 )
+         return (enum TFTPQa_FaultMode)i;
 
       // Also match without the fault name prefix (e.g., "RRQ_TIMEOUT")
-      const char *short_name = tftptest_fault_mode_names[i] + FAULT_NAME_PREFIX_LEN;
+      const char *short_name = tftpqa_fault_mode_names[i] + FAULT_NAME_PREFIX_LEN;
       if ( strcasecmp(name, short_name) == 0 )
-         return (enum TFTPTest_FaultMode)i;
+         return (enum TFTPQa_FaultMode)i;
    }
 
    return TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND;

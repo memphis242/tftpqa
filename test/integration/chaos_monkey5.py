@@ -272,13 +272,13 @@ def test_cm5_wrq_flood_triggers_lockout(host: str, port: int, flood_count: int):
 def find_server_binary() -> str:
     script_dir = Path(__file__).resolve().parent
     candidates = [
-        script_dir.parent.parent / "build" / "debug"   / "tftptest",
-        script_dir.parent.parent / "build" / "release" / "tftptest",
+        script_dir.parent.parent / "build" / "debug"   / "tftpqa",
+        script_dir.parent.parent / "build" / "release" / "tftpqa",
     ]
     for p in candidates:
         if p.is_file() and os.access(p, os.X_OK):
             return str(p)
-    sys.exit("Could not find tftptest binary. Run `make debug` from the repo root first.")
+    sys.exit("Could not find tftpqa binary. Run `make debug` from the repo root first.")
 
 
 def main():
@@ -309,9 +309,9 @@ def main():
     print(f"Est. total wait:  ~{est_wait:.0f}s (2 test variants × flood_count sessions)")
     print()
 
-    with tempfile.TemporaryDirectory(prefix="tftptest_chaos5_") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="tftpqa_chaos5_") as tmpdir:
         root     = Path(tmpdir)
-        cfg_path = root / "tftptest.conf"
+        cfg_path = root / "tftpqa.conf"
 
         # Create a test file for RRQ to use (so FSM timeout occurs, not file-not-found error)
         probe_file = root / "testfile.bin"

@@ -1,8 +1,8 @@
-# tftptest Developer's Guide
+# tftpqa Developer's Guide
 
 ## Overview & Development Priorities
 
-This guide consolidates quality assurance, security, and performance principles for tftptest development. The project prioritizes
+This guide consolidates quality assurance, security, and performance principles for tftpqa development. The project prioritizes
 in this order:
 
 1. **Functionality**: Get the application/feature working correctly in a user-friendly manner
@@ -77,7 +77,7 @@ in this order:
 
 ## Part 2: Software Security Development Plan
 
-tftptest is a network-facing TFTP server. In addition to standard quality assurance practices, the following security measures are employed:
+tftpqa is a network-facing TFTP server. In addition to standard quality assurance practices, the following security measures are employed:
 
 ### 1. Multi-Layer Fuzz Testing
 

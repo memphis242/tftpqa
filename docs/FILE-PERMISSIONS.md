@@ -1,6 +1,6 @@
 # File Permissions Policy
 
-tftptest enforces an intentional file-permissions policy on every TFTP read (RRQ)
+tftpqa enforces an intentional file-permissions policy on every TFTP read (RRQ)
 and write (WRQ). The goal is that the user controls which files in the TFTP root
 directory are exposed to clients. Any violations are upheld and reported.
 
@@ -52,7 +52,7 @@ permission set. For example, if one does `open( fname, flags, 0666 )` but the
 umask is `0022` (a very common umask setting), the resulting permission attributes
 of the file will actually be `0666 & ~0022 = 0644`.
 
-tftptest does **not** override the process umask. When the server starts, it reads
+tftpqa does **not** override the process umask. When the server starts, it reads
 the current umask and logs a `WARN` if the umask would strip bits from the
 configured `new_file_mode`:
 
@@ -79,7 +79,7 @@ As an example, in systemd:
 
 ```ini
 [Service]
-ExecStart=/usr/local/bin/tftptest -c /etc/tftptest.conf
+ExecStart=/usr/local/bin/tftpqa -c /etc/tftpqa.conf
 UMask=0000
 ```
 

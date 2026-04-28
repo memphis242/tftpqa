@@ -1,5 +1,5 @@
 /**
- * @file tftptest_ctrl.h
+ * @file tftpqa_ctrl.h
  * @brief UDP control channel for setting fault simulation mode.
  * @date Apr 10, 2026
  * @author Abdulla Almosalmi, @memphis242
@@ -10,14 +10,14 @@
 
 #include <stdint.h>
 
-#include "tftptest_faultmode.h"
+#include "tftpqa_faultmode.h"
 
 /**
- * @brief Return codes for tftptest_ctrl_init(). One code per failure mode so
+ * @brief Return codes for tftpqa_ctrl_init(). One code per failure mode so
  *        the caller can distinguish which syscall went wrong; each failure is
- *        also logged inside tftptest_ctrl_init() with errno details.
+ *        also logged inside tftpqa_ctrl_init() with errno details.
  */
-enum TFTPTest_CtrlResult
+enum TFTPQa_CtrlResult
 {
    TFTPTEST_CTRL_OK              = 0,
    TFTPTEST_CTRL_ERR_SOCKET      = 1,  // socket() failed
@@ -38,7 +38,7 @@ enum TFTPTest_CtrlResult
  *                        0 = lock out all; UINT64_MAX = allow all.
  * @return TFTPTEST_CTRL_OK on success; a TFTPTEST_CTRL_ERR_* code otherwise.
  */
-enum TFTPTest_CtrlResult tftptest_ctrl_init( uint16_t port, uint64_t whitelist );
+enum TFTPQa_CtrlResult tftpqa_ctrl_init( uint16_t port, uint64_t whitelist );
 
 /**
  * @brief Non-blocking poll of the control channel and handle of available data.
@@ -54,11 +54,11 @@ enum TFTPTest_CtrlResult tftptest_ctrl_init( uint16_t port, uint64_t whitelist )
  *
  * @param[in,out] fault  Current fault state (read and updated).
  */
-void tftptest_ctrl_poll_and_handle( struct TFTPTest_FaultState * const fault );
+void tftpqa_ctrl_poll_and_handle( struct TFTPQa_FaultState * const fault );
 
 /**
  * @brief Close the control channel socket.
  */
-void tftptest_ctrl_shutdown( void );
+void tftpqa_ctrl_shutdown( void );
 
 #endif // TFTPTEST_CTRL_H

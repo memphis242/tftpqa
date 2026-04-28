@@ -1,6 +1,6 @@
 # Style Guidelines
 
-This document defines the coding conventions and style practices for the tftptest project.
+This document defines the coding conventions and style practices for the tftpqa project.
 
 ## Naming Conventions
 
@@ -13,15 +13,15 @@ This document defines the coding conventions and style practices for the tftptes
         - `tftp_pkt.c`
         - `tftp_err.c`
 
-- `tftptest_`
+- `tftpqa_`
     - App-specific (non-protocol) module/function
     - Examples:
-        - `tftptest_log.c`
-        - `tftptest_parsecfg.c`
-        - `tftptest_util.c`
-        - `tftptest_whitelist.c`
-        - `tftptest_ctrl.c`
-        - `tftptest_seq.c`
+        - `tftpqa_log.c`
+        - `tftpqa_parsecfg.c`
+        - `tftpqa_util.c`
+        - `tftpqa_whitelist.c`
+        - `tftpqa_ctrl.c`
+        - `tftpqa_seq.c`
 
 #### Test Files
 
@@ -67,14 +67,14 @@ uint32_t ip_host = ntohl(ip_nbo);   // Host byte order
 
 ```c
 // One argument — fine either way
-tftptest_log_init(false);
-tftptest_log_init( false );
+tftpqa_log_init(false);
+tftpqa_log_init( false );
 
 // Two arguments — add space for readability
-tftptest_util_set_recv_timeout( sfd, timeout );
+tftpqa_util_set_recv_timeout( sfd, timeout );
 
 // Many arguments — line break for each (keep first on same line)
-int tftptest_util_create_udp_socket_in_range(uint16_t port_min,
+int tftpqa_util_create_udp_socket_in_range(uint16_t port_min,
                                              uint16_t port_max,
                                              struct sockaddr_in *bound_addr);
 ```
@@ -117,7 +117,7 @@ Standard headers → System headers → Internal headers. Blank line between gro
 #include <fcntl.h>
 
 // Internal headers
-#include "tftptest_log.h"
+#include "tftpqa_log.h"
 #include "tftp_pkt.h"
 ```
 

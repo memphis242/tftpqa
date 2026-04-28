@@ -1,5 +1,5 @@
 ################################################################################
-# Makefile for tftptest — A fault-injecting TFTP server for testing
+# Makefile for tftpqa — A fault-injecting TFTP server for testing
 #
 # Builds:
 #   release  – Optimized for speed (-O2), -Werror enabled, GCC output
@@ -19,7 +19,7 @@
 
 # ─── Project Layout ──────────────────────────────────────────────────────────
 
-PROJECT          := tftptest
+PROJECT          := tftpqa
 SRC_DIR          := src
 TEST_DIR         := test
 INTEGRATION_DIR  := test/integration
@@ -178,8 +178,8 @@ TEST_FILE_CFLAGS := $(C_STD) -Og -g3 $(COMMON_DEFS) $(COMMON_WARNS) $(GCC_EXTRA_
                    -fstack-protector-strong
 TEST_LDFLAGS    := $(TEST_SANITIZERS) --coverage
 # Application objects for test build (everything except main, so tests supply their own main via Unity)
-# If you keep main() in tftptest.c, split it out or guard it with #ifndef UNIT_TEST.
-TEST_APP_SRCS   := $(filter-out $(SRC_DIR)/tftptest.c,$(SRCS))
+# If you keep main() in tftpqa.c, split it out or guard it with #ifndef UNIT_TEST.
+TEST_APP_SRCS   := $(filter-out $(SRC_DIR)/tftpqa.c,$(SRCS))
 TEST_APP_OBJS   := $(patsubst $(SRC_DIR)/%.c,$(TEST_BUILD_DIR)/%.o,$(TEST_APP_SRCS))
 TEST_OBJS       := $(patsubst $(TEST_DIR)/%.c,$(TEST_BUILD_DIR)/%.o,$(TEST_SRCS))
 UNITY_OBJS      := $(TEST_BUILD_DIR)/unity.o
@@ -506,7 +506,7 @@ binstats: $(REL_BIN)
 	@echo "--- Static library linkage ---"
 	@sym_list=$$(nm --defined-only -g $(REL_BIN) 2>/dev/null \
 		| awk '$$2 == "T" {print $$3}' \
-		| grep -Ev '^(main|tftp_|tftptest_|_)' | sort); \
+		| grep -Ev '^(main|tftp_|tftpqa_|_)' | sort); \
 	if [ -z "$$sym_list" ]; then \
 		echo "  none detected"; \
 	else \
@@ -614,7 +614,7 @@ clean:
 
 help:
 	@echo ""
-	@echo "  tftptest Makefile"
+	@echo "  tftpqa Makefile"
 	@echo "  ─────────────────────────────────────────────────"
 	@echo "  make                  Build debug (default)"
 	@echo "  make debug            Build with -Og -g3, no -Werror"

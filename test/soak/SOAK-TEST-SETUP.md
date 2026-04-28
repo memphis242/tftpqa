@@ -3,7 +3,7 @@
 For release qualification, all chaos monkey scripts run 24/7 for at least one month in parallel Podman containers on an Oracle Cloud Free Tier ARM instance (4 cores, 24 GB RAM).
 
 ## Container System Setup
-- `Containerfile`: Multi-stage build — `almalinux/9-base` (builds the tftptest server, then discards its base img) → `almalinux/9-minimal` (runtime: Python 3 + tftptest binary)
+- `Containerfile`: Multi-stage build — `almalinux/9-base` (builds the tftpqa server, then discards its base img) → `almalinux/9-minimal` (runtime: Python 3 + tftpqa binary)
 - `entrypoint.sh`: Loops a single chaos monkey indefinitely, logging PASS/FAIL with timestamps and run counts; full output dumped only on failure
 - `podman-compose.yml`: Multiple services (`chaos-1` through `chaos-n`), each on a unique port, shared log volume, auto-restart
 - `deploy.sh`: One-shot VPS bootstrap (install podman, build image, start containers)

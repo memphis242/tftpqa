@@ -14,8 +14,8 @@
 #include <arpa/inet.h>
 
 #include "tftp_pkt.h"
-#include "tftptest_util.h"
-#include "tftptest_common.h"
+#include "tftpqa_util.h"
+#include "tftpqa_common.h"
 
 /***************************** Local Declarations *****************************/
 
@@ -69,7 +69,7 @@ bool tftp_pkt_request_is_valid(const uint8_t *buf, size_t sz)
       char c = (char)payload[i];
 
       // Must be a valid filename character (printable, no path separators)
-      if ( !tftptest_util_is_valid_filename_char( c ) )
+      if ( !tftpqa_util_is_valid_filename_char( c ) )
          return false;
 
       if ( isalnum( (unsigned char)c ) )

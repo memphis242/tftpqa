@@ -8,8 +8,8 @@
 #include "test_common.h"
 #include "tftp_fsm.h"
 #include "tftp_pkt.h"
-#include "tftptest_parsecfg.h"
-#include "tftptest_faultmode.h"
+#include "tftpqa_parsecfg.h"
+#include "tftpqa_faultmode.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -62,9 +62,9 @@ static struct sockaddr_in make_peer_addr(const char *ip, uint16_t port)
    return addr;
 }
 
-static struct TFTPTest_Config make_test_config(void)
+static struct TFTPQa_Config make_test_config(void)
 {
-   struct TFTPTest_Config cfg = {0};
+   struct TFTPQa_Config cfg = {0};
    cfg.tftp_port = 23069;
    cfg.ctrl_port = 23070;
    cfg.timeout_sec = 1;    // Use very short timeout for fast unit tests
@@ -129,8 +129,8 @@ static size_t build_wrq_octet(uint8_t *buf, size_t cap, const char *filename)
 void test_fsm_kickoff_rejects_null_rqbuf(void)
 {
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    // tftp_fsm_kickoff asserts on null rqbuf, so this test verifies
    // that the function validates input at entry
@@ -146,8 +146,8 @@ void test_fsm_kickoff_rejects_null_peer_addr(void)
 {
    uint8_t buf[512];
    size_t rqsz = build_rrq_octet(buf, sizeof buf, "test.txt");
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    // Function asserts on null peer_addr at entry
    (void)cfg;
@@ -160,7 +160,7 @@ void test_fsm_kickoff_rejects_null_cfg(void)
    uint8_t buf[512];
    size_t rqsz = build_rrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    // Function asserts on null cfg at entry
    (void)peer;
@@ -173,7 +173,7 @@ void test_fsm_kickoff_rejects_null_fault(void)
    uint8_t buf[512];
    size_t rqsz = build_rrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
+   struct TFTPQa_Config cfg = make_test_config();
 
    // Function asserts on null fault at entry
    (void)peer;
@@ -185,8 +185,8 @@ void test_fsm_kickoff_rejects_zero_rqsz(void)
 {
    uint8_t buf[512];
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    // Function asserts on zero rqsz at entry
    (void)buf;
@@ -204,8 +204,8 @@ void test_fsm_kickoff_unparseable_request_returns_protocol_err(void)
    buf[1] = 99; // invalid opcode
 
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, sizeof buf, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_PROTOCOL_ERR, rc);
@@ -216,8 +216,8 @@ void test_fsm_kickoff_rrq_timeout_returns_fine(void)
    uint8_t buf[512];
    size_t rqsz = build_rrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_RRQ_TIMEOUT, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_RRQ_TIMEOUT, .param = 0};
 
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FINE, rc);
@@ -228,8 +228,8 @@ void test_fsm_kickoff_wrq_timeout_returns_fine(void)
    uint8_t buf[512];
    size_t rqsz = build_wrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_WRQ_TIMEOUT, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_WRQ_TIMEOUT, .param = 0};
 
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FINE, rc);
@@ -240,8 +240,8 @@ void test_fsm_kickoff_rrq_file_not_found_fault_returns_fine(void)
    uint8_t buf[512];
    size_t rqsz = build_rrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_FILE_NOT_FOUND, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_FILE_NOT_FOUND, .param = 0};
 
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FINE, rc);
@@ -252,8 +252,8 @@ void test_fsm_kickoff_wrq_access_violation_returns_fine(void)
    uint8_t buf[512];
    size_t rqsz = build_wrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_PERM_DENIED_WRITE, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_PERM_DENIED_WRITE, .param = 0};
 
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FINE, rc);
@@ -264,8 +264,8 @@ void test_fsm_kickoff_rrq_access_violation_fault_returns_fine(void)
    uint8_t buf[512];
    size_t rqsz = build_rrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_PERM_DENIED_READ, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_PERM_DENIED_READ, .param = 0};
 
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FINE, rc);
@@ -276,8 +276,8 @@ void test_fsm_kickoff_file_not_found_returns_file_err(void)
    uint8_t buf[512];
    size_t rqsz = build_rrq_octet(buf, sizeof buf, "/nonexistent/file/that/does/not/exist/test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FILE_ERR, rc);
@@ -288,9 +288,9 @@ void test_fsm_kickoff_wrq_disabled_returns_wrq_disabled(void)
    uint8_t buf[512];
    size_t rqsz = build_wrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
+   struct TFTPQa_Config cfg = make_test_config();
    cfg.wrq_enabled = false;
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    size_t bytes_written = 0;
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, &bytes_written);
@@ -303,9 +303,9 @@ void test_fsm_kickoff_wrq_disk_check_fails_returns_disk_check(void)
    uint8_t buf[512];
    size_t rqsz = build_wrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
+   struct TFTPQa_Config cfg = make_test_config();
    cfg.min_disk_free_bytes = (size_t)-1; // Impossible requirement
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    size_t bytes_written = 0;
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, &bytes_written);
@@ -319,8 +319,8 @@ void test_fsm_kickoff_wrq_file_creation_fails_returns_file_err(void)
    // Use a filename in a directory that (hopefully) doesn't exist or we can't write to
    size_t rqsz = build_wrq_octet(buf, sizeof buf, "/dev/null/cannot_create_file_here");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    size_t bytes_written = 0;
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, &bytes_written);
@@ -334,8 +334,8 @@ void test_fsm_kickoff_socket_creation_fails_returns_socket_err(void)
    uint8_t buf[512];
    size_t rqsz = build_rrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    (void)peer;
    (void)cfg;
@@ -349,8 +349,8 @@ void test_fsm_kickoff_set_recv_timeout_fails_returns_setsockopt_err(void)
    uint8_t buf[512];
    size_t rqsz = build_rrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    (void)peer;
    (void)cfg;
@@ -378,8 +378,8 @@ void test_fsm_kickoff_sets_transfer_mode_octet(void)
    uint8_t buf[512];
    size_t rqsz = build_rrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_RRQ_TIMEOUT, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_RRQ_TIMEOUT, .param = 0};
 
    // Timeout fault returns fine immediately, so transfer mode is set but not used
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
@@ -400,8 +400,8 @@ void test_fsm_kickoff_sets_transfer_mode_netascii(void)
    buf[off++] = '\0';
 
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_RRQ_TIMEOUT, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_RRQ_TIMEOUT, .param = 0};
 
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, off, &peer, &cfg, &fault, 0, NULL);
    TEST_ASSERT_EQUAL(TFTP_FSM_RC_FINE, rc);
@@ -412,9 +412,9 @@ void test_fsm_kickoff_wrq_bytes_written_null_handled(void)
    uint8_t buf[512];
    size_t rqsz = build_wrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
+   struct TFTPQa_Config cfg = make_test_config();
    cfg.wrq_enabled = false; // Will trigger early return with wrq_bytes_written check
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    // Pass NULL for wrq_bytes_written - function should handle it
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
@@ -426,9 +426,9 @@ void test_fsm_kickoff_wrq_with_session_budget(void)
    uint8_t buf[512];
    size_t rqsz = build_wrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
+   struct TFTPQa_Config cfg = make_test_config();
    cfg.wrq_enabled = false; // Early return to avoid actual file creation
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    size_t budget = 1024;
    size_t bytes_written = 0;
@@ -441,8 +441,8 @@ void test_fsm_kickoff_rrq_fault_none(void)
    uint8_t buf[512];
    size_t rqsz = build_rrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, NULL);
    // File not found should return FILE_ERR, but it could also be TIMEOUT on some systems
@@ -454,8 +454,8 @@ void test_fsm_kickoff_wrq_fault_none(void)
    uint8_t buf[512];
    size_t rqsz = build_wrq_octet(buf, sizeof buf, "test.txt");
    struct sockaddr_in peer = make_peer_addr("127.0.0.1", 1234);
-   struct TFTPTest_Config cfg = make_test_config();
-   struct TFTPTest_FaultState fault = {.mode = FAULT_NONE, .param = 0};
+   struct TFTPQa_Config cfg = make_test_config();
+   struct TFTPQa_FaultState fault = {.mode = FAULT_NONE, .param = 0};
 
    size_t bytes_written = 0;
    enum TFTP_FSM_RC rc = tftp_fsm_kickoff(buf, rqsz, &peer, &cfg, &fault, 0, &bytes_written);

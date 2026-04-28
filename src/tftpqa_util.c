@@ -24,12 +24,12 @@
 #include <arpa/inet.h>
 
 // App-Specific Headers
-#include "tftptest_util.h"
-#include "tftptest_log.h"
+#include "tftpqa_util.h"
+#include "tftpqa_log.h"
 
 /********************** Public Function Implementations ***********************/
 
-int tftptest_util_create_ephemeral_udp_socket(struct sockaddr_in *bound_addr)
+int tftpqa_util_create_ephemeral_udp_socket(struct sockaddr_in *bound_addr)
 {
    int sfd = socket( AF_INET, SOCK_DGRAM, 0 );
    if ( sfd < 0 )
@@ -61,7 +61,7 @@ int tftptest_util_create_ephemeral_udp_socket(struct sockaddr_in *bound_addr)
    return sfd;
 }
 
-int tftptest_util_create_udp_socket_in_range(uint16_t port_min, uint16_t port_max,
+int tftpqa_util_create_udp_socket_in_range(uint16_t port_min, uint16_t port_max,
                                          struct sockaddr_in *bound_addr)
 {
    assert( port_min >= 1 );
@@ -111,7 +111,7 @@ int tftptest_util_create_udp_socket_in_range(uint16_t port_min, uint16_t port_ma
    return -1;
 }
 
-int tftptest_util_set_recv_timeout(int sfd, unsigned int timeout_sec)
+int tftpqa_util_set_recv_timeout(int sfd, unsigned int timeout_sec)
 {
    assert( sfd >= 0 );
 
@@ -123,7 +123,7 @@ int tftptest_util_set_recv_timeout(int sfd, unsigned int timeout_sec)
    return setsockopt( sfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof tv );
 }
 
-bool tftptest_util_is_valid_filename_char(char c)
+bool tftpqa_util_is_valid_filename_char(char c)
 {
    // Allow printable ASCII (0x20..0x7E) excluding path separators
    if ( c < 0x20 || c > 0x7E )
@@ -133,7 +133,7 @@ bool tftptest_util_is_valid_filename_char(char c)
    return true;
 }
 
-enum TFTPTestUtil_TextCheck tftptest_util_check_text_bytes(const uint8_t *data, size_t len)
+enum TFTPTestUtil_TextCheck tftpqa_util_check_text_bytes(const uint8_t *data, size_t len)
 {
    assert(data != NULL || len == 0);
 
@@ -216,7 +216,7 @@ enum TFTPTestUtil_TextCheck tftptest_util_check_text_bytes(const uint8_t *data, 
    return saw_utf8 ? TFTP_TEXT_HAS_UTF8 : TFTP_TEXT_CLEAN;
 }
 
-size_t tftptest_util_octet_to_netascii(const uint8_t *in, size_t in_len,
+size_t tftpqa_util_octet_to_netascii(const uint8_t *in, size_t in_len,
                                     uint8_t *out, size_t out_cap,
                                     bool *pending_cr)
 {
@@ -279,7 +279,7 @@ size_t tftptest_util_octet_to_netascii(const uint8_t *in, size_t in_len,
    return o;
 }
 
-size_t tftptest_util_netascii_to_octet(const uint8_t *in, size_t in_len,
+size_t tftpqa_util_netascii_to_octet(const uint8_t *in, size_t in_len,
                                     uint8_t *out, size_t out_cap,
                                     bool *pending_cr)
 {
@@ -332,7 +332,7 @@ size_t tftptest_util_netascii_to_octet(const uint8_t *in, size_t in_len,
    return o;
 }
 
-int tftptest_util_chroot_and_drop(const char *dir, const char *user)
+int tftpqa_util_chroot_and_drop(const char *dir, const char *user)
 {
    assert( dir != NULL );
    assert( user != NULL );
@@ -340,7 +340,7 @@ int tftptest_util_chroot_and_drop(const char *dir, const char *user)
    // Step 1: chdir into the target directory
    if ( chdir( dir ) != 0 )
    {
-      tftptest_log( TFTP_LOG_ERR, __func__, "chdir('%s') failed: %s (%d) : %s", dir,
+      tftpqa_log( TFTP_LOG_ERR, __func__, "chdir('%s') failed: %s (%d) : %s", dir,
                 strerrorname_np(errno), errno, strerror(errno) );
       return -1;
    }
@@ -348,7 +348,7 @@ int tftptest_util_chroot_and_drop(const char *dir, const char *user)
    // If not running as root, skip chroot and privilege drop
    if ( getuid() != 0 )
    {
-      tftptest_log( TFTP_LOG_WARN, __func__,
+      tftpqa_log( TFTP_LOG_WARN, __func__,
                 "Not running as root (uid=%ju); skipping chroot and privilege drop",
                 (uintmax_t)getuid() );
       return 0;
@@ -357,7 +357,7 @@ int tftptest_util_chroot_and_drop(const char *dir, const char *user)
    // Step 2: chroot into the current directory
    if ( chroot( "." ) != 0 )
    {
-      tftptest_log( TFTP_LOG_ERR, __func__, "chroot('.') failed: %s (%d) : %s",
+      tftpqa_log( TFTP_LOG_ERR, __func__, "chroot('.') failed: %s (%d) : %s",
                 strerrorname_np(errno), errno, strerror(errno) );
       return -2;
    }
@@ -365,7 +365,7 @@ int tftptest_util_chroot_and_drop(const char *dir, const char *user)
    // Step 3: chdir to new root so relative paths work
    if ( chdir( "/" ) != 0 )
    {
-      tftptest_log( TFTP_LOG_ERR, __func__, "chdir('/') after chroot failed: %s (%d) : %s",
+      tftpqa_log( TFTP_LOG_ERR, __func__, "chdir('/') after chroot failed: %s (%d) : %s",
                 strerrorname_np(errno), errno, strerror(errno) );
       return -3;
    }
@@ -376,17 +376,17 @@ int tftptest_util_chroot_and_drop(const char *dir, const char *user)
    if ( pw == NULL )
    {
       if ( errno != 0 )
-         tftptest_log( TFTP_LOG_ERR, __func__, "getpwnam('%s') failed: %s (%d) : %s", user,
+         tftpqa_log( TFTP_LOG_ERR, __func__, "getpwnam('%s') failed: %s (%d) : %s", user,
                    strerrorname_np(errno), errno, strerror(errno) );
       else
-         tftptest_log( TFTP_LOG_ERR, __func__, "User '%s' not found", user );
+         tftpqa_log( TFTP_LOG_ERR, __func__, "User '%s' not found", user );
       return -4;
    }
 
    // Step 5: Drop group privileges first (must do before setuid)
    if ( setgid( pw->pw_gid ) != 0 )
    {
-      tftptest_log( TFTP_LOG_ERR, __func__, "setgid(%ju) failed: %s (%d) : %s",
+      tftpqa_log( TFTP_LOG_ERR, __func__, "setgid(%ju) failed: %s (%d) : %s",
                 (uintmax_t)pw->pw_gid, strerrorname_np(errno), errno, strerror(errno) );
       return -5;
    }
@@ -394,7 +394,7 @@ int tftptest_util_chroot_and_drop(const char *dir, const char *user)
    // Drop supplementary groups
    if ( setgroups( 0, NULL ) != 0 )
    {
-      tftptest_log( TFTP_LOG_ERR, __func__, "setgroups(0, NULL) failed: %s (%d) : %s",
+      tftpqa_log( TFTP_LOG_ERR, __func__, "setgroups(0, NULL) failed: %s (%d) : %s",
                 strerrorname_np(errno), errno, strerror(errno) );
       return -6;
    }
@@ -402,7 +402,7 @@ int tftptest_util_chroot_and_drop(const char *dir, const char *user)
    // Step 6: Drop user privileges (point of no return)
    if ( setuid( pw->pw_uid ) != 0 )
    {
-      tftptest_log( TFTP_LOG_ERR, __func__, "setuid(%ju) failed: %s (%d) : %s",
+      tftpqa_log( TFTP_LOG_ERR, __func__, "setuid(%ju) failed: %s (%d) : %s",
                 (uintmax_t)pw->pw_uid, strerrorname_np(errno), errno, strerror(errno) );
       return -7;
    }
@@ -412,26 +412,26 @@ int tftptest_util_chroot_and_drop(const char *dir, const char *user)
    uid_t effective_user_id = geteuid();
    if ( real_user_id != 0 || effective_user_id != 0 )
    {
-      tftptest_log( TFTP_LOG_ERR, __func__,
+      tftpqa_log( TFTP_LOG_ERR, __func__,
                 "Somehow, the prior setuid() calls failed to drop privileges... "
                 "getuid() returned %u :: geteuid() returned %u",
                 real_user_id, effective_user_id );
       return -8;
    }
 
-   tftptest_log( TFTP_LOG_INFO, NULL, "Chrooted to '%s', running as user '%s' (uid=%ju, gid=%ju)",
+   tftpqa_log( TFTP_LOG_INFO, NULL, "Chrooted to '%s', running as user '%s' (uid=%ju, gid=%ju)",
              dir, user, (uintmax_t)pw->pw_uid, (uintmax_t)pw->pw_gid );
 
    return 0;
 }
 
-int tftptest_util_open_for_read(const char *filename)
+int tftpqa_util_open_for_read(const char *filename)
 {
    assert( filename != NULL );
    return open( filename, O_RDONLY | O_NOFOLLOW | O_CLOEXEC );
 }
 
-int tftptest_util_open_for_write( const char * const filename,
+int tftpqa_util_open_for_write( const char * const filename,
                               mode_t create_mode,
                               bool * const out_created )
 {
@@ -474,7 +474,7 @@ int tftptest_util_open_for_write( const char * const filename,
    return fd;
 }
 
-enum TFTPTestUtil_PermCheck tftptest_util_check_read_perms(int fd, mode_t *out_mode)
+enum TFTPTestUtil_PermCheck tftpqa_util_check_read_perms(int fd, mode_t *out_mode)
 {
    assert( fd >= 0 );
 
@@ -502,7 +502,7 @@ enum TFTPTestUtil_PermCheck tftptest_util_check_read_perms(int fd, mode_t *out_m
    return TFTP_PERM_OK;
 }
 
-enum TFTPTestUtil_PermCheck tftptest_util_check_write_perms(int fd, mode_t *out_mode)
+enum TFTPTestUtil_PermCheck tftpqa_util_check_write_perms(int fd, mode_t *out_mode)
 {
    assert( fd >= 0 );
 

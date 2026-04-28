@@ -1,5 +1,5 @@
 /**
- * @file tftptest_faultmode.h
+ * @file tftpqa_faultmode.h
  * @brief Fault simulation modes for the TFTP test server.
  * @date Apr 10, 2026
  * @author Abdulla Almosalmi, @memphis242
@@ -22,10 +22,10 @@
 
 // Fault simulation modes
 // Some modes are parameterized (e.g., block number, error code).
-// The parameter is carried separately in TFTPTest_FaultState.
-enum TFTPTest_FaultMode
+// The parameter is carried separately in TFTPQa_FaultState.
+enum TFTPQa_FaultMode
 {
-   // Error return codes from tftptest_fault_name_lookup_mode()
+   // Error return codes from tftpqa_fault_name_lookup_mode()
    TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND = -3,
    TFTPTEST_FAULT_LOOKUP_NAME_TOO_SHORT = -2,
    TFTPTEST_FAULT_LOOKUP_NAME_TOO_LONG  = -1,
@@ -90,15 +90,15 @@ enum TFTPTest_FaultMode
 // `param` is only meaningful when `param_present` is true; otherwise the mode's
 // per-mode default applies. This distinguishes "no parameter" from
 // "parameter is 0" (0 is a legitimate value for some modes).
-struct TFTPTest_FaultState
+struct TFTPQa_FaultState
 {
-   enum TFTPTest_FaultMode mode;
+   enum TFTPQa_FaultMode mode;
    uint32_t                param;
    bool                    param_present;
 };
 
 // Name table and lookup (shared by ctrl and seq modules)
-extern const char *const tftptest_fault_mode_names[FAULT_MODE_COUNT];
+extern const char *const tftpqa_fault_mode_names[FAULT_MODE_COUNT];
 
 /**
  * @brief Return the fault mode enum value
@@ -108,6 +108,6 @@ extern const char *const tftptest_fault_mode_names[FAULT_MODE_COUNT];
  *         On invalid name (too long), TFTPTEST_FAULT_LOOKUP_NAME_TOO_LONG
  *         On failure to find match for name, TFTPTEST_FAULT_LOOKUP_NAME_NOT_FOUND
  */
-enum TFTPTest_FaultMode tftptest_fault_name_lookup_mode(const char *name);
+enum TFTPQa_FaultMode tftpqa_fault_name_lookup_mode(const char *name);
 
 #endif // TFTPTEST_FAULTMODE_H

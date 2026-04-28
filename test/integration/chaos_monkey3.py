@@ -431,13 +431,13 @@ def test_dup_wrq_extralarge(host, port, root, dup_count):
 def find_server_binary() -> str:
     script_dir = Path(__file__).resolve().parent
     candidates = [
-        script_dir.parent.parent / "build" / "debug"   / "tftptest",
-        script_dir.parent.parent / "build" / "release" / "tftptest",
+        script_dir.parent.parent / "build" / "debug"   / "tftpqa",
+        script_dir.parent.parent / "build" / "release" / "tftpqa",
     ]
     for p in candidates:
         if p.is_file() and os.access(p, os.X_OK):
             return str(p)
-    sys.exit("Could not find tftptest binary. Run `make debug` from the repo root first.")
+    sys.exit("Could not find tftpqa binary. Run `make debug` from the repo root first.")
 
 
 def main():
@@ -465,7 +465,7 @@ def main():
     print(f"Dup count:      {dup_count} (each ACK/DATA sent {dup_count}x)")
     print()
 
-    with tempfile.TemporaryDirectory(prefix="tftptest_chaos3_") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="tftpqa_chaos3_") as tmpdir:
         root = Path(tmpdir)
         print(f"Test root dir:  {root}")
         print()

@@ -1,5 +1,5 @@
 /**
- * @file tftptest_seq.c
+ * @file tftpqa_seq.c
  * @brief Test sequence file parser and stepper.
  * @date Apr 11, 2026
  * @author Abdulla Almosalmi, @memphis242
@@ -14,8 +14,8 @@
 #include <assert.h>
 #include <errno.h>
 
-#include "tftptest_seq.h"
-#include "tftptest_log.h"
+#include "tftpqa_seq.h"
+#include "tftpqa_log.h"
 
 #define SEQ_LINE_MAX 256
 
@@ -45,7 +45,7 @@ static int count_entries(FILE *fp)
 /// Parse a single key=value token. Returns 0 on success.
 static int parse_token( const char *token,
                         size_t lineno,
-                        enum TFTPTest_FaultMode *mode,
+                        enum TFTPQa_FaultMode *mode,
                         bool *mode_set,
                         uint32_t *param,
                         bool *param_set,
@@ -63,12 +63,12 @@ static int parse_token( const char *token,
    if ( strncasecmp(token, "mode=", 5) == 0 )
    {
       const char *val = token + 5;
-      enum TFTPTest_FaultMode mode_idx = tftptest_fault_name_lookup_mode(val);
+      enum TFTPQa_FaultMode mode_idx = tftpqa_fault_name_lookup_mode(val);
 
       if ( (int)mode_idx < 0 )
       {
-         tftptest_log( TFTP_LOG_ERR, __func__,
-            "Sequence line %zu: unknown fault mode '%s' :: tftptest_fault_name_lookup_mode(): %d",
+         tftpqa_log( TFTP_LOG_ERR, __func__,
+            "Sequence line %zu: unknown fault mode '%s' :: tftpqa_fault_name_lookup_mode(): %d",
             lineno, val, (int)mode_idx );
 
          return -1;
@@ -84,7 +84,7 @@ static int parse_token( const char *token,
       unsigned long v = strtoul(val, &end, 0);
       if ( end == val || *end != '\0' )
       {
-         tftptest_log(TFTP_LOG_ERR, __func__, "Sequence line %zu: invalid param value '%s'", lineno, val);
+         tftpqa_log(TFTP_LOG_ERR, __func__, "Sequence line %zu: invalid param value '%s'", lineno, val);
          return -1;
       }
       *param = (uint32_t)v;
@@ -97,7 +97,7 @@ static int parse_token( const char *token,
       unsigned long v = strtoul(val, &end, 0);
       if ( end == val || *end != '\0' || v == 0 )
       {
-         tftptest_log(TFTP_LOG_ERR, __func__, "Sequence line %zu: invalid count '%s' (must be >= 1)", lineno, val);
+         tftpqa_log(TFTP_LOG_ERR, __func__, "Sequence line %zu: invalid count '%s' (must be >= 1)", lineno, val);
          return -1;
       }
       *count = v;
@@ -105,19 +105,19 @@ static int parse_token( const char *token,
    }
    else
    {
-      tftptest_log(TFTP_LOG_ERR, __func__, "Sequence line %zu: unknown key in '%s'", lineno, token);
+      tftpqa_log(TFTP_LOG_ERR, __func__, "Sequence line %zu: unknown key in '%s'", lineno, token);
       return -1;
    }
 
    return 0;
 }
 
-int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
+int tftpqa_seq_load(const char *path, struct TFTPQa_Seq *seq)
 {
    FILE *fp = fopen(path, "r");
    if ( fp == NULL )
    {
-      tftptest_log(TFTP_LOG_ERR, __func__,
+      tftpqa_log(TFTP_LOG_ERR, __func__,
                "Cannot open sequence file '%s': %s (%d) : %s",
                path, strerrorname_np(errno), errno, strerror(errno));
       return -1;
@@ -127,16 +127,16 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
    int n = count_entries(fp);
    if ( n <= 0 )
    {
-      tftptest_log(TFTP_LOG_ERR, __func__, "Sequence file '%s': no entries found", path);
+      tftpqa_log(TFTP_LOG_ERR, __func__, "Sequence file '%s': no entries found", path);
       fclose(fp);
       return -1;
    }
 
    // Allocate
-   struct TFTPTest_SeqEntry *entries = calloc((size_t)n, sizeof *entries);
+   struct TFTPQa_SeqEntry *entries = calloc((size_t)n, sizeof *entries);
    if ( entries == NULL )
    {
-      tftptest_log(TFTP_LOG_ERR, __func__, "Sequence file: allocation failed");
+      tftpqa_log(TFTP_LOG_ERR, __func__, "Sequence file: allocation failed");
       fclose(fp);
       return -1;
    }
@@ -182,7 +182,7 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
          continue;
 
       // Parse key=value tokens
-      enum TFTPTest_FaultMode mode = FAULT_NONE;
+      enum TFTPQa_FaultMode mode = FAULT_NONE;
       uint32_t param = 0;
       size_t count = 1;
       bool mode_set = false, param_set = false, count_set = false;
@@ -202,7 +202,7 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
 
       if ( !mode_set )
       {
-         tftptest_log(TFTP_LOG_ERR, __func__, "Sequence line %zu: missing required 'mode=' field", lineno);
+         tftpqa_log(TFTP_LOG_ERR, __func__, "Sequence line %zu: missing required 'mode=' field", lineno);
          errors++;
          continue;
       }
@@ -221,7 +221,7 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
 
    if ( errors > 0 )
    {
-      tftptest_log(TFTP_LOG_ERR, __func__, "Sequence file '%s': %d error(s), aborting", path, errors);
+      tftpqa_log(TFTP_LOG_ERR, __func__, "Sequence file '%s': %d error(s), aborting", path, errors);
       free(entries);
       return -1;
    }
@@ -231,12 +231,12 @@ int tftptest_seq_load(const char *path, struct TFTPTest_Seq *seq)
    seq->current          = 0;
    seq->sessions_in_step = 0;
 
-   tftptest_log(TFTP_LOG_INFO, NULL, "Loaded test sequence: %zu entries, %zu total sessions", idx, total_sessions);
+   tftpqa_log(TFTP_LOG_INFO, NULL, "Loaded test sequence: %zu entries, %zu total sessions", idx, total_sessions);
 
    return 0;
 }
 
-bool tftptest_seq_advance(struct TFTPTest_Seq *seq, struct TFTPTest_FaultState *fault)
+bool tftpqa_seq_advance(struct TFTPQa_Seq *seq, struct TFTPQa_FaultState *fault)
 {
    // FIXME: Need to handle case where this fcn is called after the last step of the last session...
 
@@ -257,16 +257,16 @@ bool tftptest_seq_advance(struct TFTPTest_Seq *seq, struct TFTPTest_FaultState *
 
       if ( fault->param_present )
       {
-         tftptest_log(TFTP_LOG_INFO, NULL, "Sequence step %zu/%zu: %s param=%u, %zu sessions",
+         tftpqa_log(TFTP_LOG_INFO, NULL, "Sequence step %zu/%zu: %s param=%u, %zu sessions",
                   seq->current + 1, seq->n_entries,
-                  tftptest_fault_mode_names[fault->mode],
+                  tftpqa_fault_mode_names[fault->mode],
                   fault->param, seq->entries[seq->current].count);
       }
       else
       {
-         tftptest_log(TFTP_LOG_INFO, NULL, "Sequence step %zu/%zu: %s (no param), %zu sessions",
+         tftpqa_log(TFTP_LOG_INFO, NULL, "Sequence step %zu/%zu: %s (no param), %zu sessions",
                   seq->current + 1, seq->n_entries,
-                  tftptest_fault_mode_names[fault->mode],
+                  tftpqa_fault_mode_names[fault->mode],
                   seq->entries[seq->current].count);
       }
    }
@@ -274,7 +274,7 @@ bool tftptest_seq_advance(struct TFTPTest_Seq *seq, struct TFTPTest_FaultState *
    return true;
 }
 
-void tftptest_seq_free(struct TFTPTest_Seq *seq)
+void tftpqa_seq_free(struct TFTPQa_Seq *seq)
 {
    free(seq->entries);
    seq->entries          = NULL;

@@ -1,14 +1,14 @@
 /**
- * @file test_tftptest_ctrl.c
- * @brief Unit tests for tftptest_ctrl module.
+ * @file test_tftpqa_ctrl.c
+ * @brief Unit tests for tftpqa_ctrl module.
  * @date Apr 12, 2026
  * @author Abdulla Almosalmi, @memphis242
  */
 
 #include "test_common.h"
-#include "tftptest_ctrl.h"
-#include "tftptest_faultmode.h"
-#include "tftptest_whitelist.h"
+#include "tftpqa_ctrl.h"
+#include "tftpqa_faultmode.h"
+#include "tftpqa_whitelist.h"
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -107,7 +107,7 @@ static ssize_t ctrl_send_recv(uint16_t port, const char *msg,
 // while the client socket is still open), then receive the reply.
 // Use when you need to verify the server's reply content.
 static ssize_t ctrl_exchange( uint16_t port,
-                              struct TFTPTest_FaultState * fault,
+                              struct TFTPQa_FaultState * fault,
                               const char * msg,
                               char * reply, size_t reply_cap )
 {
@@ -127,7 +127,7 @@ static ssize_t ctrl_exchange( uint16_t port,
                 (struct sockaddr *)&dest, sizeof dest);
 
    // Process while client socket is open so the reply can be delivered back.
-   tftptest_ctrl_poll_and_handle(fault);
+   tftpqa_ctrl_poll_and_handle(fault);
 
    ssize_t n = recv(sfd, reply, reply_cap - 1, 0);
    if ( n > 0 ) reply[n] = '\0';
@@ -143,84 +143,84 @@ static ssize_t ctrl_exchange( uint16_t port,
 void test_ctrl_set_fault_and_get(void)
 {
    uint16_t port = 39999;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[256];
 
    ssize_t n = ctrl_send_recv(port, "SET_FAULT RRQ_TIMEOUT\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
 
    // GET_FAULT
    n = ctrl_send_recv(port, "GET_FAULT\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
 
    // RESET
    n = ctrl_send_recv(port, "RESET\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
    (void)n;
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 void test_ctrl_set_fault_with_param(void)
 {
    uint16_t port = 39998;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
    char reply[128];
 
    ssize_t n = ctrl_send_recv(port, "SET_FAULT DUP_MID_DATA 5\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_DUP_MID_DATA, fault.mode );
    TEST_ASSERT_EQUAL_UINT32( 5, fault.param );
    (void)n;
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 void test_ctrl_unknown_command(void)
 {
    uint16_t port = 39997;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
    char reply[128];
 
    ssize_t n = ctrl_send_recv(port, "BOGUS\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
    (void)n;
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 void test_ctrl_unknown_fault_mode(void)
 {
    uint16_t port = 39996;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
    char reply[128];
 
    ssize_t n = ctrl_send_recv(port, "SET_FAULT NONEXISTENT\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
    (void)n;
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 void test_ctrl_whitelist_rejects_disallowed_mode(void)
@@ -228,43 +228,43 @@ void test_ctrl_whitelist_rejects_disallowed_mode(void)
    uint16_t port = 39995;
    // Whitelist that allows only FAULT_RRQ_TIMEOUT (bit 0)
    uint64_t whitelist = (uint64_t)1 << 0;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, whitelist);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, whitelist);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
    char reply[128];
 
    // Try to set FAULT_WRQ_TIMEOUT (bit 1) -- should be rejected
    ssize_t n = ctrl_send_recv(port, "SET_FAULT WRQ_TIMEOUT\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
    (void)n;
 
    // Setting RRQ_TIMEOUT should succeed with this whitelist
    n = ctrl_send_recv(port, "SET_FAULT RRQ_TIMEOUT\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 void test_ctrl_set_fault_missing_mode_name(void)
 {
    uint16_t port = 39994;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0 };
    char reply[128];
 
    ssize_t n = ctrl_send_recv(port, "SET_FAULT\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
    (void)n;
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // param_present semantics -------------------------------------------------------
@@ -275,28 +275,28 @@ void test_ctrl_set_fault_missing_mode_name(void)
 void test_ctrl_param_present_false_when_no_param(void)
 {
    uint16_t port = 39993;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128];
    ssize_t n;
 
    // First, set a mode WITH a param so param_present is true.
    n = ctrl_send_recv(port, "SET_FAULT DUP_MID_DATA 3\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_DUP_MID_DATA, fault.mode );
    TEST_ASSERT_TRUE( fault.param_present );
 
    // Now set a mode WITHOUT a param; param_present must be false.
    n = ctrl_send_recv(port, "SET_FAULT RRQ_TIMEOUT\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
    TEST_ASSERT_FALSE( fault.param_present );
    (void)n;
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // param=0 with param_present=true is distinct from "no parameter supplied".
@@ -304,48 +304,48 @@ void test_ctrl_param_present_false_when_no_param(void)
 void test_ctrl_param_zero_is_distinct_from_no_param(void)
 {
    uint16_t port = 39992;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128];
 
    ssize_t n = ctrl_send_recv(port, "SET_FAULT DUP_MID_DATA 0\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_DUP_MID_DATA, fault.mode );
    TEST_ASSERT_EQUAL_UINT32( 0, fault.param );
    TEST_ASSERT_TRUE( fault.param_present );
    (void)n;
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // RESET must clear param and param_present, not just mode.
 void test_ctrl_reset_clears_mode_and_param_present(void)
 {
    uint16_t port = 39991;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128];
    ssize_t n;
 
    n = ctrl_send_recv(port, "SET_FAULT DUP_MID_DATA 7\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_DUP_MID_DATA, fault.mode );
    TEST_ASSERT_TRUE( fault.param_present );
 
    n = ctrl_send_recv(port, "RESET\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
    TEST_ASSERT_EQUAL_UINT32( 0, fault.param );
    TEST_ASSERT_FALSE( fault.param_present );
    (void)n;
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // Reply content ----------------------------------------------------------------
@@ -353,11 +353,11 @@ void test_ctrl_reset_clears_mode_and_param_present(void)
 void test_ctrl_set_fault_reply_no_param(void)
 {
    uint16_t port = 39990;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    ssize_t n = ctrl_exchange(port, &fault, "SET_FAULT RRQ_TIMEOUT\n",
@@ -365,17 +365,17 @@ void test_ctrl_set_fault_reply_no_param(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "OK FAULT_RRQ_TIMEOUT\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 void test_ctrl_set_fault_reply_with_param(void)
 {
    uint16_t port = 39989;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    ssize_t n = ctrl_exchange(port, &fault, "SET_FAULT DUP_MID_DATA 5\n",
@@ -383,17 +383,17 @@ void test_ctrl_set_fault_reply_with_param(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "OK FAULT_DUP_MID_DATA 5\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 void test_ctrl_get_fault_reply_no_param(void)
 {
    uint16_t port = 39988;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
    ssize_t n;
 
@@ -407,17 +407,17 @@ void test_ctrl_get_fault_reply_no_param(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "FAULT FAULT_RRQ_TIMEOUT\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 void test_ctrl_get_fault_reply_with_param(void)
 {
    uint16_t port = 39987;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
    ssize_t n;
 
@@ -430,41 +430,41 @@ void test_ctrl_get_fault_reply_with_param(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "FAULT FAULT_DUP_MID_DATA 5\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 void test_ctrl_reset_reply(void)
 {
    uint16_t port = 39986;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    ssize_t n = ctrl_exchange(port, &fault, "RESET\n", reply, sizeof reply);
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "OK FAULT_NONE\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 void test_ctrl_unknown_cmd_reply(void)
 {
    uint16_t port = 39985;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[256] = {0};
 
    ssize_t n = ctrl_exchange(port, &fault, "BOGUS\n", reply, sizeof reply);
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "ERR unknown/malformed command 'BOGUS'\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 void test_ctrl_whitelist_reject_reply(void)
@@ -472,11 +472,11 @@ void test_ctrl_whitelist_reject_reply(void)
    uint16_t port = 39984;
    // Allow only FAULT_RRQ_TIMEOUT (bit 0)
    uint64_t whitelist = (uint64_t)1 << 0;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, whitelist);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, whitelist);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    ssize_t n = ctrl_exchange(port, &fault, "SET_FAULT WRQ_TIMEOUT\n",
@@ -484,7 +484,7 @@ void test_ctrl_whitelist_reject_reply(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "ERR mode 'WRQ_TIMEOUT' not allowed\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // Bad input --------------------------------------------------------------------
@@ -493,11 +493,11 @@ void test_ctrl_whitelist_reject_reply(void)
 void test_ctrl_set_fault_invalid_param_nonnumeric(void)
 {
    uint16_t port = 39983;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    ssize_t n = ctrl_exchange(port, &fault, "SET_FAULT SLOW_RESPONSE abc\n",
@@ -507,18 +507,18 @@ void test_ctrl_set_fault_invalid_param_nonnumeric(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "ERR invalid param\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // Param that overflows uint32_t should be rejected.
 void test_ctrl_set_fault_invalid_param_overflow(void)
 {
    uint16_t port = 39982;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    ssize_t n = ctrl_exchange(port, &fault,
@@ -529,7 +529,7 @@ void test_ctrl_set_fault_invalid_param_overflow(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "ERR invalid param\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // A packet exceeding MAX_CTRL_CMD_SZ must be silently dropped before any
@@ -540,11 +540,11 @@ void test_ctrl_set_fault_invalid_param_overflow(void)
 void test_ctrl_set_fault_mode_name_too_long(void)
 {
    uint16_t port = 39981;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[256] = {0};
 
    // MAX_CTRL_CMD_SZ = sizeof("SET_FAULT")-1 + LONGEST_FAULT_MODE_NAME_LEN + 20 = 60.
@@ -558,7 +558,7 @@ void test_ctrl_set_fault_mode_name_too_long(void)
    TEST_ASSERT_FALSE( fault.param_present );
    TEST_ASSERT_EQUAL( -1, n );   // recv timed out — no reply
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // Protocol robustness ----------------------------------------------------------
@@ -567,11 +567,11 @@ void test_ctrl_set_fault_mode_name_too_long(void)
 void test_ctrl_case_insensitive_command(void)
 {
    uint16_t port = 39980;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
    ssize_t n;
 
@@ -597,18 +597,18 @@ void test_ctrl_case_insensitive_command(void)
    TEST_ASSERT_EQUAL_STRING( "OK FAULT_NONE\n", reply );
    (void)n;
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // Leading whitespace before the command keyword must be tolerated.
 void test_ctrl_leading_whitespace_stripped(void)
 {
    uint16_t port = 39979;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    ssize_t n = ctrl_exchange(port, &fault, "   SET_FAULT RRQ_TIMEOUT\n",
@@ -617,18 +617,18 @@ void test_ctrl_leading_whitespace_stripped(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "OK FAULT_RRQ_TIMEOUT\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // CRLF line endings (from netcat/telnet on Windows) must be stripped correctly.
 void test_ctrl_crlf_stripped(void)
 {
    uint16_t port = 39978;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    // The string literal ends with \r\n; sendto sends both bytes.
@@ -638,7 +638,7 @@ void test_ctrl_crlf_stripped(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "OK FAULT_RRQ_TIMEOUT\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // IP whitelist -----------------------------------------------------------------
@@ -648,11 +648,11 @@ void test_ctrl_whitelisted_client_ip_accepts_loopback(void)
 {
    uint16_t port = 39977;
    // Only accept packets from 127.0.0.1
-   TEST_ASSERT_EQUAL_INT( 0, tftptest_ipwhitelist_init( "127.0.0.1" ) );
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   TEST_ASSERT_EQUAL_INT( 0, tftpqa_ipwhitelist_init( "127.0.0.1" ) );
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    // ctrl_exchange sends from loopback, which is the allowed IP → should work.
@@ -661,7 +661,7 @@ void test_ctrl_whitelisted_client_ip_accepts_loopback(void)
    TEST_ASSERT_EQUAL_INT( FAULT_RRQ_TIMEOUT, fault.mode );
    TEST_ASSERT_GREATER_THAN( 0, n );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // A packet from a non-whitelisted IP must be silently dropped; fault must not change.
@@ -669,23 +669,23 @@ void test_ctrl_whitelisted_client_ip_blocks_other_sender(void)
 {
    uint16_t port = 39976;
    // Allow only 10.0.0.1; test helper sends from 127.0.0.1, which should be blocked.
-   TEST_ASSERT_EQUAL_INT( 0, tftptest_ipwhitelist_init( "10.0.0.1" ) );
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   TEST_ASSERT_EQUAL_INT( 0, tftpqa_ipwhitelist_init( "10.0.0.1" ) );
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128];
 
    // Send packet (from loopback), then poll. Packet is dropped; fault unchanged.
    ssize_t n = ctrl_send_recv(port, "SET_FAULT RRQ_TIMEOUT\n", reply, sizeof reply);
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
    TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
    TEST_ASSERT_FALSE( fault.param_present );
    (void)n;
 
    // Reset whitelist singleton to allow-any so subsequent tests aren't affected.
-   tftptest_ipwhitelist_init("0.0.0.0/0");
-   tftptest_ctrl_shutdown();
+   tftpqa_ipwhitelist_init("0.0.0.0/0");
+   tftpqa_ctrl_shutdown();
 }
 
 // Coverage gap tests -----------------------------------------------------------
@@ -693,7 +693,7 @@ void test_ctrl_whitelisted_client_ip_blocks_other_sender(void)
 // Calling shutdown() on a never-initialized channel must be a safe no-op.
 void test_ctrl_init_null_cfg(void)
 {
-   tftptest_ctrl_shutdown(); // sfd == -1 at module load; must not crash
+   tftpqa_ctrl_shutdown(); // sfd == -1 at module load; must not crash
 }
 
 // If the port is already in use, bind() must fail and init must return
@@ -714,8 +714,8 @@ void test_ctrl_init_bind_failure(void)
    int bind_rc = bind(blocker, (struct sockaddr *)&addr, sizeof addr);
    TEST_ASSERT_EQUAL_INT( 0, bind_rc );
 
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_ERR_BIND, rc );
 
    (void)close(blocker);
@@ -726,19 +726,19 @@ void test_ctrl_init_bind_failure(void)
 void test_ctrl_no_packet_poll_noop(void)
 {
    uint16_t port = 39972;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
 
    // No packet sent — recvfrom returns -1 / EAGAIN; handler must return silently.
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
 
    TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
    TEST_ASSERT_FALSE( fault.param_present );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // A zero-byte UDP datagram must be silently ignored; the empty_pkt counter path
@@ -746,11 +746,11 @@ void test_ctrl_no_packet_poll_noop(void)
 void test_ctrl_empty_packet_ignored(void)
 {
    uint16_t port = 39971;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
 
    // Send a zero-byte payload.
    int sfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -763,12 +763,12 @@ void test_ctrl_empty_packet_ignored(void)
    (void)sendto(sfd, "", 0, 0, (struct sockaddr *)&dest, sizeof dest);
    (void)close(sfd);
 
-   tftptest_ctrl_poll_and_handle(&fault);
+   tftpqa_ctrl_poll_and_handle(&fault);
 
    TEST_ASSERT_EQUAL_INT( FAULT_NONE, fault.mode );
    TEST_ASSERT_FALSE( fault.param_present );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // Bare "SET_FAULT" with no trailing space or mode name must be caught by the
@@ -777,11 +777,11 @@ void test_ctrl_empty_packet_ignored(void)
 void test_ctrl_set_fault_bare_no_args_reply(void)
 {
    uint16_t port = 39966;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    ssize_t n = ctrl_exchange(port, &fault, "SET_FAULT\n", reply, sizeof reply);
@@ -790,7 +790,7 @@ void test_ctrl_set_fault_bare_no_args_reply(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "ERR missing at least mode argument for SET_FAULT\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // "SET_FAULT" followed only by whitespace must be rejected with "ERR missing
@@ -798,11 +798,11 @@ void test_ctrl_set_fault_bare_no_args_reply(void)
 void test_ctrl_set_fault_whitespace_only_after_command(void)
 {
    uint16_t port = 39970;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    ssize_t n = ctrl_exchange(port, &fault, "SET_FAULT   \n",
@@ -812,7 +812,7 @@ void test_ctrl_set_fault_whitespace_only_after_command(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "ERR missing mode name\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // A param token that starts numeric but has trailing non-whitespace garbage
@@ -820,11 +820,11 @@ void test_ctrl_set_fault_whitespace_only_after_command(void)
 void test_ctrl_set_fault_param_with_trailing_garbage(void)
 {
    uint16_t port = 39969;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    ssize_t n = ctrl_exchange(port, &fault, "SET_FAULT SLOW_RESPONSE 5X\n",
@@ -834,7 +834,7 @@ void test_ctrl_set_fault_param_with_trailing_garbage(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "ERR invalid param\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // 4294967296 == 2^32 == UINT32_MAX+1. On a 64-bit host, strtoul returns the
@@ -842,11 +842,11 @@ void test_ctrl_set_fault_param_with_trailing_garbage(void)
 void test_ctrl_set_fault_param_just_above_uint32_max(void)
 {
    uint16_t port = 39968;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    ssize_t n = ctrl_exchange(port, &fault,
@@ -857,7 +857,7 @@ void test_ctrl_set_fault_param_just_above_uint32_max(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "ERR invalid param\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }
 
 // A mode name token longer than LONGEST_FAULT_MODE_NAME_LEN chars (i.e., that
@@ -869,11 +869,11 @@ void test_ctrl_set_fault_param_just_above_uint32_max(void)
 void test_ctrl_set_fault_mode_name_too_long_inner(void)
 {
    uint16_t port = 39967;
-   (void)tftptest_ipwhitelist_init("0.0.0.0/0");
-   enum TFTPTest_CtrlResult rc = tftptest_ctrl_init(port, UINT64_MAX);
+   (void)tftpqa_ipwhitelist_init("0.0.0.0/0");
+   enum TFTPQa_CtrlResult rc = tftpqa_ctrl_init(port, UINT64_MAX);
    TEST_ASSERT_EQUAL_INT( TFTPTEST_CTRL_OK, rc );
 
-   struct TFTPTest_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
+   struct TFTPQa_FaultState fault = { .mode = FAULT_NONE, .param = 0, .param_present = false };
    char reply[128] = {0};
 
    ssize_t n = ctrl_exchange(port, &fault,
@@ -884,5 +884,5 @@ void test_ctrl_set_fault_mode_name_too_long_inner(void)
    TEST_ASSERT_GREATER_THAN( 0, n );
    TEST_ASSERT_EQUAL_STRING( "ERR mode name too long\n", reply );
 
-   tftptest_ctrl_shutdown();
+   tftpqa_ctrl_shutdown();
 }

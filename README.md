@@ -1,6 +1,6 @@
-# tftptest
+# tftpqa
 
-[tftptest-demo-test-sequence.webm](https://github.com/user-attachments/assets/afadd98a-8425-4d14-82e0-cc1af4b6a31c)
+[tftpqa-demo-test-sequence.webm](https://github.com/user-attachments/assets/afadd98a-8425-4d14-82e0-cc1af4b6a31c)
 
 This is a TFTP (RFC 1350) _Test_ Server that allows developers to exhaustively integration test TFTP clients against a variety of fault scenarios (see full list at the bottom).
 
@@ -30,38 +30,38 @@ Note, CLI options _override_ the config file's corresponding options.
 
 ```bash
 # Run /w defaults: port 23069, "nobody" user, WARN lvl logging
-tftptest
+tftpqa
 
 # Listen on port 6969
-tftptest -p 6969
-tftptest --port 6969
+tftpqa -p 6969
+tftpqa --port 6969
 
 # Load configuration from file
-tftptest -c config.ini
-tftptest --config config.ini
+tftpqa -c config.ini
+tftpqa --config config.ini
 
 # Drop privileges to user 'tftp-user'
-tftptest -u tftp-user
-tftptest --user tftp-user
+tftpqa -u tftp-user
+tftpqa --user tftp-user
 
 # Verbosity control
-tftptest -v   # ≥ INFO
-tftptest -vv  # ≥ DEBUG
-tftptest -vvv # ≥ TRACE (max logging)
+tftpqa -v   # ≥ INFO
+tftpqa -vv  # ≥ DEBUG
+tftpqa -vvv # ≥ TRACE (max logging)
 
 # Enable logging to syslog
-tftptest -s
-tftptest --syslog
+tftpqa -s
+tftpqa --syslog
 
 # Restrict session TID ports to a range (useful for packet capture filtering)
-tftptest -r 50000:50100
-tftptest --tid-range 50000:50100
+tftpqa -r 50000:50100
+tftpqa --tid-range 50000:50100
 
 # Set the IP whitelist from the command line (overrides config file; required if no config file)
-tftptest --ip-whitelist 192.168.0.0/24
-tftptest --ip-whitelist "127.0.0.1, 10.0.0.0/8"
-tftptest --ip-whitelist 0.0.0.0/0   # allow all
-tftptest --allow-all                       # shorthand for 0.0.0.0/0
+tftpqa --ip-whitelist 192.168.0.0/24
+tftpqa --ip-whitelist "127.0.0.1, 10.0.0.0/8"
+tftpqa --ip-whitelist 0.0.0.0/0   # allow all
+tftpqa --allow-all                       # shorthand for 0.0.0.0/0
 ```
 
 ### Configuration file (INI format):
@@ -69,13 +69,13 @@ tftptest --allow-all                       # shorthand for 0.0.0.0/0
 Note, CLI options _override_ the config file's corresponding options.
 
 ```ini
-# tftptest server port setup (there are two)
+# tftpqa server port setup (there are two)
 tftp_port = 23069
 ctrl_port = 23070
 
 # blank lines are fine # so are inline comments
 
-# tftptest general setup
+# tftpqa general setup
 root_dir = /var/lib/tftpboot # the chroot() jail and where all files go to / come from
 run_as_user = tftpuser # the default user to drop privileges to
 timeout_sec = 5 # per-packet timeout
@@ -122,8 +122,8 @@ echo "RESET" | nc -u localhost 23070
 Instead of controlling faults at runtime via UDP, you can specify a sequence of fault modes in a file, almost like a script. When a sequence file is specified, the UDP control channel is disabled and the server steps through the sequence automatically, shutting down gracefully when complete.
 
 ```bash
-tftptest -t test_sequence.txt # Or...
-tftptest --sequence test_sequence.txt
+tftpqa -t test_sequence.txt # Or...
+tftpqa --sequence test_sequence.txt
 ```
 
 Sequence file format (one entry per line, `#` comments, blank lines ignored):

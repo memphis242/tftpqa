@@ -1,5 +1,5 @@
 /**
- * @file tftptest_util.h
+ * @file tftpqa_util.h
  * @brief Shared utility functions.
  * @date Apr 10, 2026
  * @author Abdulla Almosalmi, @memphis242
@@ -19,7 +19,7 @@
  *                         (including the kernel-assigned port). May be NULL.
  * @return The socket file descriptor on success, or -1 on error (errno set).
  */
-int tftptest_util_create_ephemeral_udp_socket(struct sockaddr_in *bound_addr);
+int tftpqa_util_create_ephemeral_udp_socket(struct sockaddr_in *bound_addr);
 
 /**
  * @brief Create a UDP socket bound to a random port within [port_min, port_max].
@@ -32,7 +32,7 @@ int tftptest_util_create_ephemeral_udp_socket(struct sockaddr_in *bound_addr);
  * @param[out] bound_addr Filled with the address the socket was bound to. May be NULL.
  * @return The socket file descriptor on success, or -1 if no port in range is available.
  */
-int tftptest_util_create_udp_socket_in_range(uint16_t port_min, uint16_t port_max,
+int tftpqa_util_create_udp_socket_in_range(uint16_t port_min, uint16_t port_max,
                                              struct sockaddr_in *bound_addr);
 
 /**
@@ -41,14 +41,14 @@ int tftptest_util_create_udp_socket_in_range(uint16_t port_min, uint16_t port_ma
  * @param[in] timeout_sec  Timeout in seconds. 0 means no timeout.
  * @return 0 on success, -1 on error (errno set).
  */
-int tftptest_util_set_recv_timeout(int sfd, unsigned int timeout_sec);
+int tftpqa_util_set_recv_timeout(int sfd, unsigned int timeout_sec);
 
 /**
  * @brief Check whether a character is valid in a TFTP filename.
  *
  * Allows printable ASCII excluding path separators ('/' and '\\').
  */
-bool tftptest_util_is_valid_filename_char(char c);
+bool tftpqa_util_is_valid_filename_char(char c);
 
 /**
  * @brief Result of scanning a buffer for text-mode compatibility.
@@ -83,7 +83,7 @@ enum TFTPTestUtil_TextCheck
  *         TFTP_TEXT_SUSPICIOUS if any invalid/non-text bytes were found.
  *         SUSPICIOUS takes priority over HAS_UTF8.
  */
-enum TFTPTestUtil_TextCheck tftptest_util_check_text_bytes(const uint8_t *data, size_t len);
+enum TFTPTestUtil_TextCheck tftpqa_util_check_text_bytes(const uint8_t *data, size_t len);
 
 /**
  * @brief Convert octet (raw) data to netascii for sending.
@@ -102,7 +102,7 @@ enum TFTPTestUtil_TextCheck tftptest_util_check_text_bytes(const uint8_t *data, 
  *                            initialized to false before the first call.
  * @return Number of bytes written to out.
  */
-size_t tftptest_util_octet_to_netascii(const uint8_t *in, size_t in_len,
+size_t tftpqa_util_octet_to_netascii(const uint8_t *in, size_t in_len,
                                         uint8_t *out, size_t out_cap,
                                         bool *pending_cr);
 
@@ -123,7 +123,7 @@ size_t tftptest_util_octet_to_netascii(const uint8_t *in, size_t in_len,
  *                            initialized to false before the first call.
  * @return Number of bytes written to out.
  */
-size_t tftptest_util_netascii_to_octet(const uint8_t *in, size_t in_len,
+size_t tftpqa_util_netascii_to_octet(const uint8_t *in, size_t in_len,
                                         uint8_t *out, size_t out_cap,
                                         bool *pending_cr);
 
@@ -139,9 +139,9 @@ size_t tftptest_util_netascii_to_octet(const uint8_t *in, size_t in_len,
  *
  * @param[in] dir   Absolute path to the TFTP root directory.
  * @param[in] user  Username to drop privileges to (e.g. "nobody").
- * @return 0 on success, -1 on error (details logged via tftptest_log).
+ * @return 0 on success, -1 on error (details logged via tftpqa_log).
  */
-int tftptest_util_chroot_and_drop(const char *dir, const char *user);
+int tftpqa_util_chroot_and_drop(const char *dir, const char *user);
 
 /**
  * @brief Result of a file-permission check on a tftp-opened file.
@@ -161,12 +161,12 @@ enum TFTPTestUtil_PermCheck
  *
  * Uses O_RDONLY | O_NOFOLLOW | O_CLOEXEC. A symlink as the final path component
  * yields ELOOP. The caller is expected to run subsequent permission checks on
- * the returned fd via tftptest_util_check_read_perms().
+ * the returned fd via tftpqa_util_check_read_perms().
  *
  * @param[in] filename  Path (within the chroot) to open.
  * @return fd on success, -1 on error with errno set (ENOENT, EACCES, ELOOP, ...).
  */
-int tftptest_util_open_for_read(const char *filename); // FIXME: Should have fname len arg or internal check to prevent out-of-bounds access
+int tftpqa_util_open_for_read(const char *filename); // FIXME: Should have fname len arg or internal check to prevent out-of-bounds access
 
 /**
  * @brief Open a file for writing, creating it if it does not already exist.
@@ -187,7 +187,7 @@ int tftptest_util_open_for_read(const char *filename); // FIXME: Should have fna
  *                          false if it opened a pre-existing file. Required.
  * @return fd on success, -1 on error with errno set.
  */
-int tftptest_util_open_for_write( const char *filename,
+int tftpqa_util_open_for_write( const char *filename,
                                   mode_t create_mode,
                                   bool *out_created );
 
@@ -201,7 +201,7 @@ int tftptest_util_open_for_write( const char *filename,
  *                       May be NULL.
  * @return TFTP_PERM_OK or the first violated check.
  */
-enum TFTPTestUtil_PermCheck tftptest_util_check_read_perms(int fd, mode_t *out_mode);
+enum TFTPTestUtil_PermCheck tftpqa_util_check_read_perms(int fd, mode_t *out_mode);
 
 /**
  * @brief Verify a fd refers to a regular, non-setuid, world-writable file.
@@ -213,6 +213,6 @@ enum TFTPTestUtil_PermCheck tftptest_util_check_read_perms(int fd, mode_t *out_m
  *                       May be NULL.
  * @return TFTP_PERM_OK or the first violated check.
  */
-enum TFTPTestUtil_PermCheck tftptest_util_check_write_perms(int fd, mode_t *out_mode);
+enum TFTPTestUtil_PermCheck tftpqa_util_check_write_perms(int fd, mode_t *out_mode);
 
 #endif // TFTPTEST_UTIL_H

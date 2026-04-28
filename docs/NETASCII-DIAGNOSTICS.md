@@ -2,7 +2,7 @@
 
 ## Overview
 
-When a TFTP transfer is initiated in **netascii mode**, the tftptest server performs a diagnostic check on the file content to detect potential mode mismatches. If the file contains suspicious bytes — those that would not normally appear in a plain text file — a warning is logged.
+When a TFTP transfer is initiated in **netascii mode**, the tftpqa server performs a diagnostic check on the file content to detect potential mode mismatches. If the file contains suspicious bytes — those that would not normally appear in a plain text file — a warning is logged.
 
 ## What is Netascii Mode?
 

@@ -323,7 +323,7 @@ def make_content(size: int) -> bytes:
 # ---------------------------------------------------------------------------
 
 class TFTPTestServer:
-    """Manages the tftptest server process lifecycle."""
+    """Manages the tftpqa server process lifecycle."""
 
     def __init__(self, binary: str, port: int, root_dir: str, verbosity: int = 0):
         self.binary    = binary
@@ -492,13 +492,13 @@ def test_chaos_wrq_extralarge(host, port, root, dup_prob):
 def find_server_binary() -> str:
     script_dir = Path(__file__).resolve().parent
     candidates = [
-        script_dir.parent.parent / "build" / "debug"   / "tftptest",
-        script_dir.parent.parent / "build" / "release" / "tftptest",
+        script_dir.parent.parent / "build" / "debug"   / "tftpqa",
+        script_dir.parent.parent / "build" / "release" / "tftpqa",
     ]
     for p in candidates:
         if p.is_file() and os.access(p, os.X_OK):
             return str(p)
-    sys.exit("Could not find tftptest binary. Run `make debug` from the repo root first.")
+    sys.exit("Could not find tftpqa binary. Run `make debug` from the repo root first.")
 
 
 def main():
@@ -508,7 +508,7 @@ def main():
     parser.add_argument("--port",            type=int,   default=23069,
                         help="TFTP port (default 23069)")
     parser.add_argument("--server-bin",      type=str,   default=None,
-                        help="Path to tftptest binary")
+                        help="Path to tftpqa binary")
     parser.add_argument("--dup-probability", type=float, default=DEFAULT_DUP_PROBABILITY,
                         help=f"Per-packet duplication probability 0–1 (default {DEFAULT_DUP_PROBABILITY})")
     parser.add_argument("--seed",            type=int,   default=None,
@@ -532,7 +532,7 @@ def main():
         print(f"Random seed:      {args.seed}")
     print()
 
-    with tempfile.TemporaryDirectory(prefix="tftptest_chaos1_") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="tftpqa_chaos1_") as tmpdir:
         root = Path(tmpdir)
         print(f"Test root dir:    {root}")
         print()

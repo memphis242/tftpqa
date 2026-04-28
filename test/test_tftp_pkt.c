@@ -7,7 +7,7 @@
 
 #include "test_common.h"
 #include "tftp_pkt.h"
-#include "tftptest_common.h"
+#include "tftpqa_common.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

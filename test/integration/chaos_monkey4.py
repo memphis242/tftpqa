@@ -375,13 +375,13 @@ def test_cm4_server_still_responsive(host: str, port: int, root: Path):
 def find_server_binary() -> str:
     script_dir = Path(__file__).resolve().parent
     candidates = [
-        script_dir.parent.parent / "build" / "debug"   / "tftptest",
-        script_dir.parent.parent / "build" / "release" / "tftptest",
+        script_dir.parent.parent / "build" / "debug"   / "tftpqa",
+        script_dir.parent.parent / "build" / "release" / "tftpqa",
     ]
     for p in candidates:
         if p.is_file() and os.access(p, os.X_OK):
             return str(p)
-    sys.exit("Could not find tftptest binary. Run `make debug` from the repo root first.")
+    sys.exit("Could not find tftpqa binary. Run `make debug` from the repo root first.")
 
 
 def main():
@@ -404,9 +404,9 @@ def main():
     print(f"File limit:     {file_limit} bytes")
     print()
 
-    with tempfile.TemporaryDirectory(prefix="tftptest_chaos4_") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="tftpqa_chaos4_") as tmpdir:
         root       = Path(tmpdir)
-        cfg_path   = root / "tftptest.conf"
+        cfg_path   = root / "tftpqa.conf"
         write_config(cfg_path, port, file_limit)
 
         print(f"Test root dir:  {root}")

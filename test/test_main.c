@@ -177,7 +177,7 @@ extern void test_util_open_for_write_creates_with_mode(void);
 extern void test_util_open_for_write_overwrites_existing(void);
 extern void test_util_open_for_write_create_mode_stripped_by_umask(void);
 
-// tftptest_ctrl
+// tftpqa_ctrl
 extern void test_ctrl_set_fault_and_get(void);
 extern void test_ctrl_set_fault_with_param(void);
 extern void test_ctrl_unknown_command(void);
@@ -212,7 +212,7 @@ extern void test_ctrl_set_fault_param_with_trailing_garbage(void);
 extern void test_ctrl_set_fault_param_just_above_uint32_max(void);
 extern void test_ctrl_set_fault_mode_name_too_long_inner(void);
 
-// tftptest_faultmode
+// tftpqa_faultmode
 extern void test_fault_mode_names_all_present(void);
 extern void test_fault_lookup_mode_full_name_match(void);
 extern void test_fault_lookup_mode_short_name_match(void);
@@ -310,7 +310,7 @@ extern void test_fsm_kickoff_wrq_with_session_budget(void);
 extern void test_fsm_kickoff_rrq_fault_none(void);
 extern void test_fsm_kickoff_wrq_fault_none(void);
 
-// tftptest_seq
+// tftpqa_seq
 extern void test_seq_load_valid_single_entry_defaults(void);
 extern void test_seq_load_valid_multiple_entries_with_params(void);
 extern void test_seq_load_valid_comments_and_blanks(void);

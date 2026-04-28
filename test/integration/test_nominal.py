@@ -22,7 +22,7 @@ Test cases:
   All WRQs that create a new file verify that the resulting file's permission bits
   match the server's effective new_file_mode (default 0o666 & ~umask).
 
-Requires: the tftptest server binary at build/debug/tftptest (run `make debug`
+Requires: the tftpqa server binary at build/debug/tftpqa (run `make debug`
           first from the repo root).
 
 Usage:
@@ -62,10 +62,10 @@ MAX_RETRIES = 5
 SOCK_RCVBUF = 1 << 20  # 1 MB receive buffer for large transfers
 
 # Server default new_file_mode and the effective mode after this process's umask.
-# The tftptest server inherits the same umask as this test process.
+# The tftpqa server inherits the same umask as this test process.
 _SAVED_UMASK = os.umask(0)
 os.umask(_SAVED_UMASK)
-SERVER_NEW_FILE_MODE = 0o666           # tftptest default (tftp_parsecfg_defaults)
+SERVER_NEW_FILE_MODE = 0o666           # tftpqa default (tftp_parsecfg_defaults)
 EFFECTIVE_NEW_FILE_MODE = SERVER_NEW_FILE_MODE & ~_SAVED_UMASK
 
 # ---------------------------------------------------------------------------
@@ -283,7 +283,7 @@ def _check_new_file_mode(path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 class TFTPTestServer:
-    """Manages the tftptest server process lifecycle."""
+    """Manages the tftpqa server process lifecycle."""
 
     def __init__(self, binary: str, port: int, root_dir: str,
                  verbosity: int = 0,
@@ -541,24 +541,24 @@ def test_wrq_existing_world_writable(host: str, port: int, root: Path):
 # ---------------------------------------------------------------------------
 
 def find_server_binary() -> str:
-    """Locate the tftptest binary relative to this script."""
+    """Locate the tftpqa binary relative to this script."""
     script_dir = Path(__file__).resolve().parent
     candidates = [
-        script_dir.parent.parent / "build" / "debug" / "tftptest",
-        script_dir.parent.parent / "build" / "release" / "tftptest",
+        script_dir.parent.parent / "build" / "debug" / "tftpqa",
+        script_dir.parent.parent / "build" / "release" / "tftpqa",
     ]
     for p in candidates:
         if p.is_file() and os.access(p, os.X_OK):
             return str(p)
     sys.exit(
-        "Could not find tftptest binary. Run `make debug` from the repo root first."
+        "Could not find tftpqa binary. Run `make debug` from the repo root first."
     )
 
 
 def main():
     parser = argparse.ArgumentParser(description="Nominal TFTP integration tests")
     parser.add_argument("--port", type=int, default=23069, help="TFTP port (default 23069)")
-    parser.add_argument("--server-bin", type=str, default=None, help="Path to tftptest binary")
+    parser.add_argument("--server-bin", type=str, default=None, help="Path to tftpqa binary")
     parser.add_argument("--skip-large", action="store_true",
                         help="Skip the large/extralarge tests (they create ~64 MB files)")
     parser.add_argument("--server-prefix", type=str, default="",
@@ -586,7 +586,7 @@ def main():
         print(f"Server prefix: {prefix_args}")
     print()
 
-    with tempfile.TemporaryDirectory(prefix="tftptest_") as tmpdir:
+    with tempfile.TemporaryDirectory(prefix="tftpqa_") as tmpdir:
         root = Path(tmpdir)
         print(f"Test root dir: {root}")
         print()

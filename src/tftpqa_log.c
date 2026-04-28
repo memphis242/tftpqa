@@ -1,5 +1,5 @@
 /**
- * @file tftptest_log.c
+ * @file tftpqa_log.c
  * @brief Logging implementation -- console output + optional syslog
  * @date Apr 10, 2026
  * @author Abdulla Almosalmi, @memphis242
@@ -17,12 +17,12 @@
 
 #include <syslog.h>
 
-#include "tftptest_common.h"
-#include "tftptest_log.h"
+#include "tftpqa_common.h"
+#include "tftpqa_log.h"
 
 /***************************** Local Declarations *****************************/
 
-// NOTE: Not thread-safe but there should only be one tftptest_log_init() and tftptest_log_shutdown() call
+// NOTE: Not thread-safe but there should only be one tftpqa_log_init() and tftpqa_log_shutdown() call
 static bool               s_syslog_open = false;
 static enum TFTP_LogLevel s_min_level   = TFTP_LOG_INFO;
 
@@ -54,11 +54,11 @@ CompileTimeAssert( ARRAY_LEN(s_level_names) >= TFTP_LOG_LEVEL_COUNT,
 /**
  * @brief Return the human-readable name for a log level.
  */
-static const char *tftptest_log_level_str( enum TFTP_LogLevel level );
+static const char *tftpqa_log_level_str( enum TFTP_LogLevel level );
 
 /********************** Public Function Implementations ***********************/
 
-void tftptest_log_init( bool use_syslog, enum TFTP_LogLevel min_level )
+void tftpqa_log_init( bool use_syslog, enum TFTP_LogLevel min_level )
 {
    assert( min_level >= 0 && min_level < TFTP_LOG_LEVEL_COUNT );
 
@@ -71,7 +71,7 @@ void tftptest_log_init( bool use_syslog, enum TFTP_LogLevel min_level )
    }
 }
 
-void tftptest_log( enum TFTP_LogLevel level,
+void tftpqa_log( enum TFTP_LogLevel level,
                    const char * const func_name,
                    const char * const fmt, ... )
 {
@@ -117,14 +117,14 @@ void tftptest_log( enum TFTP_LogLevel level,
       {
          (void)fprintf( flog,
                   "[%-5s] %04d-%02d-%02d %02d:%02d:%02d.%03ld ",
-                  tftptest_log_level_str(level),
+                  tftpqa_log_level_str(level),
                   tm_buf.tm_year + 1900, tm_buf.tm_mon + 1, tm_buf.tm_mday,
                   tm_buf.tm_hour, tm_buf.tm_min, tm_buf.tm_sec,
                   ts.tv_nsec / 1000000L );
       }
       else
       {
-         (void)fprintf( flog, "[%-5s] (TIME UNAVAILABLE) ", tftptest_log_level_str(level) );
+         (void)fprintf( flog, "[%-5s] (TIME UNAVAILABLE) ", tftpqa_log_level_str(level) );
       }
 
       if ( func_name != NULL )
@@ -164,7 +164,7 @@ void tftptest_log( enum TFTP_LogLevel level,
    }
 }
 
-void tftptest_log_shutdown( void )
+void tftpqa_log_shutdown( void )
 {
    if ( s_syslog_open )
    {
@@ -173,7 +173,7 @@ void tftptest_log_shutdown( void )
    }
 }
 
-static const char *tftptest_log_level_str( enum TFTP_LogLevel level )
+static const char *tftpqa_log_level_str( enum TFTP_LogLevel level )
 {
    assert( level >= 0 && level < TFTP_LOG_LEVEL_COUNT );
    assert( ARRAY_LEN(s_level_names) >= TFTP_LOG_LEVEL_COUNT );

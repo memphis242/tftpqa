@@ -12,8 +12,8 @@
 #include <stddef.h>
 #include <netinet/in.h>
 
-#include "tftptest_parsecfg.h"
-#include "tftptest_faultmode.h"
+#include "tftpqa_parsecfg.h"
+#include "tftpqa_faultmode.h"
 
 // Types
 enum TFTP_FSM_RC
@@ -53,8 +53,8 @@ enum TFTP_FSM_RC
  */
 enum TFTP_FSM_RC tftp_fsm_kickoff(const uint8_t *rqbuf, size_t rqsz,
                                     const struct sockaddr_in *peer_addr,
-                                    const struct TFTPTest_Config *cfg,
-                                    const struct TFTPTest_FaultState *fault,
+                                    const struct TFTPQa_Config *cfg,
+                                    const struct TFTPQa_FaultState *fault,
                                     size_t wrq_session_budget,
                                     size_t *wrq_bytes_written);
 

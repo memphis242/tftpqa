@@ -1,7 +1,7 @@
-# Research: Vulnerabilities Relevant to File I/O in tftptest
+# Research: Vulnerabilities Relevant to File I/O in tftpqa
 
 This document captures CWEs and CVEs that informed the design of file I/O
-hardening in tftptest. It is a research summary — for the user policy and log
+hardening in tftpqa. It is a research summary — for the user policy and log
 semantics, see `FILE-PERMISSIONS.md`.
 
 ## File Permissions Handling
