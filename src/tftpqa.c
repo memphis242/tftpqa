@@ -248,9 +248,10 @@ int main(int argc, char * argv[])
       return MAINRC_SIGINT_REGISTRATION_ERR;
    }
 
-   // Load config
+   // Load server config -- first defaults, then config file, then CLI args
    struct TFTPQa_Config cfg;
    tftpqa_parsecfg_defaults(&cfg);
+
    if ( config_path != NULL )
    {
       if ( tftpqa_parsecfg_load(config_path, &cfg, ip_whitelist_override != NULL) != 0 )
@@ -259,12 +260,64 @@ int main(int argc, char * argv[])
          return 1;
       }
    }
-   else if ( ip_whitelist_override == NULL )
+   else
    {
-      tftpqa_log( TFTP_LOG_FATAL, NULL,
-                "No config file specified and --ip-whitelist not given; "
-                "use -c <file> or --ip-whitelist <list>." );
-      return 1;
+      bool home_cfg_loaded = false;
+
+      // The curious reader might ask: is the HOME environment variable standard? It
+      // certainly seems common... Yes it is (standard)! POSIX (at least as far back
+      // as 2001) Base Definitions volume, section 8.3, specifies that the HOME
+      // environment variable shall be the "pathname of the user's home directory."
+      // So, at least any POSIX-compliant system will have this environment var.
+      const char *home_dir = getenv("HOME");
+
+      if ( home_dir == NULL )
+      {
+         // Try a different approach...
+         const struct passwd *tmp_pw = getpwuid( getuid() );
+         if ( tmp_pw != NULL )
+            home_dir = tmp_pw->pw_dir;
+         else
+            tftpqa_log( TFTP_LOG_WARN, __func__,
+                        "getpwuid(getuid()) and getenv(\"HOME\") returned NULL - weird"
+                        " errno: %s (%d) %s",
+                        strerrorname_np(errno), errno, strerror(errno) );
+      }
+
+      if ( home_dir != NULL )
+      {
+         char home_cfg_path[PATH_MAX];
+         (void)snprintf(home_cfg_path, sizeof home_cfg_path, "%s/.tftpqa-config.ini", home_dir);
+
+         // FIXME: Careful of TOCTOU! Going to need to redo the tftpqa_parsecfg_load() interface...
+         if ( access(home_cfg_path, F_OK) == 0 )
+         {
+            if ( tftpqa_parsecfg_load(home_cfg_path, &cfg, ip_whitelist_override != NULL) != 0 )
+            {
+               tftpqa_log( TFTP_LOG_FATAL, NULL, "Failed to load config '%s'", home_cfg_path );
+               return 1;
+            }
+            home_cfg_loaded = true;
+         }
+         else
+         {
+            tftpqa_log( TFTP_LOG_INFO, NULL,
+                        "No config file found at '%s'; using defaults.", home_cfg_path );
+         }
+      }
+      else
+      {
+         tftpqa_log( TFTP_LOG_WARN, __func__,
+                     "Unable to identify user's home directory - unable to read default cfg" );
+      }
+
+      if ( !home_cfg_loaded && ip_whitelist_override == NULL )
+      {
+         tftpqa_log( TFTP_LOG_FATAL, __func__,
+                     "No config file specified and --ip-whitelist not given; "
+                     "use -c <file> or --ip-whitelist <list>." );
+         return 1;
+      }
    }
 
    // CLI overrides take precedence over config file
