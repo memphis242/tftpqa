@@ -26,6 +26,7 @@
 #include <getopt.h>
 #include <time.h>
 #include <sys/stat.h>
+#include <pwd.h>
 
 // Sockets
 #include <sys/socket.h>
