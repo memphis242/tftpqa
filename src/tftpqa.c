@@ -1,6 +1,7 @@
 /**
- * @file tftptest.c
- * @brief TFTP server that you can command to simulate a variety of TFTP faults for testing purposes.
+ * @file tftpqa.c
+ * @brief TFTP server that you can set up to simulate a variety of TFTP faults
+ *        for client testing purposes.
  * @date Mar 26, 2026
  * @author Abdulla Almosalami, @memphis242
  */
