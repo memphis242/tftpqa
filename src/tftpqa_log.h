@@ -23,12 +23,18 @@ enum TFTP_LogLevel
    TFTP_LOG_LEVEL_COUNT,
 };
 
+enum TFTPQA_UseSyslog
+{
+   DONT_USE_SYSLOG,
+   USE_SYSLOG
+};
+
 /**
  * @brief Initialize the logging subsystem.
- * @param[in] use_syslog  If true, also log to syslog (opens with "tftptest" ident).
+ * @param[in] use_syslog  If USE_SYSLOG, also log to syslog (opens with "tftpqa" id)
  * @param[in] min_level   Messages below this level are suppressed.
  */
-void tftpqa_log_init(bool use_syslog, enum TFTP_LogLevel min_level);
+void tftpqa_log_init( enum TFTPQA_UseSyslog use_syslog, enum TFTP_LogLevel min_level );
 
 /**
  * @brief Emit a log message.

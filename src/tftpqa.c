@@ -139,7 +139,7 @@ int main(int argc, char * argv[])
    const char *sequence_path = NULL;
    const char *ip_whitelist_override = NULL;
    int verbosity = 0;
-   bool use_syslog = false;
+   enum TFTPQA_UseSyslog use_syslog = DONT_USE_SYSLOG;
    uint16_t port_override = 0;
    bool port_overridden = false;
    uint16_t tid_min_override = 0;
@@ -199,7 +199,7 @@ int main(int argc, char * argv[])
          verbosity++;
          break;
       case 's':
-         use_syslog = true;
+         use_syslog = USE_SYSLOG;
          break;
       case OPT_IP_WHITELIST:
          ip_whitelist_override = optarg;

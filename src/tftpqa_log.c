@@ -22,7 +22,7 @@
 
 /***************************** Local Declarations *****************************/
 
-// NOTE: Not thread-safe but there should only be one tftpqa_log_init() and tftpqa_log_shutdown() call
+// NOTE: Not thread-safe - upstream should only call _init and _shutdown once!
 static bool               s_syslog_open = false;
 static enum TFTP_LogLevel s_min_level   = TFTP_LOG_INFO;
 
@@ -58,15 +58,15 @@ static const char *tftpqa_log_level_str( enum TFTP_LogLevel level );
 
 /********************** Public Function Implementations ***********************/
 
-void tftpqa_log_init( bool use_syslog, enum TFTP_LogLevel min_level )
+void tftpqa_log_init( enum TFTPQA_UseSyslog use_syslog, enum TFTP_LogLevel min_level )
 {
    assert( min_level >= 0 && min_level < TFTP_LOG_LEVEL_COUNT );
 
    s_min_level = min_level;
 
-   if ( use_syslog )
+   if ( use_syslog == USE_SYSLOG )
    {
-      openlog( "tftptest", LOG_PID | LOG_NDELAY, LOG_DAEMON );
+      openlog( "tftpqa", LOG_PID | LOG_NDELAY, LOG_DAEMON );
       s_syslog_open = true;
    }
 }
