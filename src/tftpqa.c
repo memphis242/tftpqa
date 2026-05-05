@@ -290,7 +290,12 @@ int main(int argc, char * argv[])
                         strerrorname_np(errno), errno, strerror(errno) );
       }
 
-      if ( home_dir != NULL )
+      if ( home_dir == NULL )
+      {
+         tftpqa_log( TFTP_LOG_WARN, __func__,
+                     "Unable to identify user's home directory - unable to read default cfg" );
+      }
+      else
       {
          char home_cfg_path[PATH_MAX];
          (void)snprintf(home_cfg_path, sizeof home_cfg_path, "%s/.tftpqa-config.ini", home_dir);
@@ -310,11 +315,6 @@ int main(int argc, char * argv[])
             tftpqa_log( TFTP_LOG_INFO, NULL,
                         "No config file found at '%s'; using defaults.", home_cfg_path );
          }
-      }
-      else
-      {
-         tftpqa_log( TFTP_LOG_WARN, __func__,
-                     "Unable to identify user's home directory - unable to read default cfg" );
       }
 
       if ( !home_cfg_loaded && ip_whitelist_override == NULL )
