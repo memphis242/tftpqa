@@ -274,13 +274,18 @@ int main(int argc, char * argv[])
 
       if ( home_dir == NULL )
       {
+         tftpqa_log( TFTP_LOG_WARN, __func__,
+                     "getenv(\"HOME\") returned NULL"
+                     " errno: %s (%d) %s",
+                     strerrorname_np(errno), errno, strerror(errno) );
+
          // Try a different approach...
          const struct passwd *tmp_pw = getpwuid( getuid() );
          if ( tmp_pw != NULL )
             home_dir = tmp_pw->pw_dir;
          else
             tftpqa_log( TFTP_LOG_WARN, __func__,
-                        "getpwuid(getuid()) and getenv(\"HOME\") returned NULL - weird"
+                        "getpwuid(getuid()) returned NULL as well - weird"
                         " errno: %s (%d) %s",
                         strerrorname_np(errno), errno, strerror(errno) );
       }
